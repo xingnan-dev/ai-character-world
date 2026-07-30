@@ -1,0 +1,77 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /
+    encoding:
+      enabled: true
+      charset: UTF-8
+      force: true
+      force-request: true
+      force-response: true
+
+spring:
+  application:
+    name: ai-virtual-companion
+  profiles:
+    active: dev
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3307/ai_virtual_companion?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8
+    username: root
+    password: '123456'
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+      encoding: UTF-8
+      continue-on-error: true
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      timeout: 5000ms
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.companion.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
+      logic-delete-field: status
+      logic-delete-value: 0
+      logic-not-delete-value: 1
+
+jwt:
+  secret: "ai-virtual-companion-jwt-secret-key-must-be-at-least-32-characters-long"
+  expiration: 7200
+  header: Authorization
+  prefix: "Bearer "
+
+ai:
+  api-url: "https://api.example.com/v1/chat/completions"
+  api-key: "your-api-key-here"
+  model-name: "gpt-3.5-turbo"
+
+logging:
+  level:
+    root: INFO
+    com.companion: DEBUG
+
+app:
+  redis:
+    enabled: false
