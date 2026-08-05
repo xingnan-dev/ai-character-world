@@ -1,11 +1,9 @@
--- AI虚拟陪伴平台初始化数据
--- 注意：用户请通过注册页面创建，不要在此预存用户密码（BCrypt哈希每次不同）
+-- AI虚拟形象生成功能 - 数据库迁移脚本
+-- 执行时间: 2026-08-04
 
 -- =============================================
--- 数据库迁移: 新增AI生成相关字段和表
+-- 1. 修改现有表: t_avatar
 -- =============================================
-
--- 1. 修改 t_avatar 表（如果字段不存在则添加）
 ALTER TABLE t_avatar 
   ADD COLUMN gender TINYINT DEFAULT 2 COMMENT '性别: 1-男 2-女 3-其他' AFTER type,
   ADD COLUMN thumbnail_url VARCHAR(500) DEFAULT NULL COMMENT '缩略图URL' AFTER model_url,
@@ -15,12 +13,16 @@ ALTER TABLE t_avatar
   ADD COLUMN template_id BIGINT DEFAULT NULL COMMENT '来源模板ID' AFTER generate_type,
   ADD INDEX idx_generate_type (generate_type);
 
--- 2. 修改 t_personality 表
+-- =============================================
+-- 2. 修改现有表: t_personality
+-- =============================================
 ALTER TABLE t_personality
   ADD COLUMN source_avatar_id BIGINT DEFAULT NULL COMMENT '来源形象ID(AI生成时关联)' AFTER avatar_id,
   ADD COLUMN is_ai_generated TINYINT DEFAULT 0 COMMENT '是否AI生成: 0-否 1-是' AFTER source_avatar_id;
 
--- 3. 创建新表（如果不存在）
+-- =============================================
+-- 3. 新建表: t_avatar_attribute
+-- =============================================
 CREATE TABLE IF NOT EXISTS t_avatar_attribute (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
     avatar_id BIGINT NOT NULL COMMENT '关联形象ID',
@@ -37,6 +39,9 @@ CREATE TABLE IF NOT EXISTS t_avatar_attribute (
     INDEX idx_category (category)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='角色属性表';
 
+-- =============================================
+-- 4. 新建表: t_avatar_asset
+-- =============================================
 CREATE TABLE IF NOT EXISTS t_avatar_asset (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
     name VARCHAR(100) NOT NULL COMMENT '资源名称',
@@ -61,6 +66,9 @@ CREATE TABLE IF NOT EXISTS t_avatar_asset (
     INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='VRM资源库表';
 
+-- =============================================
+-- 5. 新建表: t_avatar_template
+-- =============================================
 CREATE TABLE IF NOT EXISTS t_avatar_template (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
     name VARCHAR(100) NOT NULL COMMENT '模板名称',
@@ -84,21 +92,21 @@ CREATE TABLE IF NOT EXISTS t_avatar_template (
     INDEX idx_use_count (use_count)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='预设角色模板表';
 
--- 4. 清空并重新初始化VRM资源数据
-DELETE FROM t_avatar_asset WHERE asset_type = 1;
-
+-- =============================================
+-- 6. 初始化VRM资源数据
+-- =============================================
 INSERT INTO t_avatar_asset (name, asset_type, file_url, file_size, gender, style_tags, color_tags, supported_attributes, description, license, source, is_official) VALUES
-('Nova - 科技少女', 1, '/models/avatars/nova.vrm', 5470000, 2, 'tech_future,cyberpunk,casual', 'silver,blue,white,cyan', 
- '{"hair": {"color": ["silver", "white", "blue", "cyan"], "style": ["long", "ponytail", "twin_tail", "short"]}, "eye": {"color": ["blue", "cyan", "green"]}, "outfit": {"style": ["tech_future", "casual", "uniform", "armor"], "top": ["sweater", "shirt", "armor", "hoodie"]}, "ear": ["cat", "human"], "wing": ["mechanical", "none"], "accessories": ["glasses", "headphone"]}',
- 'Nova是一个科技感少女形象，适合机甲、科技、休闲风格的角色', 'CC BY 4.0', 'VTubeMe', 1),
+('Nova - 青色毛衣少女', 1, '/models/avatars/nova.vrm', 5470000, 2, 'tech_future,casual,elegant', 'silver,blue,white', 
+ '{"hair": {"color": ["silver", "white", "blue", "black"], "style": ["long", "ponytail", "twin_tail"]}, "eye": {"color": ["blue", "red", "purple"]}, "outfit": {"style": ["tech_future", "casual", "uniform"], "top": ["sweater", "shirt", "armor"]}, "accessories": ["glasses", "ribbon"]}',
+ 'Nova是一个温柔的少女形象，适合温柔、博学风格的角色', 'CC BY 4.0', 'VTubeMe', 1),
 
-('Sky - 神秘少女', 1, '/models/avatars/sky.vrm', 5230000, 2, 'elegant,gothic,mysterious,dark', 'purple,black,crimson,violet,red',
- '{"hair": {"color": ["purple", "black", "violet", "crimson", "red"], "style": ["long", "wavy", "twin_tail", "ponytail"]}, "eye": {"color": ["purple", "red", "heterochromia"]}, "outfit": {"style": ["elegant", "gothic", "dress", "coat"], "top": ["coat", "dress", "gown"]}, "ear": ["elf", "human"], "wing": ["angel", "demon", "none"], "accessories": ["crown", "necklace", "earring"]}',
- 'Sky是一个优雅神秘的少女形象，适合哥特、优雅、神秘风格的角色', 'CC BY 4.0', 'VTubeMe', 1);
+('Sky - 紫色外套少女', 1, '/models/avatars/sky.vrm', 5230000, 2, 'elegant,gothic,tech_future', 'purple,black,silver',
+ '{"hair": {"color": ["purple", "black", "silver", "pink"], "style": ["long", "wavy", "twin_tail"]}, "eye": {"color": ["purple", "red", "heterochromia"]}, "outfit": {"style": ["elegant", "gothic", "dress"], "top": ["coat", "dress", "armor"]}, "accessories": ["crown", "necklace"]}',
+ 'Sky是一个优雅神秘的少女形象，适合高冷、哥特风格的角色', 'CC BY 4.0', 'VTubeMe', 1);
 
--- 5. 清空并重新初始化预设角色模板
-DELETE FROM t_avatar_template;
-
+-- =============================================
+-- 7. 初始化预设角色模板
+-- =============================================
 INSERT INTO t_avatar_template (name, category, description, avatar_config, attributes_config, personality_config, asset_id, preview_prompt, is_official, sort_order) VALUES
 ('未来科技少女', 'sci_fi', '银色长发、蓝色眼睛、机械翅膀的科技风格少女，温柔但高冷',
  '{"name": "银翼", "type": 1, "gender": 2, "slogan": "哼...我才不是为了你才来的呢。", "model_url": "/models/avatars/nova.vrm"}',
@@ -117,20 +125,3 @@ INSERT INTO t_avatar_template (name, category, description, avatar_config, attri
  '[{"category": "hair", "attr_key": "color", "attr_value": "black"}, {"category": "hair", "attr_key": "style", "attr_value": "long"}, {"category": "eye", "attr_key": "color", "attr_value": "blue"}, {"category": "outfit", "attr_key": "style", "attr_value": "casual"}, {"category": "outfit", "attr_key": "top", "attr_value": "sweater"}]',
  '{"type": "gentle", "traits": ["温柔", "体贴", "善良"], "speakingStyle": "温柔细腻，充满关怀", "systemPrompt": "你是一个温柔体贴的AI少女，总是关心和陪伴用户。"}',
  1, '创建一个黑色长发、温柔眼睛、休闲服装的治愈系温柔少女', 1, 3);
-
--- 初始化性格模板数据 (ID 1-5)
-INSERT INTO t_personality (id, name, template_type, core_personality, identity, language_style, hobbies, relationship, system_prompt) VALUES
-(1, '温柔体贴', 1, '温柔、善解人意、善于倾听', '亲密伴侣', '温柔细腻、充满关怀', '心理学、情感咨询、音乐', '恋人', 
- '你是一个温柔体贴的AI伴侣，善于倾听，能够感知用户的情绪变化，并给予温暖的回应。用温柔细腻的语气与用户交流，关心他们的情绪和生活。'),
-(2, '幽默风趣', 2, '幽默、乐观、善于开玩笑', '好朋友', '轻松愉快、机智幽默', '脱口秀、段子、游戏', '挚友',
- '你是一个幽默风趣的AI伙伴，擅长用轻松愉快的方式与用户交流，适时开一些小玩笑，让对话充满乐趣。'),
-(3, '知识渊博', 3, '博学、理性、善于分析', '导师', '专业严谨、条理清晰', '阅读、研究、辩论', '良师益友',
- '你是一个知识渊博的AI伙伴，能够回答各种领域的问题，提供深入的分析和见解，用专业但易懂的方式解释复杂概念。'),
-(4, '勇敢冒险', 4, '勇敢、好奇、喜欢探索', '冒险伙伴', '热情洋溢、充满活力', '旅行、极限运动、探索', '探险伙伴',
- '你是一个勇敢冒险的AI伙伴，对未知充满好奇，鼓励用户尝试新事物，一起探索世界的无限可能。'),
-(5, '高冷御姐', 5, '冷静、理性、言简意赅', '成熟女性', '简洁有力、不拖泥带水', '商业、科技、艺术', '知己',
- '你是一个冷静理性的AI伙伴，回答问题简明扼要，不拖泥带水，用成熟稳重的态度与用户交流。')
-ON DUPLICATE KEY UPDATE name = VALUES(name);
-
--- 说明：测试用户请通过注册页面创建（用户名 testuser，密码 123456）
--- 头像和记忆数据由用户在使用过程中动态创建，不预初始化

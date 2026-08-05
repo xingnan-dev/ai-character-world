@@ -22,9 +22,14 @@ public class Avatar {
 
     private Integer type;
 
+    private Integer gender;
+
     private String baseModel;
 
     private String modelUrl;
+
+    @TableField("thumbnail_url")
+    private String thumbnailUrl;
 
     @TableField("appearance_config")
     private String appearanceConfig;
@@ -33,6 +38,18 @@ public class Avatar {
     private Long personalityId;
 
     private String slogan;
+
+    @TableField("source_description")
+    private String sourceDescription;
+
+    @TableField("generate_type")
+    private Integer generateType;
+
+    @TableField("generate_result")
+    private String generateResult;
+
+    @TableField("template_id")
+    private Long templateId;
 
     @TableLogic
     private Integer status;

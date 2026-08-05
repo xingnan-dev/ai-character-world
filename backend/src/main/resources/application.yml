@@ -17,9 +17,9 @@ spring:
 
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://127.0.0.1:3307/ai_virtual_companion?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8
-    username: root
-    password: '123456'
+    url: ${DB_URL:jdbc:mysql://127.0.0.1:3307/ai_virtual_companion?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
   sql:
     init:
       mode: always
@@ -57,15 +57,15 @@ mybatis-plus:
       logic-not-delete-value: 1
 
 jwt:
-  secret: "ai-virtual-companion-jwt-secret-key-must-be-at-least-32-characters-long"
+  secret: ${JWT_SECRET:}
   expiration: 7200
   header: Authorization
   prefix: "Bearer "
 
 ai:
-  api-url: "https://api.example.com/v1/chat/completions"
-  api-key: "your-api-key-here"
-  model-name: "gpt-3.5-turbo"
+  api-url: ${AI_API_URL:https://api.example.com/v1/chat/completions}
+  api-key: ${AI_API_KEY:}
+  model-name: ${AI_MODEL_NAME:gpt-3.5-turbo}
 
 logging:
   level:

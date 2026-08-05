@@ -272,6 +272,7 @@ import { useChatStore } from '../stores/chat'
 import { useAvatarStore } from '../stores/avatar'
 import { useUserStore } from '../stores/user'
 import AvatarRenderer from '../components/AvatarRenderer.vue'
+import { getModelUrlByName } from '@/config/avatarModels'
 
 const router = useRouter()
 const chatStore = useChatStore()
@@ -294,9 +295,11 @@ const currentSessionAvatarName = computed(() => {
 const currentAvatarModelUrl = computed(() => {
   if (!chatStore.currentSession) return ''
   const avatarId = chatStore.currentSession.avatarId
-  if (!avatarId) return ''
+  const avatarName = currentSessionAvatarName.value
+  if (!avatarId) return getModelUrlByName(avatarName)
   const avatar = avatarStore.avatarList.find((a) => a.id === avatarId)
-  return avatar?.modelUrl || ''
+  if (avatar?.modelUrl) return avatar.modelUrl
+  return getModelUrlByName(avatarName)
 })
 
 const colorPalette = [

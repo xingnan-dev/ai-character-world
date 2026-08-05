@@ -39,7 +39,7 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public ChatSessionVO createSession(Long userId, ChatSessionCreateRequest request) {
-        Avatar avatar = avatarMapper.selectById(request.getAvatarId());
+        Avatar avatar = findOwnedActiveAvatar(userId, request.getAvatarId());
         if (avatar == null) {
             throw new BusinessException(ResultCode.NOT_FOUND);
         }
@@ -63,6 +63,7 @@ public class ChatServiceImpl implements ChatService {
         List<ChatSession> sessions = chatSessionMapper.selectList(
                 new QueryWrapper<ChatSession>()
                         .eq("user_id", userId)
+                        .eq("status", 1)
                         .orderByDesc("create_time")
         );
         return sessions.stream()
@@ -79,8 +80,8 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public void deleteSession(Long userId, Long sessionId) {
-        ChatSession session = chatSessionMapper.selectById(sessionId);
-        if (session == null || !session.getUserId().equals(userId)) {
+        ChatSession session = findOwnedActiveSession(userId, sessionId);
+        if (session == null) {
             throw new BusinessException(ResultCode.NOT_FOUND);
         }
         session.setStatus(0);
@@ -90,12 +91,12 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public Flux<String> sendMessage(Long userId, ChatSendRequest request) {
-        ChatSession session = chatSessionMapper.selectById(request.getSessionId());
-        if (session == null || !session.getUserId().equals(userId)) {
+        ChatSession session = findOwnedActiveSession(userId, request.getSessionId());
+        if (session == null) {
             throw new BusinessException(ResultCode.NOT_FOUND);
         }
 
-        Avatar avatar = avatarMapper.selectById(session.getAvatarId());
+        Avatar avatar = findOwnedActiveAvatar(userId, session.getAvatarId());
         if (avatar == null) {
             throw new BusinessException(ResultCode.NOT_FOUND.getCode(), "头像不存在");
         }
@@ -122,7 +123,12 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    public List<ChatMessageVO> getMessageList(Long sessionId) {
+    public List<ChatMessageVO> getMessageList(Long userId, Long sessionId) {
+        ChatSession session = findOwnedActiveSession(userId, sessionId);
+        if (session == null) {
+            throw new BusinessException(ResultCode.NOT_FOUND);
+        }
+
         List<ChatMessage> messages = chatMessageMapper.selectList(
                 new QueryWrapper<ChatMessage>()
                         .eq("session_id", sessionId)
@@ -131,6 +137,24 @@ public class ChatServiceImpl implements ChatService {
         return messages.stream()
                 .map(this::convertToMessageVO)
                 .collect(Collectors.toList());
+    }
+
+    private ChatSession findOwnedActiveSession(Long userId, Long sessionId) {
+        return chatSessionMapper.selectOne(
+                new QueryWrapper<ChatSession>()
+                        .eq("id", sessionId)
+                        .eq("user_id", userId)
+                        .eq("status", 1)
+        );
+    }
+
+    private Avatar findOwnedActiveAvatar(Long userId, Long avatarId) {
+        return avatarMapper.selectOne(
+                new QueryWrapper<Avatar>()
+                        .eq("id", avatarId)
+                        .eq("user_id", userId)
+                        .eq("status", 1)
+        );
     }
 
     private ChatSessionVO convertToVO(ChatSession session) {

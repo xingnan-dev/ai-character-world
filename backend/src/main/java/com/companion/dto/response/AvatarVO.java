@@ -17,15 +17,23 @@ public class AvatarVO {
 
     private Integer type;
 
+    private Integer gender;
+
     private String baseModel;
 
     private String modelUrl;
+
+    private String thumbnailUrl;
 
     private String appearanceConfig;
 
     private Long personalityId;
 
     private String slogan;
+
+    private String sourceDescription;
+
+    private Integer generateType;
 
     private String createTime;
 

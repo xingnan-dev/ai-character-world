@@ -7,11 +7,11 @@ import java.util.List;
 
 public interface PersonalityService {
 
-    PersonalityVO createPersonality(Long avatarId, PersonalityCreateRequest request);
+    PersonalityVO createPersonality(Long userId, Long avatarId, PersonalityCreateRequest request);
 
-    PersonalityVO getPersonalityByAvatarId(Long avatarId);
+    PersonalityVO getPersonalityByAvatarId(Long userId, Long avatarId);
 
-    PersonalityVO updatePersonality(Long avatarId, PersonalityCreateRequest request);
+    PersonalityVO updatePersonality(Long userId, Long avatarId, PersonalityCreateRequest request);
 
     List<PersonalityVO> getTemplateList();
 }

@@ -40,7 +40,9 @@ export const useAvatarStore = defineStore('avatar', {
           id: 1,
           name: 'Luna',
           type: 1,
-          baseModel: 'cyber_girl',
+          gender: 2,
+          baseModel: 'sky',
+          modelUrl: '/models/avatars/sky.vrm',
           slogan: '所有没有你的日子，都存在缺陷',
           personalityId: 1,
           status: 1
@@ -48,8 +50,10 @@ export const useAvatarStore = defineStore('avatar', {
         {
           id: 2,
           name: 'Nova',
-          type: 2,
-          baseModel: 'star_cat',
+          type: 1,
+          gender: 2,
+          baseModel: 'nova',
+          modelUrl: '/models/avatars/nova.vrm',
           slogan: '宇宙无垠，我们的旅程才刚刚开始',
           personalityId: 4,
           status: 1

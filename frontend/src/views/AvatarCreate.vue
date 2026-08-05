@@ -28,12 +28,12 @@
       <div class="page-header">
         <div>
           <h1 class="page-title">创建虚拟形象</h1>
-          <p class="page-subtitle">自定义你的专属 AI 3D 虚拟分身</p>
+          <p class="page-subtitle">用 AI 一键生成，或自定义专属 3D 虚拟分身</p>
         </div>
-        <el-button type="primary" size="large" :icon="Check">保存形象</el-button>
       </div>
 
       <div class="create-body">
+        <!-- Left: Preview Section -->
         <div class="preview-section">
           <div class="preview-header">
             <h3>3D 预览</h3>
@@ -43,7 +43,15 @@
             </div>
           </div>
           <div class="preview-area">
-            <AvatarRenderer />
+            <AvatarRenderer
+              v-if="previewModelUrl"
+              :model-url="previewModelUrl"
+              :avatar-name="generatedAvatar?.name"
+            />
+            <div v-else class="preview-placeholder">
+              <el-icon :size="80" color="#4a4a6a"><User /></el-icon>
+              <p>生成形象后将在此处预览</p>
+            </div>
             <div class="preview-hint">
               <el-icon :size="16"><InfoFilled /></el-icon>
               <span>拖拽旋转 · 滚轮缩放</span>
@@ -51,8 +59,113 @@
           </div>
         </div>
 
+        <!-- Right: Config Section -->
         <div class="config-section">
-          <div class="config-card">
+          <!-- Mode Tabs -->
+          <div class="mode-tabs">
+            <div 
+              class="mode-tab" 
+              :class="{ active: mode === 'ai' }"
+              @click="mode = 'ai'"
+            >
+              <el-icon :size="20"><MagicStick /></el-icon>
+              <span>AI 生成</span>
+            </div>
+            <div 
+              class="mode-tab" 
+              :class="{ active: mode === 'manual' }"
+              @click="mode = 'manual'"
+            >
+              <el-icon :size="20"><EditPen /></el-icon>
+              <span>手动创建</span>
+            </div>
+          </div>
+
+          <!-- AI Generation Mode -->
+          <div v-if="mode === 'ai'" class="config-card">
+            <h3 class="config-title">AI 智能生成</h3>
+            
+            <div class="ai-generate-area">
+              <el-input
+                v-model="aiDescription"
+                type="textarea"
+                :rows="6"
+                placeholder="描述你想要创建的角色，例如：&#10;创建一个银色长发、蓝色眼睛、猫耳、机械翅膀、黑色战甲、性格温柔但高冷的AI少女"
+                maxlength="500"
+                show-word-limit
+                class="ai-textarea"
+              />
+              
+              <div class="quick-tags">
+                <span class="quick-tags-label">快速示例：</span>
+                <el-tag 
+                  v-for="tag in quickExamples" 
+                  :key="tag" 
+                  class="quick-tag"
+                  @click="applyExample(tag)"
+                >
+                  {{ tag }}
+                </el-tag>
+              </div>
+
+              <el-button
+                type="primary"
+                size="large"
+                :icon="MagicStick"
+                :loading="generating"
+                :disabled="!aiDescription.trim()"
+                class="generate-btn"
+                @click="handleGenerate"
+              >
+                {{ generating ? 'AI 分析中...' : 'AI 生成形象' }}
+              </el-button>
+            </div>
+
+            <!-- Generated Result -->
+            <div v-if="generatedAvatar && !generating" class="result-panel">
+              <h4 class="result-title">
+                <el-icon color="#67c23a"><CircleCheck /></el-icon>
+                生成结果
+              </h4>
+              
+              <div class="result-info">
+                <div class="info-item">
+                  <span class="info-label">名称</span>
+                  <span class="info-value">{{ generatedAvatar.name }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">性别</span>
+                  <span class="info-value">{{ genderLabel }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">性格</span>
+                  <span class="info-value">{{ generatedPersonality?.corePersonality || '-' }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">模型</span>
+                  <span class="info-value">{{ generatedAvatar.modelUrl }}</span>
+                </div>
+              </div>
+
+              <div v-if="generatedAttributes?.length" class="attributes-list">
+                <span 
+                  v-for="attr in generatedAttributes" 
+                  :key="attr.category + attr.attrKey"
+                  class="attr-tag"
+                >
+                  {{ getAttrLabel(attr.category) }}: {{ attr.attrValue }}
+                </span>
+              </div>
+
+              <div class="result-actions">
+                <el-button type="primary" :icon="Check" @click="saveGenerated">保存形象</el-button>
+                <el-button :icon="Refresh" @click="resetGenerate">重新生成</el-button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Manual Creation Mode -->
+          <div v-if="mode === 'manual'" class="config-card">
             <h3 class="config-title">基础设置</h3>
             <el-form
               ref="formRef"
@@ -100,27 +213,16 @@
                 />
               </el-form-item>
             </el-form>
-          </div>
 
-          <div class="config-card">
-            <h3 class="config-title">模型上传</h3>
-            <el-upload
-              class="model-uploader"
-              drag
-              :auto-upload="false"
-              :show-file-list="false"
-              accept=".vrm,.glb,.gltf"
+            <el-button 
+              type="primary" 
+              size="large" 
+              :icon="Check" 
+              class="save-btn"
+              @click="handleSaveManual"
             >
-              <el-icon class="upload-icon" :size="48"><UploadFilled /></el-icon>
-              <div class="upload-text">
-                将 VRM / GLB 文件拖拽到此处
-              </div>
-              <template #tip>
-                <div class="upload-tip">
-                  支持 .vrm / .glb / .gltf 格式，文件大小不超过 20MB
-                </div>
-              </template>
-            </el-upload>
+              保存形象
+            </el-button>
           </div>
         </div>
       </div>
@@ -129,7 +231,8 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
+import { ElMessage } from 'element-plus'
 import {
   MagicStick,
   Menu,
@@ -139,18 +242,158 @@ import {
   Refresh,
   FullScreen,
   InfoFilled,
-  UploadFilled
+  EditPen,
+  CircleCheck
 } from '@element-plus/icons-vue'
+import { generateAvatar, createAvatar } from '../api/avatar'
 import AvatarRenderer from '../components/AvatarRenderer.vue'
+import { useAvatarStore } from '../stores/avatar'
+
+const avatarStore = useAvatarStore()
+
+// Mode switching
+const mode = ref('ai')
+
+// AI Generation
+const aiDescription = ref('')
+const generating = ref(false)
+const generatedAvatar = ref(null)
+const generatedPersonality = ref(null)
+const generatedAttributes = ref([])
+const previewModelUrl = ref('')
+
+const quickExamples = [
+  '创建一个银色长发、蓝色眼睛、猫耳、机械翅膀、黑色战甲、性格温柔但高冷的AI少女',
+  '创建一个紫色短发、异瞳、优雅外套的神秘高冷少女',
+  '创建一个黑色长发、温柔眼睛、休闲服装的治愈系温柔少女'
+]
 
 const formRef = ref(null)
-
 const form = reactive({
   name: '',
   gender: 'female',
   personality: 'gentle',
   greeting: ''
 })
+
+const genderLabel = computed(() => {
+  if (!generatedAvatar.value) return '-'
+  const g = generatedAvatar.value.gender
+  if (g === 1) return '男'
+  if (g === 2) return '女'
+  return '其他'
+})
+
+function getAttrLabel(category) {
+  const labels = {
+    hair: '发型',
+    eye: '眼睛',
+    body: '体型',
+    ear: '耳朵',
+    wing: '翅膀',
+    outfit: '服装',
+    accessory: '配饰'
+  }
+  return labels[category] || category
+}
+
+function applyExample(text) {
+  aiDescription.value = text
+}
+
+async function handleGenerate() {
+  if (!aiDescription.value.trim()) {
+    ElMessage.warning('请输入角色描述')
+    return
+  }
+
+  generating.value = true
+  generatedAvatar.value = null
+  generatedPersonality.value = null
+  generatedAttributes.value = []
+
+  try {
+    const response = await generateAvatar({
+      description: aiDescription.value,
+      createPersonality: true
+    })
+
+    if (response.data) {
+      generatedAvatar.value = response.data.avatar
+      generatedPersonality.value = response.data.personality
+      generatedAttributes.value = response.data.attributes || []
+      
+      // Set the model URL for preview
+      if (response.data.avatar.modelUrl) {
+        previewModelUrl.value = response.data.avatar.modelUrl
+      }
+      
+      ElMessage.success(response.data.message || '形象生成成功！')
+    }
+  } catch (error) {
+    console.error('Generate failed:', error)
+    ElMessage.error('AI 生成失败，请重试')
+  } finally {
+    generating.value = false
+  }
+}
+
+async function saveGenerated() {
+  if (!generatedAvatar.value) return
+  
+  try {
+    // AI 生成时后端已自动保存，这里刷新列表即可
+    ElMessage.success('形象已保存！')
+    
+    // 重新获取头像列表
+    await avatarStore.fetchAvatarList()
+    
+    // 重置表单，准备生成下一个
+    resetGenerate()
+  } catch (error) {
+    console.error('Save failed:', error)
+    ElMessage.error('保存失败，请重试')
+  }
+}
+
+function resetGenerate() {
+  generatedAvatar.value = null
+  generatedPersonality.value = null
+  generatedAttributes.value = []
+  previewModelUrl.value = ''
+  aiDescription.value = ''
+}
+
+async function handleSaveManual() {
+  if (!form.name.trim()) {
+    ElMessage.warning('请输入形象名称')
+    return
+  }
+
+  try {
+    const data = {
+      name: form.name,
+      type: 1,
+      baseModel: 'nova',
+      modelUrl: '/models/avatars/nova.vrm',
+      slogan: form.greeting,
+      appearanceConfig: JSON.stringify({
+        gender: form.gender,
+        personality: form.personality
+      })
+    }
+
+    const response = await createAvatar(data)
+    if (response.data) {
+      ElMessage.success('形象创建成功！')
+      form.name = ''
+      form.greeting = ''
+    }
+  } catch (error) {
+    console.error('Create failed:', error)
+    ElMessage.error('创建失败，请重试')
+  }
+}
 </script>
 
 <style lang="scss" scoped>
@@ -285,6 +528,21 @@ const form = reactive({
   min-height: 500px;
 }
 
+.preview-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.4);
+
+  p {
+    margin-top: 16px;
+    font-size: 14px;
+  }
+}
+
 .preview-hint {
   position: absolute;
   bottom: 16px;
@@ -307,9 +565,41 @@ const form = reactive({
   gap: 20px;
 }
 
+.mode-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: -12px;
+}
+
+.mode-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border-radius: 16px 16px 0 0;
+  background: #e8eaed;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  color: #606266;
+  transition: all 0.25s;
+
+  &:hover {
+    background: #dcdfe6;
+  }
+
+  &.active {
+    background: #fff;
+    color: #667eea;
+    box-shadow: 0 -2px 8px rgba(102, 126, 234, 0.15);
+  }
+}
+
 .config-card {
   background: #fff;
-  border-radius: 20px;
+  border-radius: 0 20px 20px 20px;
   padding: 24px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
@@ -319,6 +609,130 @@ const form = reactive({
   font-weight: 600;
   color: #303133;
   margin-bottom: 20px;
+}
+
+.ai-generate-area {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ai-textarea {
+  :deep(.el-textarea__inner) {
+    border-radius: 12px;
+    border: 2px solid #e4e7ed;
+    transition: all 0.25s;
+
+    &:focus {
+      border-color: #667eea;
+    }
+  }
+}
+
+.quick-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.quick-tags-label {
+  font-size: 13px;
+  color: #909399;
+}
+
+.quick-tag {
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    color: #667eea;
+    border-color: #667eea;
+  }
+}
+
+.generate-btn {
+  width: 100%;
+  height: 48px;
+  font-size: 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 12px;
+
+  &:hover:not(:disabled) {
+    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+  }
+}
+
+.result-panel {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.result-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 16px;
+}
+
+.result-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: #f5f7fa;
+  border-radius: 10px;
+}
+
+.info-label {
+  font-size: 12px;
+  color: #909399;
+}
+
+.info-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.attributes-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.attr-tag {
+  padding: 4px 10px;
+  background: linear-gradient(135deg, #667eea20 0%, #764ba220 100%);
+  color: #667eea;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.result-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.save-btn {
+  width: 100%;
+  height: 44px;
+  font-size: 15px;
+  margin-top: 16px;
 }
 
 .config-form {

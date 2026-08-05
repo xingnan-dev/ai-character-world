@@ -10,6 +10,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, shallowRef } from 'vue'
 import AvatarScene from '@/three/AvatarScene.js'
+import { getModelUrlByName } from '@/config/avatarModels'
 
 const props = defineProps({
   modelUrl: {
@@ -29,26 +30,35 @@ const loading = ref(false)
 const vrmLoaded = ref(false)
 const sceneInstance = shallowRef(null)
 
+const resolvedModelUrl = computed(() => {
+  if (props.modelUrl) return props.modelUrl
+  return getModelUrlByName(props.avatarName)
+})
+
 const showLoading = computed(() => loading.value && !vrmLoaded.value)
 
 const loadModel = async () => {
   if (!sceneInstance.value) return
 
-  if (!props.modelUrl) {
+  const url = resolvedModelUrl.value
+  if (!url) {
     vrmLoaded.value = false
     return
   }
 
   loading.value = true
   vrmLoaded.value = false
+
   try {
-    await sceneInstance.value.loadVRM(props.modelUrl)
+    await sceneInstance.value.loadVRM(url)
+    // loadVRM 内部已处理 onLoadCallback/onErrorCallback
+    // 这里仅处理加载完成后的状态更新
     vrmLoaded.value = true
     emit('loaded')
   } catch (err) {
-    console.warn('VRM加载失败，显示占位形象:', err.message)
+    // loadVRM 内部已通过 onErrorCallback 报告错误
+    // 这里仅做兜底处理
     vrmLoaded.value = false
-    emit('error', err)
   } finally {
     loading.value = false
   }
@@ -72,15 +82,13 @@ onMounted(() => {
     emit('error', err)
   })
 
-  if (props.modelUrl) {
-    loadModel()
-  }
+  loadModel()
 })
 
 watch(
-  () => props.modelUrl,
-  (newUrl, oldUrl) => {
-    if (newUrl && newUrl !== oldUrl) {
+  () => [props.modelUrl, props.avatarName],
+  ([newUrl, newName], [oldUrl, oldName]) => {
+    if (newUrl !== oldUrl || newName !== oldName) {
       loadModel()
     }
   }

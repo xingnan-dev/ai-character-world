@@ -9,35 +9,26 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("t_personality")
-public class Personality {
+@TableName("t_avatar_attribute")
+public class AvatarAttribute {
 
     @TableId(type = IdType.AUTO)
     private Long id;
 
     private Long avatarId;
 
-    @TableField("source_avatar_id")
-    private Long sourceAvatarId;
+    private String category;
 
-    @TableField("is_ai_generated")
-    private Integer isAiGenerated;
+    private String attrKey;
 
-    private String name;
+    private String attrValue;
 
-    private Integer templateType;
+    @TableField("attr_metadata")
+    private String attrMetadata;
 
-    private String corePersonality;
+    private Integer sortOrder;
 
-    private String identity;
-
-    private String languageStyle;
-
-    private String hobbies;
-
-    private String relationship;
-
-    private String systemPrompt;
+    private Integer status;
 
     private LocalDateTime createTime;
 

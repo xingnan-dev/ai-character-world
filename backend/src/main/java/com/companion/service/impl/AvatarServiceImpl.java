@@ -42,22 +42,34 @@ public class AvatarServiceImpl implements AvatarService {
         avatar.setStatus(1);
         avatar.setCreateTime(LocalDateTime.now());
         avatar.setUpdateTime(LocalDateTime.now());
+
+        if (request.getPersonalityId() != null) {
+            Personality personality = personalityMapper.selectById(request.getPersonalityId());
+            if (personality == null) {
+                throw new BusinessException(ResultCode.NOT_FOUND);
+            }
+            if (personality.getAvatarId() != null) {
+                Avatar personalityAvatar = findOwnedActiveAvatar(userId, personality.getAvatarId());
+                if (personalityAvatar == null) {
+                    throw new BusinessException(ResultCode.NOT_FOUND);
+                }
+            }
+        }
+
         avatarMapper.insert(avatar);
 
         if (request.getPersonalityId() != null) {
             Personality personality = personalityMapper.selectById(request.getPersonalityId());
-            if (personality != null) {
-                personality.setAvatarId(avatar.getId());
-                personalityMapper.updateById(personality);
-            }
+            personality.setAvatarId(avatar.getId());
+            personalityMapper.updateById(personality);
         }
 
         return convertToVO(avatar);
     }
 
     @Override
-    public AvatarVO getAvatarById(Long id) {
-        Avatar avatar = avatarMapper.selectById(id);
+    public AvatarVO getAvatarById(Long userId, Long id) {
+        Avatar avatar = findOwnedActiveAvatar(userId, id);
         if (avatar == null) {
             throw new BusinessException(ResultCode.NOT_FOUND);
         }
@@ -74,7 +86,9 @@ public class AvatarServiceImpl implements AvatarService {
     @Override
     public List<AvatarVO> getAvatarList(Long userId) {
         List<Avatar> avatars = avatarMapper.selectList(
-                new QueryWrapper<Avatar>().eq("user_id", userId)
+                new QueryWrapper<Avatar>()
+                        .eq("user_id", userId)
+                        .eq("status", 1)
         );
         return avatars.stream()
                 .map(this::convertToVO)
@@ -83,8 +97,8 @@ public class AvatarServiceImpl implements AvatarService {
 
     @Override
     public AvatarVO updateAvatar(Long userId, AvatarUpdateRequest request) {
-        Avatar avatar = avatarMapper.selectById(request.getId());
-        if (avatar == null || !avatar.getUserId().equals(userId)) {
+        Avatar avatar = findOwnedActiveAvatar(userId, request.getId());
+        if (avatar == null) {
             throw new BusinessException(ResultCode.NOT_FOUND);
         }
 
@@ -102,13 +116,22 @@ public class AvatarServiceImpl implements AvatarService {
 
     @Override
     public void deleteAvatar(Long userId, Long id) {
-        Avatar avatar = avatarMapper.selectById(id);
-        if (avatar == null || !avatar.getUserId().equals(userId)) {
+        Avatar avatar = findOwnedActiveAvatar(userId, id);
+        if (avatar == null) {
             throw new BusinessException(ResultCode.NOT_FOUND);
         }
         avatar.setStatus(0);
         avatar.setUpdateTime(LocalDateTime.now());
         avatarMapper.updateById(avatar);
+    }
+
+    private Avatar findOwnedActiveAvatar(Long userId, Long avatarId) {
+        return avatarMapper.selectOne(
+                new QueryWrapper<Avatar>()
+                        .eq("id", avatarId)
+                        .eq("user_id", userId)
+                        .eq("status", 1)
+        );
     }
 
     private AvatarVO convertToVO(Avatar avatar) {
@@ -117,11 +140,15 @@ public class AvatarServiceImpl implements AvatarService {
         vo.setUserId(avatar.getUserId());
         vo.setName(avatar.getName());
         vo.setType(avatar.getType());
+        vo.setGender(avatar.getGender());
         vo.setBaseModel(avatar.getBaseModel());
         vo.setModelUrl(avatar.getModelUrl());
+        vo.setThumbnailUrl(avatar.getThumbnailUrl());
         vo.setAppearanceConfig(avatar.getAppearanceConfig());
         vo.setPersonalityId(avatar.getPersonalityId());
         vo.setSlogan(avatar.getSlogan());
+        vo.setSourceDescription(avatar.getSourceDescription());
+        vo.setGenerateType(avatar.getGenerateType());
         vo.setCreateTime(avatar.getCreateTime() != null ? avatar.getCreateTime().toString() : null);
         return vo;
     }

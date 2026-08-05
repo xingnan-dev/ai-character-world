@@ -10,7 +10,7 @@ public interface AvatarService {
 
     AvatarVO createAvatar(Long userId, AvatarCreateRequest request);
 
-    AvatarVO getAvatarById(Long id);
+    AvatarVO getAvatarById(Long userId, Long id);
 
     List<AvatarVO> getAvatarList(Long userId);
 

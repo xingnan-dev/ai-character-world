@@ -18,5 +18,5 @@ public interface ChatService {
 
     Flux<String> sendMessage(Long userId, ChatSendRequest request);
 
-    List<ChatMessageVO> getMessageList(Long sessionId);
+    List<ChatMessageVO> getMessageList(Long userId, Long sessionId);
 }

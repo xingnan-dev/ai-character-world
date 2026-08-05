@@ -2,8 +2,11 @@ package com.companion.controller;
 
 import com.companion.common.result.Result;
 import com.companion.dto.request.AvatarCreateRequest;
+import com.companion.dto.request.AvatarGenerateRequest;
 import com.companion.dto.request.AvatarUpdateRequest;
+import com.companion.dto.response.AvatarGenerateResponse;
 import com.companion.dto.response.AvatarVO;
+import com.companion.service.AvatarAiService;
 import com.companion.service.AvatarService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -18,9 +21,21 @@ import java.util.List;
 public class AvatarController {
 
     private final AvatarService avatarService;
+    private final AvatarAiService avatarAiService;
 
-    public AvatarController(AvatarService avatarService) {
+    public AvatarController(AvatarService avatarService, AvatarAiService avatarAiService) {
         this.avatarService = avatarService;
+        this.avatarAiService = avatarAiService;
+    }
+
+    @PostMapping("/generate")
+    public Result<AvatarGenerateResponse> generateAvatar(@Valid @RequestBody AvatarGenerateRequest request) {
+        Long userId = Long.valueOf(
+                SecurityContextHolder.getContext().getAuthentication().getPrincipal().toString()
+        );
+        log.info("AI生成形象: userId={}, description={}", userId, request.getDescription());
+        AvatarGenerateResponse response = avatarAiService.generateAvatar(userId, request);
+        return Result.success(response);
     }
 
     @PostMapping("/create")
@@ -45,8 +60,11 @@ public class AvatarController {
 
     @GetMapping("/{id}")
     public Result<AvatarVO> getAvatarById(@PathVariable Long id) {
-        log.info("获取形象详情: id={}", id);
-        AvatarVO avatarVO = avatarService.getAvatarById(id);
+        Long userId = Long.valueOf(
+                SecurityContextHolder.getContext().getAuthentication().getPrincipal().toString()
+        );
+        log.info("获取形象详情: userId={}, id={}", userId, id);
+        AvatarVO avatarVO = avatarService.getAvatarById(userId, id);
         return Result.success(avatarVO);
     }
 

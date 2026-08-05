@@ -156,7 +156,19 @@ class AvatarScene {
         this.loader.register((parser) => new VRMLoaderPlugin(parser))
       }
 
-      const gltf = await this.loader.loadAsync(url)
+      // Convert relative URL to absolute URL
+      const absoluteUrl = this._getAbsoluteUrl(url)
+      console.log('Loading VRM from:', absoluteUrl)
+      
+      const response = await fetch(absoluteUrl)
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+      
+      const arrayBuffer = await response.arrayBuffer()
+      console.log('VRM file downloaded, size:', arrayBuffer.byteLength, 'bytes')
+      
+      const gltf = await this.loader.parseAsync(arrayBuffer, '')
       const vrm = gltf.userData.vrm
       if (!vrm) {
         throw new Error('加载的模型不是VRM格式')
@@ -186,6 +198,14 @@ class AvatarScene {
     }
   }
 
+  _getAbsoluteUrl(url) {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url
+    }
+    const baseUrl = window.location.origin
+    return baseUrl + url
+  }
+
   _clearAvatar() {
     if (this.placeholderGroup) {
       this.scene.remove(this.placeholderGroup)
@@ -196,6 +216,12 @@ class AvatarScene {
 
     if (this.currentVrm) {
       this.scene.remove(this.currentVrm.scene)
+      // 释放 VRM 模型的所有资源
+      this._disposeObject(this.currentVrm.scene)
+      // 如果有 animationMixer，也要释放
+      if (this.currentVrm.animationMixer) {
+        this.currentVrm.animationMixer.stopAllAction()
+      }
       this.currentVrm = null
     }
   }

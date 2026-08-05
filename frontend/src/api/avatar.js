@@ -1,5 +1,13 @@
 import request from './request'
 
+export const generateAvatar = (data) => {
+  return request({
+    url: '/avatar/generate',
+    method: 'post',
+    data
+  })
+}
+
 export const createAvatar = (data) => {
   return request({
     url: '/avatar/create',

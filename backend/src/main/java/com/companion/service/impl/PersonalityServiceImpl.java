@@ -27,8 +27,8 @@ public class PersonalityServiceImpl implements PersonalityService {
     private final AvatarMapper avatarMapper;
 
     @Override
-    public PersonalityVO createPersonality(Long avatarId, PersonalityCreateRequest request) {
-        Avatar avatar = avatarMapper.selectById(avatarId);
+    public PersonalityVO createPersonality(Long userId, Long avatarId, PersonalityCreateRequest request) {
+        Avatar avatar = findOwnedActiveAvatar(userId, avatarId);
         if (avatar == null) {
             throw new BusinessException(ResultCode.NOT_FOUND);
         }
@@ -51,7 +51,10 @@ public class PersonalityServiceImpl implements PersonalityService {
     }
 
     @Override
-    public PersonalityVO getPersonalityByAvatarId(Long avatarId) {
+    public PersonalityVO getPersonalityByAvatarId(Long userId, Long avatarId) {
+        if (findOwnedActiveAvatar(userId, avatarId) == null) {
+            throw new BusinessException(ResultCode.NOT_FOUND);
+        }
         Personality personality = personalityMapper.selectOne(
                 new QueryWrapper<Personality>().eq("avatar_id", avatarId)
         );
@@ -62,7 +65,10 @@ public class PersonalityServiceImpl implements PersonalityService {
     }
 
     @Override
-    public PersonalityVO updatePersonality(Long avatarId, PersonalityCreateRequest request) {
+    public PersonalityVO updatePersonality(Long userId, Long avatarId, PersonalityCreateRequest request) {
+        if (findOwnedActiveAvatar(userId, avatarId) == null) {
+            throw new BusinessException(ResultCode.NOT_FOUND);
+        }
         Personality personality = personalityMapper.selectOne(
                 new QueryWrapper<Personality>().eq("avatar_id", avatarId)
         );
@@ -139,6 +145,15 @@ public class PersonalityServiceImpl implements PersonalityService {
         templates.add(template3);
 
         return templates;
+    }
+
+    private Avatar findOwnedActiveAvatar(Long userId, Long avatarId) {
+        return avatarMapper.selectOne(
+                new QueryWrapper<Avatar>()
+                        .eq("id", avatarId)
+                        .eq("user_id", userId)
+                        .eq("status", 1)
+        );
     }
 
     private String buildSystemPrompt(PersonalityCreateRequest request) {

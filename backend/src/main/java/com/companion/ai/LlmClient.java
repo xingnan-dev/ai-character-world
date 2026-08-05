@@ -83,6 +83,10 @@ public class LlmClient {
     }
 
     private String generateMockResponse(String systemPrompt, String userPrompt) {
+        if (systemPrompt != null && systemPrompt.contains("虚拟角色创造助手")) {
+            return generateAvatarMockResponse(userPrompt);
+        }
+
         String personalityType = extractPersonalityType(systemPrompt);
         String userMessage = userPrompt.toLowerCase();
 
@@ -101,6 +105,184 @@ public class LlmClient {
         } else {
             return getGenericResponse(personalityType, userPrompt);
         }
+    }
+
+    private String generateAvatarMockResponse(String userPrompt) {
+        String description = userPrompt.replace("用户描述：", "").replace("\n", "").trim();
+        String lower = description.toLowerCase();
+
+        StringBuilder json = new StringBuilder();
+        json.append("{");
+
+        // Name
+        json.append("\"name\":\"").append(generateMockName(lower)).append("\",");
+
+        // Appearance
+        json.append("\"appearanceConfig\":{");
+        json.append("\"gender\":\"").append(lower.contains("男") ? "male" : "female").append("\",");
+        json.append("\"hairColor\":\"").append(extractHairColor(lower)).append("\",");
+        json.append("\"hairStyle\":\"").append(extractHairStyle(lower)).append("\",");
+        json.append("\"eyeColor\":\"").append(extractEyeColor(lower)).append("\",");
+        json.append("\"bodyType\":\"slim\",");
+        json.append("\"earType\":\"").append(extractEarType(lower)).append("\",");
+        json.append("\"hasWing\":").append(lower.contains("翅膀") || lower.contains("wing") ? "true" : "false").append(",");
+        json.append("\"wingType\":\"").append(extractWingType(lower)).append("\",");
+        json.append("\"outfitStyle\":\"").append(extractOutfitStyle(lower)).append("\",");
+        json.append("\"outfitColor\":\"").append(extractOutfitColor(lower)).append("\",");
+        json.append("\"hasAccessory\":").append(lower.contains("配饰") || lower.contains("accessory") ? "true" : "false").append(",");
+        json.append("\"accessoryType\":[]");
+        json.append("},");
+
+        // Personality
+        String personalityType = extractPersonalityFromDesc(lower);
+        json.append("\"personality\":{");
+        json.append("\"type\":\"").append(personalityType).append("\",");
+        json.append("\"traits\":").append(getPersonalityTraits(personalityType)).append(",");
+        json.append("\"speakingStyle\":\"").append(getSpeakingStyle(personalityType)).append("\",");
+        json.append("\"slogan\":\"").append(getSlogan(personalityType)).append("\"");
+        json.append("},");
+
+        // Tags
+        json.append("\"tags\":[\"").append(extractHairColor(lower)).append("\",\"")
+            .append(extractEyeColor(lower)).append("\",\"")
+            .append(personalityType).append("\"]");
+
+        json.append("}");
+        return json.toString();
+    }
+
+    private String generateMockName(String lower) {
+        if (lower.contains("银") && lower.contains("猫耳")) return "银喵";
+        if (lower.contains("银")) return "银月";
+        if (lower.contains("紫") && lower.contains("异瞳")) return "紫瞳";
+        if (lower.contains("紫")) return "紫霞";
+        if (lower.contains("蓝")) return "蓝霜";
+        if (lower.contains("红")) return "赤绫";
+        if (lower.contains("金")) return "金璃";
+        if (lower.contains("黑")) return "玄夜";
+        if (lower.contains("白")) return "霜雪";
+        if (lower.contains("机甲") || lower.contains("机械")) return "星械";
+        if (lower.contains("哥特")) return "夜幽";
+        return "星瑶";
+    }
+
+    private String extractHairColor(String lower) {
+        if (lower.contains("银发") || lower.contains("银") || lower.contains("silver")) return "silver";
+        if (lower.contains("金发") || lower.contains("金") || lower.contains("blonde")) return "blonde";
+        if (lower.contains("紫发") || lower.contains("紫") || lower.contains("purple")) return "purple";
+        if (lower.contains("蓝发") || lower.contains("蓝") && lower.contains("发")) return "blue";
+        if (lower.contains("粉") || lower.contains("pink")) return "pink";
+        if (lower.contains("红发") || lower.contains("红") && lower.contains("发")) return "red";
+        if (lower.contains("白发") || lower.contains("白") && lower.contains("发")) return "white";
+        if (lower.contains("黑发") || lower.contains("黑") && lower.contains("发")) return "black";
+        return "black";
+    }
+
+    private String extractHairStyle(String lower) {
+        if (lower.contains("短发") || lower.contains("short")) return "short";
+        if (lower.contains("双马尾") || lower.contains("twin")) return "twin_tail";
+        if (lower.contains("马尾") || lower.contains("ponytail")) return "ponytail";
+        if (lower.contains("卷发") || lower.contains("波浪") || lower.contains("wavy")) return "wavy";
+        if (lower.contains("直发") || lower.contains("straight")) return "straight";
+        if (lower.contains("长发") || lower.contains("long")) return "long";
+        return "long";
+    }
+
+    private String extractEyeColor(String lower) {
+        if (lower.contains("红眼") || lower.contains("红瞳") || lower.contains("red eye")) return "red";
+        if (lower.contains("紫瞳") || lower.contains("紫眼") || lower.contains("purple")) return "purple";
+        if (lower.contains("异瞳") || lower.contains("heterochromia")) return "heterochromia";
+        if (lower.contains("蓝眼") || lower.contains("蓝瞳") || (lower.contains("蓝") && lower.contains("眼"))) return "blue";
+        if (lower.contains("绿眼") || lower.contains("green")) return "green";
+        if (lower.contains("琥珀") || lower.contains("amber")) return "amber";
+        return "blue";
+    }
+
+    private String extractEarType(String lower) {
+        if (lower.contains("猫耳") || lower.contains("cat")) return "cat";
+        if (lower.contains("精灵耳") || lower.contains("elf")) return "elf";
+        if (lower.contains("恶魔耳") || lower.contains("demon")) return "demon";
+        return "human";
+    }
+
+    private String extractWingType(String lower) {
+        if (lower.contains("机械") || lower.contains("mechanical")) return "mechanical";
+        if (lower.contains("天使") || lower.contains("angel")) return "angel";
+        if (lower.contains("恶魔") || lower.contains("demon")) return "demon";
+        if (lower.contains("能量") || lower.contains("energy")) return "energy";
+        return "none";
+    }
+
+    private String extractOutfitStyle(String lower) {
+        if (lower.contains("机甲") || lower.contains("装甲") || lower.contains("战甲") || lower.contains("铠甲") || lower.contains("armor")) return "armor";
+        if (lower.contains("哥特") || lower.contains("gothic")) return "gothic";
+        if (lower.contains("赛博") || lower.contains("朋克") || lower.contains("cyberpunk")) return "cyberpunk";
+        if (lower.contains("科技") || lower.contains("未来") || lower.contains("tech")) return "tech_future";
+        if (lower.contains("神秘") || lower.contains("诡异") || lower.contains("mysterious")) return "mysterious";
+        if (lower.contains("暗黑") || lower.contains("黑暗") || lower.contains("dark")) return "dark";
+        if (lower.contains("优雅") || lower.contains("高贵") || lower.contains("elegant")) return "elegant";
+        if (lower.contains("制服") || lower.contains("uniform")) return "uniform";
+        if (lower.contains("和服") || lower.contains("kimono")) return "kimono";
+        if (lower.contains("斗篷") || lower.contains("cloak")) return "cloak";
+        if (lower.contains("休闲") || lower.contains("casual") || lower.contains("日常")) return "casual";
+        return "casual";
+    }
+
+    private String extractOutfitColor(String lower) {
+        if (lower.contains("黑") && !lower.contains("黑发") || lower.contains("black")) return "black";
+        if (lower.contains("白") && !lower.contains("白发") || lower.contains("white")) return "white";
+        if (lower.contains("红") && !lower.contains("红发") || lower.contains("red")) return "red";
+        if (lower.contains("蓝") && !lower.contains("蓝发") && !lower.contains("蓝眼")) return "blue";
+        if (lower.contains("紫") && !lower.contains("紫发") && !lower.contains("紫瞳")) return "purple";
+        if (lower.contains("银") && !lower.contains("银发")) return "silver";
+        if (lower.contains("金") && !lower.contains("金发")) return "gold";
+        return "black";
+    }
+
+    private String extractPersonalityFromDesc(String lower) {
+        if (lower.contains("傲娇") || lower.contains("tsundere")) return "tsundere";
+        if (lower.contains("幽默") || lower.contains("风趣")) return "humorous";
+        if (lower.contains("博学") || lower.contains("知识")) return "knowledgeable";
+        if (lower.contains("勇敢") || lower.contains("冒险")) return "adventurous";
+        if (lower.contains("高冷") || lower.contains("冷酷") || lower.contains("cool")) return "cool";
+        if (lower.contains("温柔") || lower.contains("体贴")) return "gentle";
+        return "gentle";
+    }
+
+    private String getPersonalityTraits(String type) {
+        return switch (type) {
+            case "gentle" -> "[\"温柔\", \"体贴\", \"善良\"]";
+            case "humorous" -> "[\"幽默\", \"风趣\", \"开朗\"]";
+            case "knowledgeable" -> "[\"博学\", \"理性\", \"善于分析\"]";
+            case "adventurous" -> "[\"勇敢\", \"好奇\", \"冒险\"]";
+            case "cool" -> "[\"高冷\", \"神秘\", \"理性\"]";
+            case "tsundere" -> "[\"傲娇\", \"可爱\", \"口是心非\"]";
+            default -> "[\"温柔\", \"体贴\"]";
+        };
+    }
+
+    private String getSpeakingStyle(String type) {
+        return switch (type) {
+            case "gentle" -> "温柔细腻，充满关怀";
+            case "humorous" -> "轻松愉快，机智幽默";
+            case "knowledgeable" -> "专业严谨，条理清晰";
+            case "adventurous" -> "热情洋溢，充满活力";
+            case "cool" -> "言简意赅，富有哲理";
+            case "tsundere" -> "表面冷淡实则温柔";
+            default -> "温柔细腻";
+        };
+    }
+
+    private String getSlogan(String type) {
+        return switch (type) {
+            case "gentle" -> "今天也要好好照顾自己哦~";
+            case "humorous" -> "嘿！今天有什么好玩的计划吗？";
+            case "knowledgeable" -> "有什么想了解的，我可以告诉你。";
+            case "adventurous" -> "世界那么大，一起去探索吧！";
+            case "cool" -> "嗯。有事说事。";
+            case "tsundere" -> "哼...我才不是为了你才来的呢！";
+            default -> "你好呀，很高兴认识你~";
+        };
     }
 
     private String extractPersonalityType(String systemPrompt) {

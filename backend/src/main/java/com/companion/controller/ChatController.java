@@ -64,8 +64,11 @@ public class ChatController {
 
     @GetMapping("/session/{id}/messages")
     public Result<List<ChatMessageVO>> getMessageList(@PathVariable Long id) {
-        log.info("获取消息列表: sessionId={}", id);
-        List<ChatMessageVO> list = chatService.getMessageList(id);
+        Long userId = Long.valueOf(
+                SecurityContextHolder.getContext().getAuthentication().getPrincipal().toString()
+        );
+        log.info("获取消息列表: userId={}, sessionId={}", userId, id);
+        List<ChatMessageVO> list = chatService.getMessageList(userId, id);
         return Result.success(list);
     }
 
