@@ -22,3 +22,6 @@ mybatis-plus:
       logic-delete-field: deleted
       logic-delete-value: 1
       logic-not-delete-value: 0
+
+jwt:
+  secret: soft-delete-test-jwt-secret-key-at-least-32-bytes

@@ -2,10 +2,10 @@ package com.companion.security;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.companion.ai.AiService;
-import com.companion.common.utils.JwtUtils;
 import com.companion.entity.Avatar;
 import com.companion.entity.ChatSession;
 import com.companion.mapper.AvatarMapper;
+import com.companion.mapper.AuthSessionMapper;
 import com.companion.mapper.ChatMessageMapper;
 import com.companion.mapper.ChatSessionMapper;
 import com.companion.mapper.PersonalityMapper;
@@ -31,7 +31,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(properties = "spring.sql.init.mode=never")
+@SpringBootTest(properties = {
+        "spring.sql.init.mode=never",
+        "jwt.secret=resource-ownership-test-jwt-secret-at-least-32-bytes"
+})
 @AutoConfigureMockMvc
 class ResourceOwnershipIntegrationTest {
 
@@ -42,6 +45,9 @@ class ResourceOwnershipIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private JwtTokenService jwtTokenService;
 
     @MockBean
     private AvatarMapper avatarMapper;
@@ -58,13 +64,17 @@ class ResourceOwnershipIntegrationTest {
     @MockBean
     private AiService aiService;
 
+    @MockBean
+    private AuthSessionMapper authSessionMapper;
+
     private String userAToken;
     private Avatar userBAvatar;
     private ChatSession userBSession;
 
     @BeforeEach
     void setUp() {
-        userAToken = JwtUtils.generateToken(USER_A_ID, "UserA");
+        when(authSessionMapper.countActiveForEnabledUser(any(), any())).thenReturn(1L);
+        userAToken = jwtTokenService.generateAccessToken(USER_A_ID, "UserA");
 
         userBAvatar = new Avatar();
         userBAvatar.setId(USER_B_AVATAR_ID);

@@ -64,6 +64,8 @@ mybatis-plus:
 jwt:
   secret: ${JWT_SECRET:}
   expiration: 7200
+  issuer: ai-virtual-companion
+  audience: ai-virtual-companion-web
   header: Authorization
   prefix: "Bearer "
 

@@ -1,3 +1,27 @@
+DROP TABLE IF EXISTS t_auth_session;
+CREATE TABLE t_auth_session (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    jti VARCHAR(64) NOT NULL UNIQUE,
+    user_id BIGINT NOT NULL,
+    expires_at DATETIME NOT NULL,
+    revoked_at DATETIME,
+    create_time DATETIME,
+    update_time DATETIME
+);
+
+DROP TABLE IF EXISTS t_user;
+CREATE TABLE t_user (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(100) NOT NULL,
+    nickname VARCHAR(50),
+    avatar_url VARCHAR(500),
+    status TINYINT NOT NULL DEFAULT 1,
+    deleted TINYINT NOT NULL DEFAULT 0,
+    create_time DATETIME,
+    update_time DATETIME
+);
+
 DROP TABLE IF EXISTS t_avatar;
 CREATE TABLE t_avatar (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
