@@ -3,6 +3,8 @@ package com.companion.ai;
 import com.companion.entity.ChatMessage;
 import com.companion.entity.Personality;
 import com.companion.entity.UserMemory;
+import com.companion.ai.prompt.ChatPromptComposer;
+import com.companion.ai.prompt.ComposedChatPrompt;
 import com.companion.mapper.ChatMessageMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,22 +20,21 @@ public class AiServiceImpl implements AiService {
 
     private final LlmClient llmClient;
     private final PromptBuilder promptBuilder;
+    private final ChatPromptComposer chatPromptComposer;
     private final MemoryEngine memoryEngine;
     private final ChatMessageMapper chatMessageMapper;
 
     @Override
     public Flux<String> chatStream(Long userId, Long sessionId, String userMessage, Personality personality) {
         String memoryContext = memoryEngine.getMemoryContext(userId);
-        UserMemory memory = buildMemoryPlaceholder(memoryContext);
-
         List<ChatMessage> history = loadHistory(sessionId);
-
-        String systemPrompt = promptBuilder.buildSystemPrompt(personality);
-        String userPrompt = promptBuilder.buildUserPrompt(userMessage, history, memory);
+        ComposedChatPrompt prompt = chatPromptComposer.compose(
+                userId, sessionId, personality.getAvatarId(), personality, memoryContext, history, userMessage
+        );
 
         StringBuilder responseBuffer = new StringBuilder();
 
-        return llmClient.streamChat(systemPrompt, userPrompt)
+        return llmClient.streamChat(prompt)
                 .doOnNext(responseBuffer::append)
                 .doOnComplete(() -> {
                     String aiResponse = responseBuffer.toString();
@@ -51,14 +52,12 @@ public class AiServiceImpl implements AiService {
     @Override
     public String chat(Long userId, Long sessionId, String userMessage, Personality personality) {
         String memoryContext = memoryEngine.getMemoryContext(userId);
-        UserMemory memory = buildMemoryPlaceholder(memoryContext);
-
         List<ChatMessage> history = loadHistory(sessionId);
+        ComposedChatPrompt prompt = chatPromptComposer.compose(
+                userId, sessionId, personality.getAvatarId(), personality, memoryContext, history, userMessage
+        );
 
-        String systemPrompt = promptBuilder.buildSystemPrompt(personality);
-        String userPrompt = promptBuilder.buildUserPrompt(userMessage, history, memory);
-
-        String aiResponse = llmClient.chat(systemPrompt, userPrompt);
+        String aiResponse = llmClient.chat(prompt);
 
         try {
             memoryEngine.extractMemory(userMessage, aiResponse, userId);
@@ -84,16 +83,6 @@ public class AiServiceImpl implements AiService {
                         .orderByDesc("id")
                         .last("LIMIT 20")
         );
-    }
-
-    private UserMemory buildMemoryPlaceholder(String context) {
-        if (context == null || context.isEmpty()) {
-            return null;
-        }
-        UserMemory memory = new UserMemory();
-        memory.setMemoryKey("用户背景");
-        memory.setValue(context);
-        return memory;
     }
 
     private void saveMessage(Long sessionId, Integer role, String content) {

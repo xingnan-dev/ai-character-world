@@ -101,16 +101,20 @@ public class ChatServiceImpl implements ChatService {
 
         Personality personality = null;
         if (avatar.getPersonalityId() != null) {
-            personality = personalityMapper.selectById(avatar.getPersonalityId());
-        }
-        if (personality == null) {
             personality = personalityMapper.selectOne(
-                    new QueryWrapper<Personality>().eq("avatar_id", session.getAvatarId())
+                    new QueryWrapper<Personality>()
+                            .eq("id", avatar.getPersonalityId())
+                            .eq("avatar_id", avatar.getId())
+                            .eq("status", 1)
             );
         }
         if (personality == null) {
             personality = personalityMapper.selectOne(
-                    new QueryWrapper<Personality>().orderByDesc("id").last("LIMIT 1")
+                    new QueryWrapper<Personality>()
+                            .eq("avatar_id", avatar.getId())
+                            .eq("status", 1)
+                            .orderByDesc("id")
+                            .last("LIMIT 1")
             );
         }
         if (personality == null) {
