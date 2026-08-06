@@ -120,9 +120,7 @@ public class AvatarServiceImpl implements AvatarService {
         if (avatar == null) {
             throw new BusinessException(ResultCode.NOT_FOUND);
         }
-        avatar.setStatus(0);
-        avatar.setUpdateTime(LocalDateTime.now());
-        avatarMapper.updateById(avatar);
+        avatarMapper.deleteById(id);
     }
 
     private Avatar findOwnedActiveAvatar(Long userId, Long avatarId) {

@@ -27,8 +27,10 @@ public class UserMemory {
 
     private LocalDateTime lastAccessTime;
 
-    @TableLogic
     private Integer status;
+
+    @TableLogic
+    private Integer deleted;
 
     private LocalDateTime createTime;
 

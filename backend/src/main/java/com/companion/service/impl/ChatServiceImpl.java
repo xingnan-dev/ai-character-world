@@ -84,9 +84,7 @@ public class ChatServiceImpl implements ChatService {
         if (session == null) {
             throw new BusinessException(ResultCode.NOT_FOUND);
         }
-        session.setStatus(0);
-        session.setUpdateTime(LocalDateTime.now());
-        chatSessionMapper.updateById(session);
+        chatSessionMapper.deleteById(sessionId);
     }
 
     @Override

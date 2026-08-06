@@ -23,8 +23,10 @@ public class User {
 
     private String avatarUrl;
 
-    @TableLogic
     private Integer status;
+
+    @TableLogic
+    private Integer deleted;
 
     private LocalDateTime createTime;
 

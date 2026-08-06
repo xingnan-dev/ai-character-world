@@ -51,8 +51,10 @@ public class Avatar {
     @TableField("template_id")
     private Long templateId;
 
-    @TableLogic
     private Integer status;
+
+    @TableLogic
+    private Integer deleted;
 
     private LocalDateTime createTime;
 

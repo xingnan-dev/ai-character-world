@@ -21,8 +21,10 @@ public class ChatSession {
 
     private String title;
 
-    @TableLogic
     private Integer status;
+
+    @TableLogic
+    private Integer deleted;
 
     private LocalDateTime createTime;
 
