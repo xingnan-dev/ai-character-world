@@ -70,9 +70,12 @@ jwt:
   prefix: "Bearer "
 
 ai:
+  provider: ${AI_PROVIDER:openai-compatible}
   api-url: ${AI_API_URL:https://api.example.com/v1/chat/completions}
   api-key: ${AI_API_KEY:}
   model-name: ${AI_MODEL_NAME:gpt-3.5-turbo}
+  connect-timeout: 30s
+  read-timeout: 120s
 
 logging:
   level:
