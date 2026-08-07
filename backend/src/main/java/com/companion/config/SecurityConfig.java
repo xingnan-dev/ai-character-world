@@ -3,6 +3,7 @@ package com.companion.config;
 import com.companion.security.JwtAccessDeniedHandler;
 import com.companion.security.JwtAuthenticationEntryPoint;
 import com.companion.security.JwtAuthenticationFilter;
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -36,6 +37,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         .requestMatchers("/api/auth/**", "/api/avatar/list/public", "/api/test/**").permitAll()
                         .anyRequest().authenticated()
                 )
