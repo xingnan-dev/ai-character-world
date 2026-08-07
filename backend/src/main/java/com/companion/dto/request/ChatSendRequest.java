@@ -16,4 +16,11 @@ public class ChatSendRequest {
 
     @NotBlank
     private String content;
+
+    private String requestId;
+
+    public ChatSendRequest(Long sessionId, String content) {
+        this.sessionId = sessionId;
+        this.content = content;
+    }
 }

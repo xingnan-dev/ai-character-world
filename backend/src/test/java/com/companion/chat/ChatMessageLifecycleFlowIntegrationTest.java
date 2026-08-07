@@ -20,6 +20,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
+import reactor.core.Disposable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -123,6 +124,21 @@ class ChatMessageLifecycleFlowIntegrationTest {
         ChatMessage assistantMessage = chatMessageMapper.selectById(exchange.assistantMessageId());
         assertThat(assistantMessage.getStatus()).isEqualTo(ChatMessageStatus.COMPLETED.getCode());
         assertThat(assistantMessage.getContent()).isEqualTo("done");
+    }
+
+    @Test
+    void cancellingUpstreamMarksAssistantCancelled() {
+        ChatMessageExchange exchange = lifecycleService.createExchange(SESSION_ID, "hello");
+        llmClient.respondWith(Flux.never());
+
+        Disposable subscription = aiService.chatStream(
+                USER_ID, SESSION_ID, "hello", personality(), exchange
+        ).subscribe();
+        subscription.dispose();
+
+        ChatMessage assistantMessage = chatMessageMapper.selectById(exchange.assistantMessageId());
+        assertThat(assistantMessage.getStatus()).isEqualTo(ChatMessageStatus.CANCELLED.getCode());
+        assertThat(assistantMessage.getCompletionTime()).isNotNull();
     }
 
     private Personality personality() {

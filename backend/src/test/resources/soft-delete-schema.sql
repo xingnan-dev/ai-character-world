@@ -87,6 +87,7 @@ DROP TABLE IF EXISTS t_chat_message;
 CREATE TABLE t_chat_message (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     session_id BIGINT NOT NULL,
+    request_id VARCHAR(64),
     role TINYINT NOT NULL,
     content VARCHAR(4000) NOT NULL,
     emotion VARCHAR(50),
@@ -96,7 +97,8 @@ CREATE TABLE t_chat_message (
     deleted TINYINT NOT NULL DEFAULT 0,
     create_time DATETIME,
     update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    completion_time DATETIME
+    completion_time DATETIME,
+    CONSTRAINT uk_chat_message_session_request_role UNIQUE (session_id, request_id, role)
 );
 
 DROP TABLE IF EXISTS t_user_memory;

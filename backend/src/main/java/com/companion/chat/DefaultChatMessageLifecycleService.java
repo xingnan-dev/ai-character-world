@@ -6,10 +6,12 @@ import com.companion.entity.ChatMessage;
 import com.companion.entity.enums.ChatMessageStatus;
 import com.companion.mapper.ChatMessageMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -23,20 +25,42 @@ public class DefaultChatMessageLifecycleService implements ChatMessageLifecycleS
     @Override
     @Transactional
     public ChatMessageExchange createExchange(Long sessionId, String userContent) {
+        return createExchange(sessionId, userContent, null);
+    }
+
+    @Override
+    @Transactional
+    public ChatMessageExchange createExchange(Long sessionId, String userContent, String requestId) {
+        String effectiveRequestId = normalizeRequestId(requestId);
+        ChatMessageExchange existing = findExistingExchange(sessionId, effectiveRequestId);
+        if (existing != null) {
+            return existing;
+        }
+
         LocalDateTime now = LocalDateTime.now();
 
         ChatMessage userMessage = new ChatMessage();
         userMessage.setSessionId(sessionId);
+        userMessage.setRequestId(effectiveRequestId);
         userMessage.setRole(USER_ROLE);
         userMessage.setContent(userContent);
         userMessage.setStatus(ChatMessageStatus.COMPLETED.getCode());
         userMessage.setCreateTime(now);
         userMessage.setUpdateTime(now);
         userMessage.setCompletionTime(now);
-        chatMessageMapper.insert(userMessage);
+        try {
+            chatMessageMapper.insert(userMessage);
+        } catch (DuplicateKeyException duplicate) {
+            ChatMessageExchange concurrent = findExistingExchange(sessionId, effectiveRequestId);
+            if (concurrent != null) {
+                return concurrent;
+            }
+            throw duplicate;
+        }
 
         ChatMessage assistantMessage = new ChatMessage();
         assistantMessage.setSessionId(sessionId);
+        assistantMessage.setRequestId(effectiveRequestId);
         assistantMessage.setRole(ASSISTANT_ROLE);
         assistantMessage.setContent("");
         assistantMessage.setStatus(ChatMessageStatus.PENDING.getCode());
@@ -44,7 +68,9 @@ public class DefaultChatMessageLifecycleService implements ChatMessageLifecycleS
         assistantMessage.setUpdateTime(now);
         chatMessageMapper.insert(assistantMessage);
 
-        return new ChatMessageExchange(userMessage.getId(), assistantMessage.getId());
+        return new ChatMessageExchange(
+                userMessage.getId(), assistantMessage.getId(), effectiveRequestId, true
+        );
     }
 
     @Override
@@ -117,5 +143,40 @@ public class DefaultChatMessageLifecycleService implements ChatMessageLifecycleS
                 .eq(ChatMessage::getStatus, expected.getCode())
                 .set(ChatMessage::getStatus, target.getCode())
                 .set(ChatMessage::getUpdateTime, updateTime);
+    }
+
+    private String normalizeRequestId(String requestId) {
+        if (requestId == null || requestId.isBlank()) {
+            return UUID.randomUUID().toString();
+        }
+        String normalized = requestId.trim();
+        if (normalized.length() > 64) {
+            throw new IllegalArgumentException("requestId must not exceed 64 characters");
+        }
+        return normalized;
+    }
+
+    private ChatMessageExchange findExistingExchange(Long sessionId, String requestId) {
+        ChatMessage userMessage = chatMessageMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ChatMessage>()
+                        .eq(ChatMessage::getSessionId, sessionId)
+                        .eq(ChatMessage::getRequestId, requestId)
+                        .eq(ChatMessage::getRole, USER_ROLE)
+        );
+        if (userMessage == null) {
+            return null;
+        }
+        ChatMessage assistantMessage = chatMessageMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ChatMessage>()
+                        .eq(ChatMessage::getSessionId, sessionId)
+                        .eq(ChatMessage::getRequestId, requestId)
+                        .eq(ChatMessage::getRole, ASSISTANT_ROLE)
+        );
+        if (assistantMessage == null) {
+            throw new IllegalStateException("Idempotent chat exchange is incomplete");
+        }
+        return new ChatMessageExchange(
+                userMessage.getId(), assistantMessage.getId(), requestId, false
+        );
     }
 }

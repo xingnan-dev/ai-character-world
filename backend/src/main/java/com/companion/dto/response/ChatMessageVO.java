@@ -13,6 +13,8 @@ public class ChatMessageVO {
 
     private Long sessionId;
 
+    private String requestId;
+
     private Integer role;
 
     private String content;

@@ -16,6 +16,7 @@ import com.companion.entity.Avatar;
 import com.companion.entity.ChatMessage;
 import com.companion.entity.ChatSession;
 import com.companion.entity.Personality;
+import com.companion.entity.enums.ChatMessageStatus;
 import com.companion.mapper.AvatarMapper;
 import com.companion.mapper.ChatMessageMapper;
 import com.companion.mapper.ChatSessionMapper;
@@ -109,8 +110,12 @@ public class ChatServiceImpl implements ChatService {
 
         Personality personality = sessionPersonalityResolver.resolveFromSession(session);
         ChatMessageExchange exchange = chatMessageLifecycleService.createExchange(
-                session.getId(), request.getContent()
+                session.getId(), request.getContent(), request.getRequestId()
         );
+
+        if (!exchange.created()) {
+            return replayExistingExchange(exchange, request.getContent());
+        }
 
         return aiService.chatStream(userId, session.getId(), request.getContent(), personality, exchange);
     }
@@ -164,6 +169,7 @@ public class ChatServiceImpl implements ChatService {
         ChatMessageVO vo = new ChatMessageVO();
         vo.setId(msg.getId());
         vo.setSessionId(msg.getSessionId());
+        vo.setRequestId(msg.getRequestId());
         vo.setRole(msg.getRole());
         vo.setContent(msg.getContent());
         vo.setEmotion(msg.getEmotion());
@@ -172,5 +178,20 @@ public class ChatServiceImpl implements ChatService {
         vo.setErrorMessage(msg.getErrorMessage());
         vo.setCreateTime(msg.getCreateTime() != null ? msg.getCreateTime().toString() : null);
         return vo;
+    }
+
+    private Flux<String> replayExistingExchange(ChatMessageExchange exchange, String requestedContent) {
+        ChatMessage userMessage = chatMessageMapper.selectById(exchange.userMessageId());
+        ChatMessage assistantMessage = chatMessageMapper.selectById(exchange.assistantMessageId());
+        if (userMessage == null || assistantMessage == null) {
+            return Flux.error(new BusinessException(ResultCode.SERVER_ERROR.getCode(), "幂等消息记录不完整"));
+        }
+        if (!requestedContent.equals(userMessage.getContent())) {
+            return Flux.error(new BusinessException(409, "requestId已用于其他消息内容"));
+        }
+        if (ChatMessageStatus.COMPLETED.getCode() == assistantMessage.getStatus()) {
+            return Flux.just(assistantMessage.getContent());
+        }
+        return Flux.error(new BusinessException(409, "相同requestId的聊天请求已存在"));
     }
 }

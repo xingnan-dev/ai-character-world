@@ -1,5 +1,6 @@
 package com.companion.controller;
 
+import com.companion.chat.SseSubscriptionLifecycle;
 import com.companion.common.result.Result;
 import com.companion.dto.request.ChatSendRequest;
 import com.companion.dto.request.ChatSessionCreateRequest;
@@ -9,9 +10,11 @@ import com.companion.security.AuthenticatedUser;
 import com.companion.service.ChatService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import org.reactivestreams.Subscription;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import reactor.core.publisher.BaseSubscriber;
 import reactor.core.publisher.Flux;
 
 import java.io.IOException;
@@ -78,40 +81,65 @@ public class ChatController {
         log.info("流式聊天: userId={}, sessionId={}", userId, request.getSessionId());
 
         SseEmitter emitter = new SseEmitter(300000L);
+        SseSubscriptionLifecycle subscriptionLifecycle = new SseSubscriptionLifecycle();
 
         Flux<String> flux = chatService.sendMessage(userId, request);
 
-        flux.subscribe(
-                token -> {
-                    try {
-                        emitter.send(SseEmitter.event().data(token));
-                    } catch (IOException e) {
-                        log.error("发送token失败", e);
-                        emitter.completeWithError(e);
-                    }
-                },
-                error -> {
-                    log.error("流式响应错误", error);
-                    try {
-                        emitter.send(SseEmitter.event().name("error").data(error.getMessage()));
-                    } catch (IOException e) {
-                        log.error("发送错误事件失败", e);
-                    }
-                    emitter.completeWithError(error);
-                },
-                () -> {
-                    try {
-                        emitter.send(SseEmitter.event().name("done").data("[DONE]"));
-                    } catch (IOException e) {
-                        log.error("发送完成事件失败", e);
-                    }
-                    emitter.complete();
-                }
-        );
+        BaseSubscriber<String> subscriber = new BaseSubscriber<>() {
+            @Override
+            protected void hookOnSubscribe(Subscription subscription) {
+                subscriptionLifecycle.attach(this);
+                requestUnbounded();
+            }
 
-        emitter.onCompletion(() -> log.info("SSE连接完成: sessionId={}", request.getSessionId()));
-        emitter.onTimeout(() -> log.warn("SSE连接超时: sessionId={}", request.getSessionId()));
-        emitter.onError(t -> log.error("SSE连接错误: sessionId={}", request.getSessionId(), t));
+            @Override
+            protected void hookOnNext(String token) {
+                try {
+                    emitter.send(SseEmitter.event().data(token));
+                } catch (IOException e) {
+                    log.error("发送token失败", e);
+                    subscriptionLifecycle.cancelUpstream();
+                    emitter.completeWithError(e);
+                }
+            }
+
+            @Override
+            protected void hookOnError(Throwable error) {
+                subscriptionLifecycle.markUpstreamTerminated();
+                log.error("流式响应错误", error);
+                try {
+                    emitter.send(SseEmitter.event().name("error").data(error.getMessage()));
+                } catch (IOException e) {
+                    log.error("发送错误事件失败", e);
+                }
+                emitter.completeWithError(error);
+            }
+
+            @Override
+            protected void hookOnComplete() {
+                subscriptionLifecycle.markUpstreamTerminated();
+                try {
+                    emitter.send(SseEmitter.event().name("done").data("[DONE]"));
+                } catch (IOException e) {
+                    log.error("发送完成事件失败", e);
+                }
+                emitter.complete();
+            }
+        };
+        flux.subscribe(subscriber);
+
+        emitter.onCompletion(() -> {
+            subscriptionLifecycle.cancelUpstream();
+            log.info("SSE连接完成: sessionId={}", request.getSessionId());
+        });
+        emitter.onTimeout(() -> {
+            subscriptionLifecycle.cancelUpstream();
+            log.warn("SSE连接超时: sessionId={}", request.getSessionId());
+        });
+        emitter.onError(t -> {
+            subscriptionLifecycle.cancelUpstream();
+            log.error("SSE连接错误: sessionId={}", request.getSessionId(), t);
+        });
 
         return emitter;
     }

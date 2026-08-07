@@ -6,6 +6,8 @@ public interface ChatMessageLifecycleService {
 
     ChatMessageExchange createExchange(Long sessionId, String userContent);
 
+    ChatMessageExchange createExchange(Long sessionId, String userContent, String requestId);
+
     boolean markStreaming(Long assistantMessageId);
 
     boolean complete(Long assistantMessageId, String content);

@@ -84,15 +84,15 @@ class ChatServicePersonalityIsolationTest {
         when(chatSessionMapper.selectOne(any())).thenReturn(session);
         when(avatarMapper.selectOne(any())).thenReturn(avatar);
         when(sessionPersonalityResolver.resolveFromSession(session)).thenReturn(boundPersonality);
-        ChatMessageExchange exchange = new ChatMessageExchange(50L, 51L);
-        when(chatMessageLifecycleService.createExchange(SESSION_B_ID, "你好")).thenReturn(exchange);
+        ChatMessageExchange exchange = new ChatMessageExchange(50L, 51L, "generated", true);
+        when(chatMessageLifecycleService.createExchange(SESSION_B_ID, "你好", null)).thenReturn(exchange);
         when(aiService.chatStream(USER_B_ID, SESSION_B_ID, "你好", boundPersonality, exchange))
                 .thenReturn(Flux.just("你好"));
 
         chatService.sendMessage(USER_B_ID, new ChatSendRequest(SESSION_B_ID, "你好"));
 
         verify(sessionPersonalityResolver).resolveFromSession(session);
-        verify(chatMessageLifecycleService).createExchange(SESSION_B_ID, "你好");
+        verify(chatMessageLifecycleService).createExchange(SESSION_B_ID, "你好", null);
         verify(aiService).chatStream(USER_B_ID, SESSION_B_ID, "你好", boundPersonality, exchange);
     }
 }
