@@ -85,3 +85,6 @@ logging:
 app:
   redis:
     enabled: false
+
+chat:
+  message-recovery-timeout: ${CHAT_MESSAGE_RECOVERY_TIMEOUT:5m}
