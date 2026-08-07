@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -18,6 +19,14 @@ public class ChatSession {
     private Long userId;
 
     private Long avatarId;
+
+    private Long personalityId;
+
+    @TableField("personality_snapshot")
+    private String personalitySnapshot;
+
+    @TableField("personality_snapshot_version")
+    private Integer personalitySnapshotVersion;
 
     private String title;
 

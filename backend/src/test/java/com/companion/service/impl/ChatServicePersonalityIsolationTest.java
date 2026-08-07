@@ -1,7 +1,7 @@
 package com.companion.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.companion.ai.AiService;
+import com.companion.chat.SessionPersonalityResolver;
 import com.companion.common.exception.BusinessException;
 import com.companion.dto.request.ChatSendRequest;
 import com.companion.entity.Avatar;
@@ -10,14 +10,12 @@ import com.companion.entity.Personality;
 import com.companion.mapper.AvatarMapper;
 import com.companion.mapper.ChatMessageMapper;
 import com.companion.mapper.ChatSessionMapper;
-import com.companion.mapper.PersonalityMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.Map;
+import reactor.core.publisher.Flux;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -29,13 +27,14 @@ import static org.mockito.Mockito.when;
 class ChatServicePersonalityIsolationTest {
 
     private static final long USER_A_ID = 10L;
-    private static final long AVATAR_A_ID = 20L;
-    private static final long SESSION_A_ID = 30L;
+    private static final long USER_B_ID = 11L;
+    private static final long AVATAR_B_ID = 20L;
+    private static final long SESSION_B_ID = 30L;
 
     @Mock private ChatSessionMapper chatSessionMapper;
     @Mock private ChatMessageMapper chatMessageMapper;
     @Mock private AvatarMapper avatarMapper;
-    @Mock private PersonalityMapper personalityMapper;
+    @Mock private SessionPersonalityResolver sessionPersonalityResolver;
     @Mock private AiService aiService;
 
     private ChatServiceImpl chatService;
@@ -43,47 +42,50 @@ class ChatServicePersonalityIsolationTest {
     @BeforeEach
     void setUp() {
         chatService = new ChatServiceImpl(
-                chatSessionMapper, chatMessageMapper, avatarMapper, personalityMapper, aiService
+                chatSessionMapper, chatMessageMapper, avatarMapper, sessionPersonalityResolver, aiService
         );
-
-        ChatSession session = new ChatSession();
-        session.setId(SESSION_A_ID);
-        session.setUserId(USER_A_ID);
-        session.setAvatarId(AVATAR_A_ID);
-        session.setStatus(1);
-
-        Avatar avatar = new Avatar();
-        avatar.setId(AVATAR_A_ID);
-        avatar.setUserId(USER_A_ID);
-        avatar.setStatus(1);
-
-        when(chatSessionMapper.selectOne(any())).thenReturn(session);
-        when(avatarMapper.selectOne(any())).thenReturn(avatar);
     }
 
     @Test
-    void doesNotFallBackToAnotherUsersLatestPersonality() {
-        when(personalityMapper.selectOne(any())).thenAnswer(invocation -> {
-            QueryWrapper<Personality> wrapper = invocation.getArgument(0);
-            assertThatQueryContains(wrapper, AVATAR_A_ID);
-            return null;
-        });
+    void userCannotReadAnotherUsersSessionPersonalitySnapshot() {
+        when(chatSessionMapper.selectOne(any())).thenReturn(null);
 
-        ChatSendRequest request = new ChatSendRequest();
-        request.setSessionId(SESSION_A_ID);
-        request.setContent("你好");
+        ChatSendRequest request = new ChatSendRequest(SESSION_B_ID, "你好");
 
         assertThatThrownBy(() -> chatService.sendMessage(USER_A_ID, request))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("该头像尚未设置人格");
+                .hasMessage("资源不存在");
 
-        verify(personalityMapper).selectOne(any());
-        verifyNoInteractions(aiService);
+        verifyNoInteractions(avatarMapper, sessionPersonalityResolver, aiService);
     }
 
-    private void assertThatQueryContains(QueryWrapper<?> wrapper, Object expected) {
-        wrapper.getSqlSegment();
-        Map<String, Object> parameters = wrapper.getParamNameValuePairs();
-        org.assertj.core.api.Assertions.assertThat(parameters.values()).contains(expected);
+    @Test
+    void sendMessageUsesOnlyTheBoundSessionSnapshot() {
+        ChatSession session = new ChatSession();
+        session.setId(SESSION_B_ID);
+        session.setUserId(USER_B_ID);
+        session.setAvatarId(AVATAR_B_ID);
+        session.setStatus(1);
+
+        Avatar avatar = new Avatar();
+        avatar.setId(AVATAR_B_ID);
+        avatar.setUserId(USER_B_ID);
+        avatar.setStatus(1);
+
+        Personality boundPersonality = new Personality();
+        boundPersonality.setId(40L);
+        boundPersonality.setAvatarId(AVATAR_B_ID);
+        boundPersonality.setName("创建会话时的人格");
+
+        when(chatSessionMapper.selectOne(any())).thenReturn(session);
+        when(avatarMapper.selectOne(any())).thenReturn(avatar);
+        when(sessionPersonalityResolver.resolveFromSession(session)).thenReturn(boundPersonality);
+        when(aiService.chatStream(USER_B_ID, SESSION_B_ID, "你好", boundPersonality))
+                .thenReturn(Flux.just("你好"));
+
+        chatService.sendMessage(USER_B_ID, new ChatSendRequest(SESSION_B_ID, "你好"));
+
+        verify(sessionPersonalityResolver).resolveFromSession(session);
+        verify(aiService).chatStream(USER_B_ID, SESSION_B_ID, "你好", boundPersonality);
     }
 }

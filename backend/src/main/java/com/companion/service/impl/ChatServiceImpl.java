@@ -2,6 +2,8 @@ package com.companion.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.companion.ai.AiService;
+import com.companion.chat.SessionPersonalityResolver;
+import com.companion.chat.model.PersonalitySnapshot;
 import com.companion.common.exception.BusinessException;
 import com.companion.common.result.ResultCode;
 import com.companion.dto.request.ChatSendRequest;
@@ -15,7 +17,6 @@ import com.companion.entity.Personality;
 import com.companion.mapper.AvatarMapper;
 import com.companion.mapper.ChatMessageMapper;
 import com.companion.mapper.ChatSessionMapper;
-import com.companion.mapper.PersonalityMapper;
 import com.companion.service.ChatService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +35,7 @@ public class ChatServiceImpl implements ChatService {
     private final ChatSessionMapper chatSessionMapper;
     private final ChatMessageMapper chatMessageMapper;
     private final AvatarMapper avatarMapper;
-    private final PersonalityMapper personalityMapper;
+    private final SessionPersonalityResolver sessionPersonalityResolver;
     private final AiService aiService;
 
     @Override
@@ -43,10 +44,14 @@ public class ChatServiceImpl implements ChatService {
         if (avatar == null) {
             throw new BusinessException(ResultCode.NOT_FOUND);
         }
+        PersonalitySnapshot personalitySnapshot = sessionPersonalityResolver.resolveForNewSession(userId, avatar);
 
         ChatSession session = new ChatSession();
         session.setUserId(userId);
         session.setAvatarId(request.getAvatarId());
+        session.setPersonalityId(personalitySnapshot.personalityId());
+        session.setPersonalitySnapshot(sessionPersonalityResolver.encode(personalitySnapshot));
+        session.setPersonalitySnapshotVersion(personalitySnapshot.snapshotVersion());
         session.setTitle(request.getTitle() != null ? request.getTitle() : avatar.getName());
         session.setStatus(1);
         session.setCreateTime(LocalDateTime.now());
@@ -99,27 +104,7 @@ public class ChatServiceImpl implements ChatService {
             throw new BusinessException(ResultCode.NOT_FOUND.getCode(), "头像不存在");
         }
 
-        Personality personality = null;
-        if (avatar.getPersonalityId() != null) {
-            personality = personalityMapper.selectOne(
-                    new QueryWrapper<Personality>()
-                            .eq("id", avatar.getPersonalityId())
-                            .eq("avatar_id", avatar.getId())
-                            .eq("status", 1)
-            );
-        }
-        if (personality == null) {
-            personality = personalityMapper.selectOne(
-                    new QueryWrapper<Personality>()
-                            .eq("avatar_id", avatar.getId())
-                            .eq("status", 1)
-                            .orderByDesc("id")
-                            .last("LIMIT 1")
-            );
-        }
-        if (personality == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND.getCode(), "该头像尚未设置人格");
-        }
+        Personality personality = sessionPersonalityResolver.resolveFromSession(session);
 
         return aiService.chatStream(userId, session.getId(), request.getContent(), personality);
     }
