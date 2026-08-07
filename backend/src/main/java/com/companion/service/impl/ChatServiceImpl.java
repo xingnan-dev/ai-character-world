@@ -2,7 +2,9 @@ package com.companion.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.companion.ai.AiService;
+import com.companion.chat.ChatMessageLifecycleService;
 import com.companion.chat.SessionPersonalityResolver;
+import com.companion.chat.model.ChatMessageExchange;
 import com.companion.chat.model.PersonalitySnapshot;
 import com.companion.common.exception.BusinessException;
 import com.companion.common.result.ResultCode;
@@ -36,6 +38,7 @@ public class ChatServiceImpl implements ChatService {
     private final ChatMessageMapper chatMessageMapper;
     private final AvatarMapper avatarMapper;
     private final SessionPersonalityResolver sessionPersonalityResolver;
+    private final ChatMessageLifecycleService chatMessageLifecycleService;
     private final AiService aiService;
 
     @Override
@@ -105,8 +108,11 @@ public class ChatServiceImpl implements ChatService {
         }
 
         Personality personality = sessionPersonalityResolver.resolveFromSession(session);
+        ChatMessageExchange exchange = chatMessageLifecycleService.createExchange(
+                session.getId(), request.getContent()
+        );
 
-        return aiService.chatStream(userId, session.getId(), request.getContent(), personality);
+        return aiService.chatStream(userId, session.getId(), request.getContent(), personality, exchange);
     }
 
     @Override
@@ -161,6 +167,9 @@ public class ChatServiceImpl implements ChatService {
         vo.setRole(msg.getRole());
         vo.setContent(msg.getContent());
         vo.setEmotion(msg.getEmotion());
+        vo.setStatus(msg.getStatus());
+        vo.setErrorCode(msg.getErrorCode());
+        vo.setErrorMessage(msg.getErrorMessage());
         vo.setCreateTime(msg.getCreateTime() != null ? msg.getCreateTime().toString() : null);
         return vo;
     }

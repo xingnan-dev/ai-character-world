@@ -1,6 +1,7 @@
 package com.companion.service.impl;
 
 import com.companion.ai.AiService;
+import com.companion.chat.ChatMessageLifecycleService;
 import com.companion.chat.SessionPersonalityResolver;
 import com.companion.chat.model.PersonalitySnapshot;
 import com.companion.dto.request.ChatSessionCreateRequest;
@@ -28,6 +29,7 @@ class ChatSessionPersonalityBindingTest {
     @Mock private ChatMessageMapper chatMessageMapper;
     @Mock private AvatarMapper avatarMapper;
     @Mock private SessionPersonalityResolver sessionPersonalityResolver;
+    @Mock private ChatMessageLifecycleService chatMessageLifecycleService;
     @Mock private AiService aiService;
 
     private ChatServiceImpl chatService;
@@ -35,7 +37,8 @@ class ChatSessionPersonalityBindingTest {
     @BeforeEach
     void setUp() {
         chatService = new ChatServiceImpl(
-                chatSessionMapper, chatMessageMapper, avatarMapper, sessionPersonalityResolver, aiService
+                chatSessionMapper, chatMessageMapper, avatarMapper, sessionPersonalityResolver,
+                chatMessageLifecycleService, aiService
         );
     }
 

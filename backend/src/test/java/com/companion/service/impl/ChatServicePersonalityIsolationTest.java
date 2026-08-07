@@ -1,7 +1,9 @@
 package com.companion.service.impl;
 
 import com.companion.ai.AiService;
+import com.companion.chat.ChatMessageLifecycleService;
 import com.companion.chat.SessionPersonalityResolver;
+import com.companion.chat.model.ChatMessageExchange;
 import com.companion.common.exception.BusinessException;
 import com.companion.dto.request.ChatSendRequest;
 import com.companion.entity.Avatar;
@@ -35,6 +37,7 @@ class ChatServicePersonalityIsolationTest {
     @Mock private ChatMessageMapper chatMessageMapper;
     @Mock private AvatarMapper avatarMapper;
     @Mock private SessionPersonalityResolver sessionPersonalityResolver;
+    @Mock private ChatMessageLifecycleService chatMessageLifecycleService;
     @Mock private AiService aiService;
 
     private ChatServiceImpl chatService;
@@ -42,7 +45,8 @@ class ChatServicePersonalityIsolationTest {
     @BeforeEach
     void setUp() {
         chatService = new ChatServiceImpl(
-                chatSessionMapper, chatMessageMapper, avatarMapper, sessionPersonalityResolver, aiService
+                chatSessionMapper, chatMessageMapper, avatarMapper, sessionPersonalityResolver,
+                chatMessageLifecycleService, aiService
         );
     }
 
@@ -80,12 +84,15 @@ class ChatServicePersonalityIsolationTest {
         when(chatSessionMapper.selectOne(any())).thenReturn(session);
         when(avatarMapper.selectOne(any())).thenReturn(avatar);
         when(sessionPersonalityResolver.resolveFromSession(session)).thenReturn(boundPersonality);
-        when(aiService.chatStream(USER_B_ID, SESSION_B_ID, "你好", boundPersonality))
+        ChatMessageExchange exchange = new ChatMessageExchange(50L, 51L);
+        when(chatMessageLifecycleService.createExchange(SESSION_B_ID, "你好")).thenReturn(exchange);
+        when(aiService.chatStream(USER_B_ID, SESSION_B_ID, "你好", boundPersonality, exchange))
                 .thenReturn(Flux.just("你好"));
 
         chatService.sendMessage(USER_B_ID, new ChatSendRequest(SESSION_B_ID, "你好"));
 
         verify(sessionPersonalityResolver).resolveFromSession(session);
-        verify(aiService).chatStream(USER_B_ID, SESSION_B_ID, "你好", boundPersonality);
+        verify(chatMessageLifecycleService).createExchange(SESSION_B_ID, "你好");
+        verify(aiService).chatStream(USER_B_ID, SESSION_B_ID, "你好", boundPersonality, exchange);
     }
 }

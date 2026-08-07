@@ -23,8 +23,18 @@ public class ChatMessage {
 
     private String emotion;
 
+    private Integer status;
+
+    private String errorCode;
+
+    private String errorMessage;
+
     @TableLogic
     private Integer deleted;
 
     private LocalDateTime createTime;
+
+    private LocalDateTime updateTime;
+
+    private LocalDateTime completionTime;
 }

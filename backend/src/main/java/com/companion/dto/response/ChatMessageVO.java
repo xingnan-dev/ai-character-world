@@ -19,5 +19,11 @@ public class ChatMessageVO {
 
     private String emotion;
 
+    private Integer status;
+
+    private String errorCode;
+
+    private String errorMessage;
+
     private String createTime;
 }

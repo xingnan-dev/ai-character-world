@@ -1,6 +1,7 @@
 package com.companion.service.impl;
 
 import com.companion.ai.AiService;
+import com.companion.chat.ChatMessageLifecycleService;
 import com.companion.chat.DefaultSessionPersonalityResolver;
 import com.companion.chat.PersonalitySnapshotCodec;
 import com.companion.dto.request.AvatarCreateRequest;
@@ -37,6 +38,7 @@ class AvatarPersonalityConsistencyTest {
     @Mock private PersonalityMapper personalityMapper;
     @Mock private ChatSessionMapper chatSessionMapper;
     @Mock private ChatMessageMapper chatMessageMapper;
+    @Mock private ChatMessageLifecycleService chatMessageLifecycleService;
     @Mock private AiService aiService;
 
     private AvatarServiceImpl avatarService;
@@ -91,7 +93,8 @@ class AvatarPersonalityConsistencyTest {
                 personalityMapper, new PersonalitySnapshotCodec(new ObjectMapper())
         );
         ChatServiceImpl chatService = new ChatServiceImpl(
-                chatSessionMapper, chatMessageMapper, avatarMapper, resolver, aiService
+                chatSessionMapper, chatMessageMapper, avatarMapper, resolver,
+                chatMessageLifecycleService, aiService
         );
 
         chatService.createSession(3L, new ChatSessionCreateRequest(53L, null));

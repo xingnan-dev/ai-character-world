@@ -90,8 +90,13 @@ CREATE TABLE t_chat_message (
     role TINYINT NOT NULL,
     content VARCHAR(4000) NOT NULL,
     emotion VARCHAR(50),
+    status TINYINT NOT NULL DEFAULT 2,
+    error_code VARCHAR(50),
+    error_message VARCHAR(500),
     deleted TINYINT NOT NULL DEFAULT 0,
-    create_time DATETIME
+    create_time DATETIME,
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completion_time DATETIME
 );
 
 DROP TABLE IF EXISTS t_user_memory;
