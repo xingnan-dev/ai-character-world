@@ -13,6 +13,7 @@ import com.companion.service.PersonalityService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -27,6 +28,7 @@ public class PersonalityServiceImpl implements PersonalityService {
     private final AvatarMapper avatarMapper;
 
     @Override
+    @Transactional
     public PersonalityVO createPersonality(Long userId, Long avatarId, PersonalityCreateRequest request) {
         Avatar avatar = findOwnedActiveAvatar(userId, avatarId);
         if (avatar == null) {
@@ -43,9 +45,16 @@ public class PersonalityServiceImpl implements PersonalityService {
         personality.setHobbies(request.getHobbies());
         personality.setRelationship(request.getRelationship());
         personality.setSystemPrompt(buildSystemPrompt(request));
+        personality.setStatus(1);
         personality.setCreateTime(LocalDateTime.now());
         personality.setUpdateTime(LocalDateTime.now());
         personalityMapper.insert(personality);
+
+        avatar.setPersonalityId(personality.getId());
+        avatar.setUpdateTime(LocalDateTime.now());
+        if (avatarMapper.updateById(avatar) != 1) {
+            throw new BusinessException(ResultCode.SERVER_ERROR.getCode(), "形象人格绑定失败");
+        }
 
         return convertToVO(personality);
     }

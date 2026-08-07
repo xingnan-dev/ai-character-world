@@ -99,6 +99,16 @@ class SessionPersonalityResolverTest {
         verify(personalityMapper, never()).selectOne(any());
     }
 
+    @Test
+    void newAvatarWithoutAnyPersonalityIsRejected() {
+        Avatar avatar = avatar(10L, 20L, null);
+        when(personalityMapper.selectOne(any())).thenReturn(null);
+
+        assertThatThrownBy(() -> resolver.resolveForNewSession(10L, avatar))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("尚未设置人格");
+    }
+
     private Avatar avatar(Long userId, Long avatarId, Long personalityId) {
         Avatar avatar = new Avatar();
         avatar.setId(avatarId);

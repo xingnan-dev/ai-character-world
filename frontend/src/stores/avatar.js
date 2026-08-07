@@ -20,45 +20,16 @@ export const useAvatarStore = defineStore('avatar', {
       try {
         const res = await getAvatarList()
         const list = res.data || res || []
-        if (list.length === 0) {
-          this.loadMockData()
-        } else {
-          this.avatarList = list
-        }
+        this.avatarList = list
         if (this.currentAvatarIndex >= this.avatarList.length) {
           this.currentAvatarIndex = 0
         }
       } catch (err) {
-        this.loadMockData()
+        this.avatarList = []
+        this.error = err.message || '获取形象列表失败'
       } finally {
         this.loading = false
       }
-    },
-    loadMockData() {
-      this.avatarList = [
-        {
-          id: 1,
-          name: 'Luna',
-          type: 1,
-          gender: 2,
-          baseModel: 'sky',
-          modelUrl: '/models/avatars/sky.vrm',
-          slogan: '所有没有你的日子，都存在缺陷',
-          personalityId: 1,
-          status: 1
-        },
-        {
-          id: 2,
-          name: 'Nova',
-          type: 1,
-          gender: 2,
-          baseModel: 'nova',
-          modelUrl: '/models/avatars/nova.vrm',
-          slogan: '宇宙无垠，我们的旅程才刚刚开始',
-          personalityId: 4,
-          status: 1
-        }
-      ]
     },
     async createAvatarAction(data) {
       this.loading = true

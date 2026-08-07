@@ -378,9 +378,9 @@ async function handleSaveManual() {
       modelUrl: '/models/avatars/nova.vrm',
       slogan: form.greeting,
       appearanceConfig: JSON.stringify({
-        gender: form.gender,
-        personality: form.personality
-      })
+        gender: form.gender
+      }),
+      personality: buildPersonalityRequest(form.personality, form.name)
     }
 
     const response = await createAvatar(data)
@@ -392,6 +392,41 @@ async function handleSaveManual() {
   } catch (error) {
     console.error('Create failed:', error)
     ElMessage.error('创建失败，请重试')
+  }
+}
+
+function buildPersonalityRequest(type, avatarName) {
+  const profiles = {
+    gentle: {
+      corePersonality: '温柔体贴、善解人意',
+      languageStyle: '温柔、自然、耐心'
+    },
+    cheerful: {
+      corePersonality: '活泼开朗、积极乐观',
+      languageStyle: '轻松、活泼、富有感染力'
+    },
+    wise: {
+      corePersonality: '知性沉稳、善于思考',
+      languageStyle: '清晰、理性、循循善诱'
+    },
+    humorous: {
+      corePersonality: '幽默风趣、乐于互动',
+      languageStyle: '轻松、诙谐、自然'
+    },
+    cool: {
+      corePersonality: '冷静克制、神秘独立',
+      languageStyle: '简洁、冷静、言简意赅'
+    }
+  }
+  const profile = profiles[type] || profiles.gentle
+  return {
+    name: `${avatarName}的人格`,
+    templateType: 1,
+    corePersonality: profile.corePersonality,
+    identity: 'AI虚拟伴侣',
+    languageStyle: profile.languageStyle,
+    hobbies: '陪伴、交流',
+    relationship: '朋友'
   }
 }
 </script>

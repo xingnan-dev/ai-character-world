@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.companion.common.exception.BusinessException;
 import com.companion.common.result.ResultCode;
 import com.companion.dto.request.AvatarCreateRequest;
+import com.companion.dto.request.AvatarPersonalityRequest;
 import com.companion.dto.request.AvatarUpdateRequest;
 import com.companion.dto.response.AvatarVO;
 import com.companion.dto.response.PersonalityVO;
@@ -15,6 +16,7 @@ import com.companion.service.AvatarService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -29,6 +31,7 @@ public class AvatarServiceImpl implements AvatarService {
     private final PersonalityMapper personalityMapper;
 
     @Override
+    @Transactional
     public AvatarVO createAvatar(Long userId, AvatarCreateRequest request) {
         Avatar avatar = new Avatar();
         avatar.setUserId(userId);
@@ -43,28 +46,30 @@ public class AvatarServiceImpl implements AvatarService {
         avatar.setCreateTime(LocalDateTime.now());
         avatar.setUpdateTime(LocalDateTime.now());
 
-        if (request.getPersonalityId() != null) {
-            Personality personality = personalityMapper.selectById(request.getPersonalityId());
-            if (personality == null) {
-                throw new BusinessException(ResultCode.NOT_FOUND);
-            }
-            if (personality.getAvatarId() != null) {
-                Avatar personalityAvatar = findOwnedActiveAvatar(userId, personality.getAvatarId());
-                if (personalityAvatar == null) {
-                    throw new BusinessException(ResultCode.NOT_FOUND);
-                }
-            }
-        }
+        Personality personality = request.getPersonalityId() == null
+                ? null
+                : findUnboundPersonality(request.getPersonalityId());
 
         avatarMapper.insert(avatar);
 
-        if (request.getPersonalityId() != null) {
-            Personality personality = personalityMapper.selectById(request.getPersonalityId());
+        if (personality == null) {
+            personality = createPersonalityForAvatar(avatar, request.getPersonality());
+            avatar.setPersonalityId(personality.getId());
+            avatar.setUpdateTime(LocalDateTime.now());
+            if (avatarMapper.updateById(avatar) != 1) {
+                throw new BusinessException(ResultCode.SERVER_ERROR.getCode(), "形象人格绑定失败");
+            }
+        } else {
             personality.setAvatarId(avatar.getId());
-            personalityMapper.updateById(personality);
+            personality.setUpdateTime(LocalDateTime.now());
+            if (personalityMapper.updateById(personality) != 1) {
+                throw new BusinessException(ResultCode.SERVER_ERROR.getCode(), "人格形象绑定失败");
+            }
         }
 
-        return convertToVO(avatar);
+        AvatarVO vo = convertToVO(avatar);
+        vo.setPersonality(convertPersonalityToVO(personality));
+        return vo;
     }
 
     @Override
@@ -74,9 +79,7 @@ public class AvatarServiceImpl implements AvatarService {
             throw new BusinessException(ResultCode.NOT_FOUND);
         }
         AvatarVO vo = convertToVO(avatar);
-        Personality personality = personalityMapper.selectOne(
-                new QueryWrapper<Personality>().eq("avatar_id", id)
-        );
+        Personality personality = findBoundPersonality(avatar);
         if (personality != null) {
             vo.setPersonality(convertPersonalityToVO(personality));
         }
@@ -91,7 +94,14 @@ public class AvatarServiceImpl implements AvatarService {
                         .eq("status", 1)
         );
         return avatars.stream()
-                .map(this::convertToVO)
+                .map(avatar -> {
+                    AvatarVO vo = convertToVO(avatar);
+                    Personality personality = findBoundPersonality(avatar);
+                    if (personality != null) {
+                        vo.setPersonality(convertPersonalityToVO(personality));
+                    }
+                    return vo;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -130,6 +140,69 @@ public class AvatarServiceImpl implements AvatarService {
                         .eq("user_id", userId)
                         .eq("status", 1)
         );
+    }
+
+    private Personality findUnboundPersonality(Long personalityId) {
+        Personality personality = personalityMapper.selectOne(
+                new QueryWrapper<Personality>()
+                        .eq("id", personalityId)
+                        .eq("status", 1)
+        );
+        if (personality == null || personality.getAvatarId() != null) {
+            throw new BusinessException(ResultCode.NOT_FOUND);
+        }
+        return personality;
+    }
+
+    private Personality createPersonalityForAvatar(Avatar avatar, AvatarPersonalityRequest request) {
+        AvatarPersonalityRequest source = request == null ? defaultPersonality(avatar.getName()) : request;
+        Personality personality = new Personality();
+        personality.setAvatarId(avatar.getId());
+        personality.setName(source.getName());
+        personality.setTemplateType(source.getTemplateType() == null ? 1 : source.getTemplateType());
+        personality.setCorePersonality(source.getCorePersonality());
+        personality.setIdentity(source.getIdentity());
+        personality.setLanguageStyle(source.getLanguageStyle());
+        personality.setHobbies(source.getHobbies());
+        personality.setRelationship(source.getRelationship());
+        personality.setSystemPrompt(buildSystemPrompt(personality));
+        personality.setStatus(1);
+        personality.setCreateTime(LocalDateTime.now());
+        personality.setUpdateTime(LocalDateTime.now());
+        personalityMapper.insert(personality);
+        return personality;
+    }
+
+    private AvatarPersonalityRequest defaultPersonality(String avatarName) {
+        return new AvatarPersonalityRequest(
+                avatarName + "的人格",
+                1,
+                "友善、耐心",
+                "AI虚拟伴侣",
+                "自然、亲切",
+                "陪伴、交流",
+                "朋友"
+        );
+    }
+
+    private Personality findBoundPersonality(Avatar avatar) {
+        if (avatar == null || avatar.getPersonalityId() == null) {
+            return null;
+        }
+        return personalityMapper.selectOne(
+                new QueryWrapper<Personality>()
+                        .eq("id", avatar.getPersonalityId())
+                        .eq("avatar_id", avatar.getId())
+                        .eq("status", 1)
+        );
+    }
+
+    private String buildSystemPrompt(Personality personality) {
+        return "你是一个" + personality.getCorePersonality() + "的角色。"
+                + personality.getIdentity() + "。你的说话风格是" + personality.getLanguageStyle()
+                + "。你喜欢" + (personality.getHobbies() == null ? "各种有趣的事情" : personality.getHobbies())
+                + "。你们之间是" + (personality.getRelationship() == null ? "朋友" : personality.getRelationship())
+                + "。请始终保持你的角色设定，用自然的方式交流。";
     }
 
     private AvatarVO convertToVO(Avatar avatar) {

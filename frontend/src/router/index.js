@@ -31,6 +31,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/personality/edit/:avatarId',
+    name: 'PersonalityEdit',
+    component: () => import('../views/PersonalityEdit.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/chat',
     name: 'Chat',
     component: () => import('../views/Chat.vue'),

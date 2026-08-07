@@ -2,7 +2,10 @@
   <div class="status-card">
     <div class="card-header">
       <h3 class="card-title">AI 档案</h3>
-      <span class="card-badge">Active</span>
+      <div class="header-actions">
+        <button class="edit-button" type="button" @click="emit('edit')">编辑人格</button>
+        <span class="card-badge">Active</span>
+      </div>
     </div>
 
     <div class="card-body">
@@ -66,18 +69,20 @@
 </template>
 
 <script setup>
+const emit = defineEmits(['edit'])
+
 defineProps({
   data: {
     type: Object,
     default: () => ({
-      name: 'Luna',
-      personality: '温柔、幽默、善解人意',
-      identity: '未来AI伙伴',
-      interests: '科技、艺术、哲学',
-      status: 'online',
-      tags: ['温柔', '幽默', '知识渊博', '倾听者'],
-      growth: 65,
-      level: 3
+      name: '未选择形象',
+      personality: '未设置人格',
+      identity: '未设置人格',
+      interests: '未设置人格',
+      status: 'offline',
+      tags: ['未设置人格'],
+      growth: 0,
+      level: 0
     })
   }
 })
@@ -125,6 +130,18 @@ defineProps({
   font-weight: 600;
   color: #fff;
   margin: 0;
+}
+
+.header-actions { display: flex; align-items: center; gap: 10px; }
+.edit-button {
+  padding: 5px 10px;
+  border: 1px solid rgba(124, 92, 255, 0.45);
+  border-radius: 12px;
+  color: #fff;
+  background: rgba(124, 92, 255, 0.16);
+  cursor: pointer;
+  transition: background 0.2s;
+  &:hover { background: rgba(124, 92, 255, 0.35); }
 }
 
 .card-badge {

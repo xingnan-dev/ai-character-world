@@ -2,6 +2,7 @@ package com.companion.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -26,4 +27,7 @@ public class AvatarCreateRequest {
     private String slogan;
 
     private Long personalityId;
+
+    @Valid
+    private AvatarPersonalityRequest personality;
 }

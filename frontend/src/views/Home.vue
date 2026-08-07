@@ -48,7 +48,7 @@
 
       <aside class="right-panel">
         <transition name="fade-slide" appear delay="100" mode="out-in">
-          <AIStatusCard v-if="!isLoading" :data="currentAvatar" />
+          <AIStatusCard v-if="!isLoading" :data="currentAvatar" @edit="handleEditPersonality" />
         </transition>
         <transition name="fade-slide" appear delay="200" mode="out-in">
           <MemoryCard
@@ -91,6 +91,12 @@ import AIStatusCard from '../components/home/AIStatusCard.vue'
 import MemoryCard from '../components/home/MemoryCard.vue'
 import QuickAction from '../components/home/QuickAction.vue'
 import LoadingSkeleton from '../components/home/LoadingSkeleton.vue'
+import {
+  personalityIdentity,
+  personalityInterests,
+  personalityTags,
+  personalityText
+} from '../utils/avatarProfile'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -128,11 +134,12 @@ const avatarList = computed(() => {
   return avatarStore.avatarList.map(avatar => ({
     id: avatar.id,
     name: avatar.name,
-    identity: getIdentityText(avatar),
-    personality: getPersonalityText(avatar),
+    identity: personalityIdentity(avatar.personality),
+    personality: personalityText(avatar.personality),
+    interests: personalityInterests(avatar.personality),
     status: 'online',
     emoji: getAvatarEmoji(avatar),
-    tags: getAvatarTags(avatar),
+    tags: personalityTags(avatar.personality),
     growth: 50 + (avatar.id * 15),
     level: avatar.personalityId || 1,
     slogan: avatar.slogan || '所有没有你的日子，都存在缺陷'
@@ -158,31 +165,9 @@ function getIdentityText(avatar) {
   return types[avatar.type] || 'AI伙伴'
 }
 
-function getPersonalityText(avatar) {
-  const personalities = {
-    1: '温柔、幽默、善解人意',
-    2: '幽默、乐观、活力四射',
-    3: '博学、理性、善于分析',
-    4: '勇敢、好奇、冒险家',
-    5: '冷静、理性、言简意赅'
-  }
-  return personalities[avatar.personalityId] || '温柔、幽默、善解人意'
-}
-
 function getAvatarEmoji(avatar) {
   const emojis = { 1: '🤖', 2: '🐱', 3: '✨' }
   return emojis[avatar.type] || '🤖'
-}
-
-function getAvatarTags(avatar) {
-  const tagMap = {
-    1: ['温柔', '幽默', '知识渊博', '倾听者'],
-    2: ['勇敢', '探险家', '科学家'],
-    3: ['博学', '理性', '分析师'],
-    4: ['冒险家', '探索者', '勇敢'],
-    5: ['冷静', '理性', '高效']
-  }
-  return tagMap[avatar.personalityId] || ['温柔', '幽默', '知识渊博']
 }
 
 function getMemoryType(category) {
@@ -219,6 +204,14 @@ const handleCreate = () => {
 const handleChat = () => {
   showToast('正在连接AI...', '💬')
   setTimeout(() => router.push('/chat'), 300)
+}
+
+const handleEditPersonality = () => {
+  if (!currentAvatar.value?.id) {
+    showToast('请先选择一个形象', '⚠', 'warning')
+    return
+  }
+  router.push(`/personality/edit/${currentAvatar.value.id}`)
 }
 
 const handleSwitchAvatar = (avatar) => {
