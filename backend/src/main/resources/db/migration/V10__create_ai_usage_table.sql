@@ -1,0 +1,20 @@
+CREATE TABLE t_ai_usage (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    llm_request_id VARCHAR(64) NOT NULL,
+    chat_message_id BIGINT DEFAULT NULL,
+    provider VARCHAR(50) NOT NULL,
+    model VARCHAR(100) NOT NULL,
+    user_id BIGINT DEFAULT NULL,
+    session_id BIGINT DEFAULT NULL,
+    prompt_tokens INT DEFAULT NULL,
+    completion_tokens INT DEFAULT NULL,
+    total_tokens INT DEFAULT NULL,
+    latency_ms BIGINT NOT NULL,
+    success TINYINT NOT NULL,
+    error_code VARCHAR(50) DEFAULT NULL,
+    created_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_ai_usage_llm_request_id (llm_request_id),
+    KEY idx_ai_usage_chat_message_id (chat_message_id),
+    KEY idx_ai_usage_user_time (user_id, created_time),
+    KEY idx_ai_usage_session_time (session_id, created_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

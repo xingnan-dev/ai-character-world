@@ -115,3 +115,21 @@ CREATE TABLE t_user_memory (
     create_time DATETIME,
     update_time DATETIME
 );
+
+DROP TABLE IF EXISTS t_ai_usage;
+CREATE TABLE t_ai_usage (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    llm_request_id VARCHAR(64) NOT NULL UNIQUE,
+    chat_message_id BIGINT,
+    provider VARCHAR(50) NOT NULL,
+    model VARCHAR(100) NOT NULL,
+    user_id BIGINT,
+    session_id BIGINT,
+    prompt_tokens INT,
+    completion_tokens INT,
+    total_tokens INT,
+    latency_ms BIGINT NOT NULL,
+    success TINYINT NOT NULL,
+    error_code VARCHAR(50),
+    created_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
