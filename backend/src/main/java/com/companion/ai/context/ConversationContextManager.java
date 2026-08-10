@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.StringJoiner;
 
 @Component
 public class ConversationContextManager {
@@ -29,7 +30,20 @@ public class ConversationContextManager {
             return "";
         }
         int memoryBudget = Math.max(0, availableInputTokens() / MEMORY_BUDGET_DIVISOR);
-        return tokenEstimator.truncate(memoryContext.trim(), memoryBudget);
+        int remainingTokens = memoryBudget;
+        StringJoiner selected = new StringJoiner("\n");
+        for (String rawEntry : memoryContext.lines().toList()) {
+            String entry = rawEntry.trim();
+            if (entry.isEmpty()) {
+                continue;
+            }
+            int entryTokens = tokenEstimator.estimate(entry);
+            if (entryTokens <= remainingTokens) {
+                selected.add(entry);
+                remainingTokens -= entryTokens;
+            }
+        }
+        return selected.toString();
     }
 
     /**

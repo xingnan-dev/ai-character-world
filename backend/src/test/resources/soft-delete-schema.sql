@@ -105,6 +105,7 @@ DROP TABLE IF EXISTS t_user_memory;
 CREATE TABLE t_user_memory (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,
+    avatar_id BIGINT,
     category TINYINT DEFAULT 1,
     memory_key VARCHAR(100),
     value VARCHAR(4000) NOT NULL,
@@ -113,7 +114,9 @@ CREATE TABLE t_user_memory (
     status TINYINT NOT NULL DEFAULT 1,
     deleted TINYINT NOT NULL DEFAULT 0,
     create_time DATETIME,
-    update_time DATETIME
+    update_time DATETIME,
+    INDEX idx_memory_user_active_importance (user_id, status, deleted, importance),
+    INDEX idx_memory_user_key (user_id, memory_key, status, deleted)
 );
 
 DROP TABLE IF EXISTS t_ai_usage;

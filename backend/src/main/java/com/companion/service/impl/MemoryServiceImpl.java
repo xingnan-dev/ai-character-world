@@ -51,13 +51,14 @@ public class MemoryServiceImpl implements MemoryService {
 
     @Override
     public MemoryVO updateMemory(Long userId, MemoryUpdateRequest request) {
+        validateUpdate(request);
         UserMemory memory = userMemoryMapper.selectById(request.getId());
         if (memory == null || !memory.getUserId().equals(userId)) {
             throw new BusinessException(ResultCode.NOT_FOUND);
         }
 
         if (request.getValue() != null) {
-            memory.setValue(request.getValue());
+            memory.setValue(request.getValue().trim());
         }
         if (request.getImportance() != null) {
             memory.setImportance(request.getImportance());
@@ -69,6 +70,24 @@ public class MemoryServiceImpl implements MemoryService {
         cacheMemory(memory);
 
         return convertToVO(memory);
+    }
+
+    private void validateUpdate(MemoryUpdateRequest request) {
+        if (request == null || request.getId() == null) {
+            throw new BusinessException(ResultCode.PARAM_ERROR);
+        }
+        if (request.getValue() != null) {
+            String value = request.getValue().trim();
+            if (value.isEmpty() || value.length() > 2000) {
+                throw new BusinessException(ResultCode.PARAM_ERROR);
+            }
+        }
+        if (request.getImportance() != null
+                && (!Float.isFinite(request.getImportance())
+                || request.getImportance() < 0.0f
+                || request.getImportance() > 1.0f)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR);
+        }
     }
 
     @Override

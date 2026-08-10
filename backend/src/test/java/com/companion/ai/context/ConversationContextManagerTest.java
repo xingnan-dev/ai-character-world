@@ -103,6 +103,20 @@ class ConversationContextManagerTest {
         assertThat(estimator.estimate(limited)).isLessThanOrEqualTo(availableInput / 4);
     }
 
+    @Test
+    void keepsOnlyWholeMemoryEntriesWithinBudget() {
+        properties.getContext().setWindowTokens(100);
+        properties.getContext().setSafetyMarginTokens(10);
+        String first = "- profile.name: Amy";
+        String oversized = "- profile.job: " + "中".repeat(20);
+        String last = "- profile.age: 20";
+
+        String limited = manager.limitMemory(String.join("\n", first, oversized, last));
+
+        assertThat(limited.lines()).containsExactly(first, last);
+        assertThat(limited).doesNotContain("profile.job");
+    }
+
     private List<LlmMessage> requiredMessages(String personalityPrompt, String currentMessage) {
         return List.of(
                 new LlmMessage(LlmRole.SYSTEM, personalityPrompt),

@@ -17,6 +17,8 @@ public class UserMemory {
 
     private Long userId;
 
+    private Long avatarId;
+
     private Integer category;
 
     private String memoryKey;
