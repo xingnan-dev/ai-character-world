@@ -14,6 +14,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -80,6 +81,42 @@ class MemoryReliabilityIntegrationTest {
         assertInvalid(memory.getId(), null, 1.01f);
     }
 
+    @Test
+    void highlyRelevantMemoryOutranksUnrelatedHighImportanceMemory() {
+        insertMemory(501L, "custom.fact", "无关事实", 0.9f, 1);
+        insertMemory(501L, "profile.name", "小明", 0.2f, 1);
+
+        String context = memoryEngine.getMemoryContext(501L, "你还记得我叫什么名字吗");
+
+        assertThat(context.lines().findFirst().orElse(""))
+                .contains("profile.name: 小明");
+    }
+
+    @Test
+    void retrievalFiltersOtherUsersInactiveAndDeletedMemories() {
+        insertMemory(601L, "profile.name", "UserA", 0.5f, 1);
+        insertMemory(602L, "profile.name", "UserB", 1.0f, 1);
+        insertMemory(601L, "profile.age", "99", 1.0f, 0);
+        UserMemory deleted = insertMemory(601L, "profile.location", "Deleted", 1.0f, 1);
+        memoryMapper.deleteById(deleted.getId());
+
+        String context = memoryEngine.getMemoryContext(601L, "我的个人资料");
+
+        assertThat(context).contains("UserA")
+                .doesNotContain("UserB", "99", "Deleted");
+    }
+
+    @Test
+    void repeatedRetrievalProducesStableOrder() {
+        insertMemory(701L, "preference.hobby", "音乐", 0.7f, 1);
+        insertMemory(701L, "preference.hobby", "阅读", 0.7f, 1);
+
+        String first = memoryEngine.getMemoryContext(701L, "我喜欢什么");
+        String second = memoryEngine.getMemoryContext(701L, "我喜欢什么");
+
+        assertThat(second).isEqualTo(first);
+    }
+
     private void assertInvalid(Long id, String value, Float importance) {
         assertThatThrownBy(() -> memoryService.updateMemory(
                 401L, new MemoryUpdateRequest(id, value, importance)
@@ -88,12 +125,18 @@ class MemoryReliabilityIntegrationTest {
     }
 
     private UserMemory insertMemory(Long userId, String key, String value) {
+        return insertMemory(userId, key, value, 0.5f, 1);
+    }
+
+    private UserMemory insertMemory(Long userId, String key, String value,
+                                    Float importance, Integer status) {
         UserMemory memory = new UserMemory();
         memory.setUserId(userId);
         memory.setMemoryKey(key);
         memory.setValue(value);
-        memory.setImportance(0.5f);
-        memory.setStatus(1);
+        memory.setImportance(importance);
+        memory.setStatus(status);
+        memory.setLastAccessTime(LocalDateTime.now());
         memoryMapper.insert(memory);
         return memory;
     }

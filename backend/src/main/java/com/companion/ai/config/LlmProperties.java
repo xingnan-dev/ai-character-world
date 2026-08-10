@@ -21,6 +21,7 @@ public class LlmProperties {
     private Duration readTimeout = Duration.ofSeconds(120);
     private Mock mock = new Mock();
     private Context context = new Context();
+    private Memory memory = new Memory();
 
     @Data
     public static class Mock {
@@ -33,5 +34,11 @@ public class LlmProperties {
         private int windowTokens = 8192;
         private int safetyMarginTokens = 512;
         private int maxHistoryMessages = 100;
+    }
+
+    @Data
+    public static class Memory {
+        private int candidateLimit = 100;
+        private int retrievalLimit = 20;
     }
 }

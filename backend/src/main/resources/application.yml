@@ -81,6 +81,9 @@ ai:
     window-tokens: ${AI_CONTEXT_WINDOW_TOKENS:8192}
     safety-margin-tokens: ${AI_CONTEXT_SAFETY_MARGIN_TOKENS:512}
     max-history-messages: ${AI_CONTEXT_MAX_HISTORY_MESSAGES:100}
+  memory:
+    candidate-limit: ${AI_MEMORY_CANDIDATE_LIMIT:100}
+    retrieval-limit: ${AI_MEMORY_RETRIEVAL_LIMIT:20}
 
 logging:
   level:

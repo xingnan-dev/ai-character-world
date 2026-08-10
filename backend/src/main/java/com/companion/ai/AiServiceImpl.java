@@ -40,7 +40,9 @@ public class AiServiceImpl implements AiService {
         AtomicBoolean streamingStarted = new AtomicBoolean(false);
 
         return Flux.defer(() -> {
-            String memoryContext = conversationContextManager.limitMemory(memoryEngine.getMemoryContext(userId));
+            String memoryContext = conversationContextManager.limitMemory(
+                    memoryEngine.getMemoryContext(userId, userMessage)
+            );
             List<ChatMessage> history = loadHistory(
                     sessionId, exchange.userMessageId(), exchange.assistantMessageId()
             );
@@ -84,7 +86,9 @@ public class AiServiceImpl implements AiService {
 
     @Override
     public String chat(Long userId, Long sessionId, String userMessage, Personality personality) {
-        String memoryContext = conversationContextManager.limitMemory(memoryEngine.getMemoryContext(userId));
+        String memoryContext = conversationContextManager.limitMemory(
+                memoryEngine.getMemoryContext(userId, userMessage)
+        );
         List<ChatMessage> history = loadHistory(sessionId);
         ComposedChatPrompt requiredPrompt = chatPromptComposer.compose(
                 userId, sessionId, personality.getAvatarId(), personality, memoryContext, List.of(), userMessage

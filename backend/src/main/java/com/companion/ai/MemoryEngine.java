@@ -2,7 +2,10 @@ package com.companion.ai;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.companion.ai.memory.ExtractedMemory;
+import com.companion.ai.memory.MemoryRetrievalScorer;
 import com.companion.ai.memory.RuleBasedMemoryExtractor;
+import com.companion.ai.memory.ScoredMemory;
+import com.companion.ai.config.LlmProperties;
 import com.companion.common.utils.RedisUtils;
 import com.companion.entity.UserMemory;
 import com.companion.mapper.UserMemoryMapper;
@@ -12,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 
 @Slf4j
@@ -20,13 +24,20 @@ public class MemoryEngine {
 
     private final UserMemoryMapper userMemoryMapper;
     private final RuleBasedMemoryExtractor memoryExtractor;
+    private final MemoryRetrievalScorer retrievalScorer;
+    private final LlmProperties llmProperties;
 
     @Autowired(required = false)
     private RedisUtils redisUtils;
 
-    public MemoryEngine(UserMemoryMapper userMemoryMapper, RuleBasedMemoryExtractor memoryExtractor) {
+    public MemoryEngine(UserMemoryMapper userMemoryMapper,
+                        RuleBasedMemoryExtractor memoryExtractor,
+                        MemoryRetrievalScorer retrievalScorer,
+                        LlmProperties llmProperties) {
         this.userMemoryMapper = userMemoryMapper;
         this.memoryExtractor = memoryExtractor;
+        this.retrievalScorer = retrievalScorer;
+        this.llmProperties = llmProperties;
     }
 
     @Transactional
@@ -45,33 +56,34 @@ public class MemoryEngine {
         }
     }
 
-    public String getMemoryContext(Long userId) {
+    public String getMemoryContext(Long userId, String currentMessage) {
         if (userId == null) {
             return "";
         }
 
         try {
-            String redisKey = contextCacheKey(userId);
-            if (redisUtils != null) {
-                Object cached = redisUtils.get(redisKey);
-                if (cached != null) {
-                    return cached.toString();
-                }
-            }
-
             List<UserMemory> memories = userMemoryMapper.selectList(
                     new QueryWrapper<UserMemory>()
                             .eq("user_id", userId)
                             .eq("status", 1)
                             .orderByDesc("importance")
-                            .last("LIMIT 20")
+                            .orderByDesc("last_access_time")
+                            .orderByDesc("id")
+                            .last("LIMIT " + candidateLimit())
             );
             if (memories == null || memories.isEmpty()) {
                 return "";
             }
 
+            List<UserMemory> selectedMemories = memories.stream()
+                    .map(memory -> retrievalScorer.score(memory, currentMessage))
+                    .sorted(scoredMemoryComparator())
+                    .limit(retrievalLimit())
+                    .map(ScoredMemory::memory)
+                    .toList();
+
             StringBuilder context = new StringBuilder();
-            for (UserMemory memory : memories) {
+            for (UserMemory memory : selectedMemories) {
                 String value = normalizeValue(memory.getValue());
                 if (memory.getMemoryKey() != null && !memory.getMemoryKey().isBlank() && !value.isEmpty()) {
                     context.append("- ")
@@ -83,9 +95,6 @@ public class MemoryEngine {
             }
 
             String result = context.toString().trim();
-            if (redisUtils != null) {
-                redisUtils.setWithExpire(redisKey, result, 30L * 24 * 60 * 60);
-            }
             return result;
         } catch (Exception error) {
             log.error("Failed to get memory context for userId={}", userId, error);
@@ -171,6 +180,33 @@ public class MemoryEngine {
 
     private String normalizeValue(String value) {
         return value == null ? "" : value.replaceAll("[\\r\\n]+", " ").trim();
+    }
+
+    private Comparator<ScoredMemory> scoredMemoryComparator() {
+        return Comparator.comparingDouble(ScoredMemory::totalScore).reversed()
+                .thenComparing(
+                        scored -> scored.memory().getImportance() == null ? 0.0f : scored.memory().getImportance(),
+                        Comparator.reverseOrder()
+                )
+                .thenComparing(
+                        scored -> scored.memory().getLastAccessTime() == null
+                                ? LocalDateTime.MIN : scored.memory().getLastAccessTime(),
+                        Comparator.reverseOrder()
+                )
+                .thenComparing(
+                        scored -> scored.memory().getId() == null ? Long.MIN_VALUE : scored.memory().getId(),
+                        Comparator.reverseOrder()
+                );
+    }
+
+    private int candidateLimit() {
+        return Math.max(1, llmProperties.getMemory().getCandidateLimit());
+    }
+
+    private int retrievalLimit() {
+        return Math.max(1, Math.min(
+                llmProperties.getMemory().getRetrievalLimit(), candidateLimit()
+        ));
     }
 
     private void evictContextCache(Long userId) {
