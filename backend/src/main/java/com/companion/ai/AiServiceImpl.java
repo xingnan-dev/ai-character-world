@@ -4,11 +4,13 @@ import com.companion.entity.ChatMessage;
 import com.companion.entity.Personality;
 import com.companion.entity.UserMemory;
 import com.companion.ai.exception.LlmProviderException;
+import com.companion.ai.context.ConversationContextManager;
 import com.companion.ai.prompt.ChatPromptComposer;
 import com.companion.ai.prompt.ComposedChatPrompt;
 import com.companion.chat.ChatMessageLifecycleService;
 import com.companion.chat.model.ChatMessageExchange;
 import com.companion.mapper.ChatMessageMapper;
+import com.companion.entity.enums.ChatMessageStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,8 @@ public class AiServiceImpl implements AiService {
     private final MemoryEngine memoryEngine;
     private final ChatMessageMapper chatMessageMapper;
     private final ChatMessageLifecycleService chatMessageLifecycleService;
+    private final ConversationContextManager conversationContextManager;
+    private final com.companion.ai.config.LlmProperties llmProperties;
 
     @Override
     public Flux<String> chatStream(Long userId, Long sessionId, String userMessage,
@@ -36,10 +40,14 @@ public class AiServiceImpl implements AiService {
         AtomicBoolean streamingStarted = new AtomicBoolean(false);
 
         return Flux.defer(() -> {
-            String memoryContext = memoryEngine.getMemoryContext(userId);
+            String memoryContext = conversationContextManager.limitMemory(memoryEngine.getMemoryContext(userId));
             List<ChatMessage> history = loadHistory(
                     sessionId, exchange.userMessageId(), exchange.assistantMessageId()
             );
+            ComposedChatPrompt requiredPrompt = chatPromptComposer.compose(
+                    userId, sessionId, personality.getAvatarId(), personality, memoryContext, List.of(), userMessage
+            );
+            history = conversationContextManager.selectHistory(history, requiredPrompt.messages());
             ComposedChatPrompt prompt = chatPromptComposer.compose(
                     userId, sessionId, personality.getAvatarId(), personality, memoryContext, history, userMessage
             );
@@ -76,8 +84,12 @@ public class AiServiceImpl implements AiService {
 
     @Override
     public String chat(Long userId, Long sessionId, String userMessage, Personality personality) {
-        String memoryContext = memoryEngine.getMemoryContext(userId);
+        String memoryContext = conversationContextManager.limitMemory(memoryEngine.getMemoryContext(userId));
         List<ChatMessage> history = loadHistory(sessionId);
+        ComposedChatPrompt requiredPrompt = chatPromptComposer.compose(
+                userId, sessionId, personality.getAvatarId(), personality, memoryContext, List.of(), userMessage
+        );
+        history = conversationContextManager.selectHistory(history, requiredPrompt.messages());
         ComposedChatPrompt prompt = chatPromptComposer.compose(
                 userId, sessionId, personality.getAvatarId(), personality, memoryContext, history, userMessage
         );
@@ -105,10 +117,11 @@ public class AiServiceImpl implements AiService {
         return chatMessageMapper.selectList(
                 new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<ChatMessage>()
                         .eq("session_id", sessionId)
+                        .eq("status", ChatMessageStatus.COMPLETED.getCode())
                         .notIn(excludedMessageIds != null && excludedMessageIds.length > 0,
                                 "id", (Object[]) excludedMessageIds)
                         .orderByDesc("id")
-                        .last("LIMIT 20")
+                        .last("LIMIT " + llmProperties.getContext().getMaxHistoryMessages())
         );
     }
 

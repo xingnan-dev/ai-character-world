@@ -74,8 +74,13 @@ ai:
   api-url: ${AI_API_URL:https://api.example.com/v1/chat/completions}
   api-key: ${AI_API_KEY:}
   model-name: ${AI_MODEL_NAME:gpt-3.5-turbo}
+  max-tokens: ${AI_MAX_TOKENS:1024}
   connect-timeout: 30s
   read-timeout: 120s
+  context:
+    window-tokens: ${AI_CONTEXT_WINDOW_TOKENS:8192}
+    safety-margin-tokens: ${AI_CONTEXT_SAFETY_MARGIN_TOKENS:512}
+    max-history-messages: ${AI_CONTEXT_MAX_HISTORY_MESSAGES:100}
 
 logging:
   level:
