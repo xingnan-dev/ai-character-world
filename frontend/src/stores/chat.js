@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { markRaw } from 'vue'
 import {
   createSession as createSessionApi,
   getSessionList,
@@ -6,7 +7,13 @@ import {
   getMessageList,
   streamChat as streamChatApi
 } from '../api/chat'
-import { useAvatarStore } from './avatar'
+import {
+  CHAT_MESSAGE_STATUS,
+  createChatRequestId,
+  findRetryContent,
+  isMessageActive,
+  mapChatMessage
+} from '../utils/chatMessageState'
 
 export const useChatStore = defineStore('chat', {
   state: () => ({
@@ -16,11 +23,12 @@ export const useChatStore = defineStore('chat', {
     loading: false,
     streaming: false,
     error: null,
-    currentAvatar: null
+    currentAvatar: null,
+    activeAbortController: null
   }),
   getters: {
     currentSession: (state) =>
-      state.sessions.find((s) => s.id === state.currentSessionId) || null,
+      state.sessions.find((session) => session.id === state.currentSessionId) || null,
     sortedSessions: (state) => state.sessions
   },
   actions: {
@@ -32,10 +40,10 @@ export const useChatStore = defineStore('chat', {
       this.error = null
       try {
         const res = await getSessionList()
-        const list = res.data || res || []
-        this.sessions = list
+        this.sessions = res.data || res || []
       } catch (err) {
         this.sessions = []
+        this.error = err.message || '获取会话列表失败'
       } finally {
         this.loading = false
       }
@@ -58,6 +66,7 @@ export const useChatStore = defineStore('chat', {
       }
     },
     async selectSession(sessionId) {
+      this.stopGeneration()
       this.currentSessionId = sessionId
       this.messages = []
       await this.fetchMessages(sessionId)
@@ -68,23 +77,18 @@ export const useChatStore = defineStore('chat', {
       try {
         const res = await getMessageList(sessionId)
         const list = res.data || res || []
-        this.messages = list.map((m) => ({
-          id: m.id,
-          role: m.role === 2 ? 'assistant' : 'user',
-          content: m.content,
-          time: this.formatTime(m.createTime),
-          rawTime: m.createTime
-        }))
+        this.messages = list.map((message) => mapChatMessage(message, this.formatTime))
       } catch (err) {
-        this.error = err.message || '获取消息失败'
+        this.error = err.message || '获取消息记录失败'
       } finally {
         this.loading = false
       }
     },
     async deleteSession(sessionId) {
       try {
+        if (this.currentSessionId === sessionId) this.stopGeneration()
         await deleteSessionApi(sessionId)
-        this.sessions = this.sessions.filter((s) => s.id !== sessionId)
+        this.sessions = this.sessions.filter((session) => session.id !== sessionId)
         if (this.currentSessionId === sessionId) {
           this.currentSessionId = null
           this.messages = []
@@ -96,94 +100,147 @@ export const useChatStore = defineStore('chat', {
     },
     async sendMessage(content) {
       if (!this.currentSessionId || this.streaming) return
+      const sessionId = this.currentSessionId
+      const requestId = createChatRequestId()
+      const abortController = markRaw(new AbortController())
       this.streaming = true
       this.error = null
+      this.activeAbortController = abortController
 
+      const now = new Date().toISOString()
       const userMessage = {
-        id: Date.now(),
+        id: `local-user-${requestId}`,
+        sessionId,
+        requestId,
         role: 'user',
         content,
-        time: this.formatTime(new Date().toISOString())
+        status: CHAT_MESSAGE_STATUS.COMPLETED,
+        time: this.formatTime(now)
       }
-      this.messages.push(userMessage)
-
       const assistantMessage = {
-        id: Date.now() + 1,
+        id: `local-assistant-${requestId}`,
+        sessionId,
+        requestId,
         role: 'assistant',
         content: '',
-        time: this.formatTime(new Date().toISOString()),
-        streaming: true
+        status: CHAT_MESSAGE_STATUS.PENDING,
+        time: this.formatTime(now),
+        streaming: false
       }
-      this.messages.push(assistantMessage)
+      this.messages.push(userMessage, assistantMessage)
 
       try {
-        const reader = await streamChatApi(this.currentSessionId, content)
+        const reader = await streamChatApi(sessionId, content, requestId, abortController.signal)
         await this.consumeStream(reader, assistantMessage)
       } catch (err) {
-        this.error = err.message || '发送消息失败'
-        assistantMessage.content = '抱歉，出现了错误：' + err.message
+        if (err.name === 'AbortError') {
+          assistantMessage.status = CHAT_MESSAGE_STATUS.CANCELLED
+        } else {
+          this.error = err.message || '发送消息失败'
+          assistantMessage.status = CHAT_MESSAGE_STATUS.FAILED
+          assistantMessage.errorMessage = this.error
+        }
       } finally {
         this.streaming = false
         assistantMessage.streaming = false
+        if (this.activeAbortController === abortController) this.activeAbortController = null
+        await this.syncMessagesAfterStream(sessionId, requestId)
       }
     },
-    async consumeStream(reader, messageObj) {
+    async consumeStream(reader, message) {
       const decoder = new TextDecoder()
       let buffer = ''
       let currentEvent = 'message'
 
-      try {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-
-          buffer += decoder.decode(value, { stream: true })
-          const lines = buffer.split('\n')
-          buffer = lines.pop() || ''
-
-          for (const line of lines) {
-            const trimmedLine = line.trim()
-            if (!trimmedLine) continue
-
-            if (trimmedLine.startsWith('event:')) {
-              currentEvent = trimmedLine.substring(6).trim()
-              continue
-            }
-
-            if (!trimmedLine.startsWith('data:')) continue
-
-            const data = trimmedLine.substring(5).trim()
-
-            if (currentEvent === 'error') {
-              this.error = data
-              messageObj.content = '抱歉，AI服务出错了：' + data
-              return
-            }
-
-            if (data === '[DONE]') return
-
-            messageObj.content += data
-            currentEvent = 'message'
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) {
+          if (message.status !== CHAT_MESSAGE_STATUS.FAILED) {
+            message.status = CHAT_MESSAGE_STATUS.COMPLETED
           }
+          return
         }
-      } catch (err) {
-        this.error = err.message || '流读取错误'
-        messageObj.content += '\n[连接错误: ' + err.message + ']'
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          const trimmedLine = line.trim()
+          if (!trimmedLine) continue
+          if (trimmedLine.startsWith('event:')) {
+            currentEvent = trimmedLine.substring(6).trim()
+            continue
+          }
+          if (!trimmedLine.startsWith('data:')) continue
+
+          const data = trimmedLine.substring(5).trim()
+          if (currentEvent === 'error') {
+            this.error = data
+            message.status = CHAT_MESSAGE_STATUS.FAILED
+            message.errorMessage = data
+            return
+          }
+          if (data === '[DONE]') {
+            message.status = CHAT_MESSAGE_STATUS.COMPLETED
+            return
+          }
+
+          message.status = CHAT_MESSAGE_STATUS.STREAMING
+          message.streaming = true
+          message.content += data
+          currentEvent = 'message'
+        }
+      }
+    },
+    stopGeneration() {
+      if (!this.activeAbortController) return false
+      this.activeAbortController.abort()
+      const activeMessage = [...this.messages].reverse().find((message) =>
+        message.role === 'assistant' && [
+          CHAT_MESSAGE_STATUS.PENDING,
+          CHAT_MESSAGE_STATUS.STREAMING
+        ].includes(message.status)
+      )
+      if (activeMessage) {
+        activeMessage.status = CHAT_MESSAGE_STATUS.CANCELLED
+        activeMessage.streaming = false
+      }
+      return true
+    },
+    async retryMessage(message) {
+      if (this.streaming) return
+      const content = findRetryContent(this.messages, message)
+      if (!content) {
+        this.error = '未找到需要重试的用户消息'
+        return
+      }
+      await this.sendMessage(content)
+    },
+    async syncMessagesAfterStream(sessionId, requestId) {
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 150))
+        if (this.currentSessionId !== sessionId) return
+        await this.fetchMessages(sessionId)
+        const assistant = this.messages.find((message) =>
+          message.role === 'assistant' && message.requestId === requestId
+        )
+        if (!assistant || !isMessageActive(assistant.status)) return
       }
     },
     formatTime(isoString) {
       if (!isoString) return ''
       const date = new Date(isoString)
-      if (isNaN(date.getTime())) {
+      if (Number.isNaN(date.getTime())) {
         const parts = isoString.split('T')
-        if (parts.length === 2) return parts[1].substring(0, 5)
-        return isoString
+        return parts.length === 2 ? parts[1].substring(0, 5) : isoString
       }
       const hours = String(date.getHours()).padStart(2, '0')
       const minutes = String(date.getMinutes()).padStart(2, '0')
       return `${hours}:${minutes}`
     },
     resetState() {
+      this.stopGeneration()
       this.sessions = []
       this.currentSessionId = null
       this.messages = []
@@ -191,6 +248,7 @@ export const useChatStore = defineStore('chat', {
       this.streaming = false
       this.error = null
       this.currentAvatar = null
+      this.activeAbortController = null
     }
   }
 })

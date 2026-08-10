@@ -29,7 +29,7 @@ export const getMessageList = (sessionId) => {
   })
 }
 
-export const streamChat = async (sessionId, content) => {
+export const streamChat = async (sessionId, content, requestId, signal) => {
   const token = localStorage.getItem('token')
   const response = await fetch('/api/chat/stream', {
     method: 'POST',
@@ -37,7 +37,8 @@ export const streamChat = async (sessionId, content) => {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`
     },
-    body: JSON.stringify({ sessionId, content })
+    body: JSON.stringify({ sessionId, content, requestId }),
+    signal
   })
 
   if (!response.ok) {

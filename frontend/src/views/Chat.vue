@@ -136,10 +136,30 @@
             </div>
             <div class="message-content">
               <div class="message-bubble" :class="{ streaming: msg.streaming }">
-                {{ msg.content || (msg.streaming ? '思考中...' : '') }}
+                {{ msg.content || emptyMessageText(msg) }}
                 <span v-if="msg.streaming && msg.content" class="cursor-blink">▊</span>
               </div>
-              <span class="message-time">{{ msg.time }}</span>
+              <div class="message-meta">
+                <span class="message-time">{{ msg.time }}</span>
+                <el-tag
+                  v-if="msg.role === 'assistant' && msg.status !== CHAT_MESSAGE_STATUS.COMPLETED"
+                  :type="messageStatusMeta(msg.status).type"
+                  size="small"
+                  effect="plain"
+                >
+                  {{ messageStatusMeta(msg.status).label }}
+                </el-tag>
+                <el-button
+                  v-if="isMessageRetryable(msg)"
+                  link
+                  type="primary"
+                  size="small"
+                  :disabled="chatStore.streaming"
+                  @click="handleRetry(msg)"
+                >
+                  重新发送
+                </el-button>
+              </div>
             </div>
           </div>
 
@@ -172,6 +192,16 @@
               @keydown.enter.exact.prevent="handleSend"
             />
             <el-button
+              v-if="chatStore.streaming"
+              type="danger"
+              circle
+              class="send-btn"
+              :icon="VideoPause"
+              title="停止生成"
+              @click="handleStop"
+            />
+            <el-button
+              v-else
               type="primary"
               circle
               class="send-btn"
@@ -249,7 +279,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onMounted, watch } from 'vue'
+import { ref, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -266,13 +296,19 @@ import {
   ChatLineRound,
   ChatDotRound,
   HomeFilled,
-  Warning
+  Warning,
+  VideoPause
 } from '@element-plus/icons-vue'
 import { useChatStore } from '../stores/chat'
 import { useAvatarStore } from '../stores/avatar'
 import { useUserStore } from '../stores/user'
 import AvatarRenderer from '../components/AvatarRenderer.vue'
 import { getModelUrlByName } from '@/config/avatarModels'
+import {
+  CHAT_MESSAGE_STATUS,
+  isMessageRetryable,
+  messageStatusMeta
+} from '../utils/chatMessageState'
 
 const router = useRouter()
 const chatStore = useChatStore()
@@ -354,6 +390,10 @@ onMounted(async () => {
   await chatStore.fetchSessions()
 })
 
+onBeforeUnmount(() => {
+  chatStore.stopGeneration()
+})
+
 const goHome = () => {
   router.push('/home')
 }
@@ -422,6 +462,23 @@ const handleSend = async () => {
 
   inputMessage.value = ''
   await chatStore.sendMessage(text)
+}
+
+const handleStop = () => {
+  if (chatStore.stopGeneration()) ElMessage.info('已停止生成')
+}
+
+const handleRetry = async (message) => {
+  await chatStore.retryMessage(message)
+}
+
+const emptyMessageText = (message) => {
+  if (message.status === CHAT_MESSAGE_STATUS.PENDING) return '等待 AI 回复...'
+  if (message.status === CHAT_MESSAGE_STATUS.STREAMING) return '思考中...'
+  if (message.status === CHAT_MESSAGE_STATUS.FAILED) return '本次回复失败'
+  if (message.status === CHAT_MESSAGE_STATUS.CANCELLED) return '本次回复已停止'
+  if (message.status === CHAT_MESSAGE_STATUS.INTERRUPTED) return '回复因服务中断未完成'
+  return ''
 }
 
 const onAvatarLoaded = () => {
@@ -785,6 +842,13 @@ const onAvatarError = (err) => {
   font-size: 11px;
   color: #c0c4cc;
   padding: 0 4px;
+}
+
+.message-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 20px;
 }
 
 .no-messages {
