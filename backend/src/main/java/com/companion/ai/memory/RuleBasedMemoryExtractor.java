@@ -22,7 +22,7 @@ public class RuleBasedMemoryExtractor {
     private static final int CATEGORY_PREFERENCE = 2;
 
     private static final Pattern NAME_PATTERN = Pattern.compile(
-            "(?:我叫|我的名字是)\\s*([^，。！？,!?\\s]{1,50})"
+            "(?:我叫(?!什么(?:名字)?|谁)|我的名字是(?!什么|谁))\\s*([^，。！？,!?\\s]{1,50})"
     );
     private static final Pattern AGE_PATTERN = Pattern.compile(
             "我(?:今年)?\\s*(\\d{1,3})\\s*岁"
@@ -34,7 +34,8 @@ public class RuleBasedMemoryExtractor {
             "(?:我是(?:一名|一个)?|我的职业是)\\s*([^，。！？,!?\\s]{1,100}?)(?:工作|上班|$)"
     );
     private static final Pattern HOBBY_PATTERN = Pattern.compile(
-            "(?:我(?:平时|通常|经常)?(?:喜欢|爱)|我的爱好是)\\s*([^，。！？,!?]{1,200})"
+            "(?:我(?:平时|通常|经常)?(?:喜欢|爱)|我的爱好是|(?:[，,；;]|\\s+)喜欢)"
+                    + "\\s*([^，,。；;！？!?\\s]{1,200})"
     );
 
     public List<ExtractedMemory> extract(String userMessage) {
@@ -83,9 +84,23 @@ public class RuleBasedMemoryExtractor {
     private void addMatch(List<ExtractedMemory> result, String rawValue,
                           String key, int category, float importance, boolean singleValued) {
         String value = normalize(rawValue);
-        if (!value.isEmpty()) {
+        if (!value.isEmpty() && isValidValue(key, value)) {
             result.add(new ExtractedMemory(key, value, category, importance, singleValued));
         }
+    }
+
+    private boolean isValidValue(String key, String value) {
+        if (PROFILE_NAME.equals(key)) {
+            return !value.matches("(?:什么(?:名字)?|谁)(?:吗|呢)?")
+                    && !value.endsWith("吗")
+                    && !value.endsWith("呢");
+        }
+        if (PREFERENCE_HOBBY.equals(key)) {
+            return !value.matches("(?:什么|啥|哪些|哪种|哪一个)(?:爱好)?(?:吗|呢)?")
+                    && !value.endsWith("吗")
+                    && !value.endsWith("呢");
+        }
+        return true;
     }
 
     private String normalize(String value) {

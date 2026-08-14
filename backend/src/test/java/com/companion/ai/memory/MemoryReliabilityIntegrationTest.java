@@ -58,6 +58,34 @@ class MemoryReliabilityIntegrationTest {
     }
 
     @Test
+    void compoundStatementCreatesNameAndDeduplicatedHobbyWithoutOverwritingOthers() {
+        memoryEngine.extractMemory("我叫小明，喜欢摄影", null, 211L);
+        memoryEngine.extractMemory("我喜欢拍风景", null, 211L);
+        memoryEngine.extractMemory("我喜欢摄影", null, 211L);
+
+        assertThat(activeMemories(211L, "profile.name")).singleElement()
+                .extracting(UserMemory::getValue).isEqualTo("小明");
+        assertThat(activeMemories(211L, "preference.hobby"))
+                .extracting(UserMemory::getValue)
+                .containsExactlyInAnyOrder("摄影", "拍风景");
+    }
+
+    @Test
+    void nameAndHobbyQuestionsDoNotOverwriteStoredFacts() {
+        memoryEngine.extractMemory("我叫小明", null, 212L);
+        memoryEngine.extractMemory("我喜欢摄影", null, 212L);
+
+        memoryEngine.extractMemory("我叫什么名字？", null, 212L);
+        memoryEngine.extractMemory("你知道我叫什么吗？", null, 212L);
+        memoryEngine.extractMemory("我喜欢什么？", null, 212L);
+
+        assertThat(activeMemories(212L, "profile.name")).singleElement()
+                .extracting(UserMemory::getValue).isEqualTo("小明");
+        assertThat(activeMemories(212L, "preference.hobby")).singleElement()
+                .extracting(UserMemory::getValue).isEqualTo("摄影");
+    }
+
+    @Test
     void allowsImportanceOnlyUpdateAndMapsAvatarId() {
         UserMemory memory = insertMemory(301L, "profile.name", "小明");
         memory.setAvatarId(901L);

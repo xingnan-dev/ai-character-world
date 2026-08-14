@@ -3,6 +3,7 @@ package com.companion.ai.memory;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 class RuleBasedMemoryExtractorTest {
 
@@ -32,5 +33,42 @@ class RuleBasedMemoryExtractorTest {
         });
         assertThat(extractor.extract(" ")).isEmpty();
         assertThat(extractor.extract(null)).isEmpty();
+    }
+
+    @Test
+    void distinguishesNameStatementsFromNameQuestions() {
+        assertThat(extractor.extract("我叫小明"))
+                .extracting(ExtractedMemory::value)
+                .containsExactly("小明");
+        assertThat(extractor.extract("我叫张三"))
+                .extracting(ExtractedMemory::value)
+                .containsExactly("张三");
+
+        assertThat(extractor.extract("我叫什么")).isEmpty();
+        assertThat(extractor.extract("我叫什么名字？")).isEmpty();
+        assertThat(extractor.extract("你知道我叫什么吗？")).isEmpty();
+    }
+
+    @Test
+    void extractsExplicitHobbiesIncludingCompoundStatements() {
+        assertThat(extractor.extract("我喜欢摄影"))
+                .extracting(ExtractedMemory::memoryKey, ExtractedMemory::value)
+                .containsExactly(tuple("preference.hobby", "摄影"));
+        assertThat(extractor.extract("我喜欢拍风景"))
+                .extracting(ExtractedMemory::memoryKey, ExtractedMemory::value)
+                .containsExactly(tuple("preference.hobby", "拍风景"));
+        assertThat(extractor.extract("我叫小明，喜欢摄影"))
+                .extracting(ExtractedMemory::memoryKey, ExtractedMemory::value)
+                .containsExactly(
+                        tuple("profile.name", "小明"),
+                        tuple("preference.hobby", "摄影")
+                );
+    }
+
+    @Test
+    void doesNotExtractHobbyFromQuestionsOrOrdinaryChat() {
+        assertThat(extractor.extract("我喜欢什么？")).isEmpty();
+        assertThat(extractor.extract("你喜欢摄影吗？")).isEmpty();
+        assertThat(extractor.extract("摄影真有意思")).isEmpty();
     }
 }
