@@ -1,7 +1,7 @@
 package com.companion.ai;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.companion.ai.dto.AvatarGenerateResult;
+import com.companion.avatar.generation.AvatarAppearanceConfig;
 import com.companion.entity.AvatarAsset;
 import com.companion.mapper.AvatarAssetMapper;
 import lombok.RequiredArgsConstructor;
@@ -19,19 +19,9 @@ public class ModelMatcher {
 
     private static final String DEFAULT_MODEL_URL = "/models/avatars/nova.vrm";
 
-    public String match(AvatarGenerateResult result) {
-        if (result == null || result.getAppearanceConfig() == null) {
-            log.warn("ModelMatcher: result或appearanceConfig为空，返回默认模型");
-            return DEFAULT_MODEL_URL;
-        }
-
-        AvatarGenerateResult.AppearanceConfig app = result.getAppearanceConfig();
-        log.info("==== ModelMatcher 开始匹配 ====");
-        log.info("角色属性: gender={}, hairColor={}, hairStyle={}, eyeColor={}, earType={}, hasWing={}, wingType={}, outfitStyle={}, outfitColor={}",
-                app.getGender(), app.getHairColor(), app.getHairStyle(), app.getEyeColor(),
-                app.getEarType(), app.getHasWing(), app.getWingType(), app.getOutfitStyle(), app.getOutfitColor());
-        if (result.getPersonality() != null) {
-            log.info("性格类型: {}", result.getPersonality().getType());
+    public AvatarAsset match(AvatarAppearanceConfig appearance) {
+        if (appearance == null) {
+            return defaultAsset();
         }
 
         // Step 1: Query all available VRM assets
@@ -41,25 +31,18 @@ public class ModelMatcher {
                         .eq("status", 1)
         );
 
-        log.info("数据库查询到 {} 个可用VRM资源", assets.size());
-        for (AvatarAsset a : assets) {
-            log.info("  资源: id={}, name={}, fileUrl={}, gender={}, styleTags={}, colorTags={}",
-                    a.getId(), a.getName(), a.getFileUrl(), a.getGender(), a.getStyleTags(), a.getColorTags());
-        }
-
         if (assets.isEmpty()) {
-            log.warn("没有可用的VRM资源，返回默认模型: {}", DEFAULT_MODEL_URL);
-            return DEFAULT_MODEL_URL;
+            log.warn("No available VRM asset; using built-in default");
+            return defaultAsset();
         }
 
         // Step 2: Score each asset
         AvatarAsset bestAsset = null;
-        int bestScore = -1;
+        int bestScore = Integer.MIN_VALUE;
 
         for (AvatarAsset asset : assets) {
-            int score = calculateMatchScore(asset, result);
-            log.info("资源评分: name={}, score={}", asset.getName(), score);
-            if (score > bestScore) {
+            int score = calculateMatchScore(asset, appearance);
+            if (score > bestScore || (score == bestScore && isPreferred(asset, bestAsset))) {
                 bestScore = score;
                 bestAsset = asset;
             }
@@ -67,17 +50,14 @@ public class ModelMatcher {
 
         // Step 3: Return the best match
         if (bestAsset != null) {
-            log.info("==== 匹配到最佳模型: {}, score={}, url={} ====", bestAsset.getName(), bestScore, bestAsset.getFileUrl());
-            return bestAsset.getFileUrl();
+            log.info("Avatar asset selected: assetId={}, score={}", bestAsset.getId(), bestScore);
+            return bestAsset;
         }
-
-        log.warn("未匹配到任何模型，返回默认: {}", DEFAULT_MODEL_URL);
-        return DEFAULT_MODEL_URL;
+        return defaultAsset();
     }
 
-    private int calculateMatchScore(AvatarAsset asset, AvatarGenerateResult result) {
+    private int calculateMatchScore(AvatarAsset asset, AvatarAppearanceConfig app) {
         int score = 0;
-        AvatarGenerateResult.AppearanceConfig app = result.getAppearanceConfig();
         String colorTags = asset.getColorTags() != null ? asset.getColorTags().toLowerCase() : "";
         String styleTags = asset.getStyleTags() != null ? asset.getStyleTags().toLowerCase() : "";
         String supported = asset.getSupportedAttributes() != null ? asset.getSupportedAttributes().toLowerCase() : "";
@@ -85,11 +65,10 @@ public class ModelMatcher {
         // 1. Gender matching (+10 / -5)
         if (app.getGender() != null) {
             Integer assetGender = asset.getGender();
-            if (assetGender != null && assetGender != 0) {
+            if (assetGender != null) {
                 int targetGender = "male".equalsIgnoreCase(app.getGender()) ? 1 : 2;
                 if (assetGender == targetGender) score += 10;
-                else if (assetGender == 0) score += 5;
-                else score -= 5;
+                else if (assetGender != 0) score -= 20;
             }
         }
 
@@ -145,58 +124,45 @@ public class ModelMatcher {
 
         // 7. Ear type bonus (+2 for non-human)
         if (app.getEarType() != null && !"human".equals(app.getEarType())) {
-            score += 2;
-            if (supported.contains("ear") && supported.contains(app.getEarType().toLowerCase())) {
-                score += 1;
-            }
+            if (supported.contains("ear") && supported.contains(app.getEarType().toLowerCase())) score += 3;
+            else score -= 8;
         }
 
         // 8. Wing type matching (+3 for matching wing type)
-        if (app.getHasWing() != null && app.getHasWing()) {
-            score += 2;
-            if (app.getWingType() != null && !"none".equals(app.getWingType())) {
-                if (supported.contains("wing") && supported.contains(app.getWingType().toLowerCase())) {
-                    score += 2;
-                }
-            }
+        if (app.getWingType() != null && !"none".equals(app.getWingType())) {
+            if (supported.contains("wing") && supported.contains(app.getWingType().toLowerCase())) score += 4;
+            else score -= 10;
         }
 
-        // 9. Personality-style synergy bonus
-        if (result.getPersonality() != null) {
-            String personalityType = result.getPersonality().getType();
-            if ("cool".equals(personalityType)) {
-                if (styleTags.contains("gothic") || styleTags.contains("elegant") || styleTags.contains("mysterious") || styleTags.contains("dark")) {
-                    score += 4;
-                }
-            }
-            if ("gentle".equals(personalityType)) {
-                if (styleTags.contains("casual") || styleTags.contains("elegant")) {
-                    score += 4;
-                }
-            }
-            if ("tsundere".equals(personalityType)) {
-                if (styleTags.contains("tech_future") || styleTags.contains("cyberpunk")) {
-                    score += 4;
-                }
-            }
-            if ("humorous".equals(personalityType)) {
-                if (styleTags.contains("casual")) {
-                    score += 4;
-                }
-            }
-            if ("knowledgeable".equals(personalityType)) {
-                if (styleTags.contains("elegant") || styleTags.contains("casual")) {
-                    score += 4;
-                }
-            }
-        }
-
-        // 10. Download count bonus
+        // Download count bonus
         if (asset.getDownloadCount() != null) {
             score += Math.min(asset.getDownloadCount() / 100, 2);
         }
 
         return score;
+    }
+
+    private boolean isPreferred(AvatarAsset candidate, AvatarAsset current) {
+        if (current == null) return true;
+        int candidateOfficial = candidate.getIsOfficial() == null ? 0 : candidate.getIsOfficial();
+        int currentOfficial = current.getIsOfficial() == null ? 0 : current.getIsOfficial();
+        if (candidateOfficial != currentOfficial) return candidateOfficial > currentOfficial;
+        long candidateId = candidate.getId() == null ? Long.MAX_VALUE : candidate.getId();
+        long currentId = current.getId() == null ? Long.MAX_VALUE : current.getId();
+        return candidateId < currentId;
+    }
+
+    private AvatarAsset defaultAsset() {
+        AvatarAsset asset = new AvatarAsset();
+        asset.setName("Nova");
+        asset.setFileUrl(DEFAULT_MODEL_URL);
+        asset.setFileSize(5_475_092L);
+        asset.setGender(1);
+        asset.setStyleTags("basic,modern,casual");
+        asset.setColorTags("brown,blue,teal,black,white");
+        asset.setSupportedAttributes("{\"hair\":{\"color\":[\"brown\"],\"style\":[\"short\"]},\"eye\":{\"color\":[\"blue\"]},\"body\":{\"type\":[\"slim\"]},\"outfit\":{\"style\":[\"casual\"],\"color\":[\"teal\",\"black\",\"white\"]},\"ear\":[\"human\"],\"wing\":[\"none\"],\"accessories\":[]}");
+        asset.setIsOfficial(1);
+        return asset;
     }
 
     public AvatarAsset getAssetByUrl(String modelUrl) {

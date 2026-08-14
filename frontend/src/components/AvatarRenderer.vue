@@ -11,6 +11,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch, shallowRef } from 'vue'
 import AvatarScene from '@/three/AvatarScene.js'
 import { getModelUrlByName } from '@/config/avatarModels'
+import { createAvatarLoadState, runAvatarLoad } from '@/utils/avatarLoadState'
 
 const props = defineProps({
   modelUrl: {
@@ -29,6 +30,7 @@ const containerRef = ref(null)
 const loading = ref(false)
 const vrmLoaded = ref(false)
 const sceneInstance = shallowRef(null)
+const loadState = createAvatarLoadState()
 
 const resolvedModelUrl = computed(() => {
   if (props.modelUrl) return props.modelUrl
@@ -37,31 +39,35 @@ const resolvedModelUrl = computed(() => {
 
 const showLoading = computed(() => loading.value && !vrmLoaded.value)
 
-const loadModel = async () => {
+const loadModel = async (url = resolvedModelUrl.value) => {
   if (!sceneInstance.value) return
-
-  const url = resolvedModelUrl.value
   if (!url) {
     vrmLoaded.value = false
     return
   }
 
-  loading.value = true
-  vrmLoaded.value = false
-
-  try {
-    await sceneInstance.value.loadVRM(url)
-    // loadVRM 内部已处理 onLoadCallback/onErrorCallback
-    // 这里仅处理加载完成后的状态更新
-    vrmLoaded.value = true
-    emit('loaded')
-  } catch (err) {
-    // loadVRM 内部已通过 onErrorCallback 报告错误
-    // 这里仅做兜底处理
-    vrmLoaded.value = false
-  } finally {
-    loading.value = false
-  }
+  const scene = sceneInstance.value
+  await runAvatarLoad({
+    state: loadState,
+    url,
+    load: (modelUrl) => scene.loadVRM(modelUrl),
+    onStart: () => {
+      loading.value = true
+      vrmLoaded.value = false
+    },
+    onLoaded: () => {
+      vrmLoaded.value = true
+      emit('loaded')
+    },
+    onError: (err) => {
+      vrmLoaded.value = false
+      console.warn('VRM加载错误，使用占位形象:', err.message)
+      emit('error', err)
+    },
+    onSettled: () => {
+      loading.value = false
+    }
+  })
 }
 
 onMounted(() => {
@@ -70,31 +76,18 @@ onMounted(() => {
   scene.init()
   sceneInstance.value = scene
 
-  scene.onLoad((vrm) => {
-    loading.value = false
-    vrmLoaded.value = true
-  })
-
-  scene.onError((err) => {
-    loading.value = false
-    vrmLoaded.value = false
-    console.warn('VRM加载错误，使用占位形象:', err.message)
-    emit('error', err)
-  })
-
   loadModel()
 })
 
 watch(
-  () => [props.modelUrl, props.avatarName],
-  ([newUrl, newName], [oldUrl, oldName]) => {
-    if (newUrl !== oldUrl || newName !== oldName) {
-      loadModel()
-    }
+  resolvedModelUrl,
+  (newUrl, oldUrl) => {
+    if (newUrl !== oldUrl) loadModel(newUrl)
   }
 )
 
 onBeforeUnmount(() => {
+  loadState.dispose()
   if (sceneInstance.value) {
     sceneInstance.value.dispose()
     sceneInstance.value = null

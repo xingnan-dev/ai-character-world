@@ -113,7 +113,7 @@
                 size="large"
                 :icon="MagicStick"
                 :loading="generating"
-                :disabled="!aiDescription.trim()"
+                :disabled="generating || !aiDescription.trim()"
                 class="generate-btn"
                 @click="handleGenerate"
               >
@@ -127,7 +127,14 @@
                 <el-icon color="#67c23a"><CircleCheck /></el-icon>
                 生成结果
               </h4>
-              
+
+              <div v-if="parseSourceMessage" class="parse-source-warning">
+                <el-icon><InfoFilled /></el-icon>
+                <span>{{ parseSourceMessage }}</span>
+              </div>
+
+              <h5 class="result-section-title">角色设定</h5>
+
               <div class="result-info">
                 <div class="info-item">
                   <span class="info-label">名称</span>
@@ -141,10 +148,6 @@
                   <span class="info-label">性格</span>
                   <span class="info-value">{{ generatedPersonality?.corePersonality || '-' }}</span>
                 </div>
-                <div class="info-item">
-                  <span class="info-label">模型</span>
-                  <span class="info-value">{{ generatedAvatar.modelUrl }}</span>
-                </div>
               </div>
 
               <div v-if="generatedAttributes?.length" class="attributes-list">
@@ -155,6 +158,23 @@
                 >
                   {{ getAttrLabel(attr.category) }}: {{ attr.attrValue }}
                 </span>
+              </div>
+
+              <h5 class="result-section-title">模型匹配</h5>
+              <div class="model-match-panel" :class="assetMatchType?.toLowerCase()">
+                <div class="model-match-message">{{ assetMatchMessage }}</div>
+                <div class="model-file">模型：{{ generatedAvatar.modelUrl }}</div>
+                <div v-if="unmatchedAttributeLabels.length" class="unmatched-attributes">
+                  <span class="unmatched-label">未满足属性：</span>
+                  <el-tag
+                    v-for="attribute in unmatchedAttributeLabels"
+                    :key="attribute"
+                    type="warning"
+                    size="small"
+                  >
+                    {{ attribute }}
+                  </el-tag>
+                </div>
               </div>
 
               <div class="result-actions">
@@ -248,6 +268,12 @@ import {
 import { generateAvatar, createAvatar } from '../api/avatar'
 import AvatarRenderer from '../components/AvatarRenderer.vue'
 import { useAvatarStore } from '../stores/avatar'
+import { createAvatarGenerationGuard } from '../utils/avatarGenerationGuard'
+import {
+  getMatchMessage,
+  getParseSourceMessage,
+  mapUnmatchedAttributes
+} from '../utils/avatarMatchResult'
 
 const avatarStore = useAvatarStore()
 
@@ -257,10 +283,14 @@ const mode = ref('ai')
 // AI Generation
 const aiDescription = ref('')
 const generating = ref(false)
+const generationGuard = createAvatarGenerationGuard()
 const generatedAvatar = ref(null)
 const generatedPersonality = ref(null)
 const generatedAttributes = ref([])
 const previewModelUrl = ref('')
+const parseSource = ref('')
+const assetMatchType = ref('')
+const unmatchedAttributes = ref([])
 
 const quickExamples = [
   '创建一个银色长发、蓝色眼睛、猫耳、机械翅膀、黑色战甲、性格温柔但高冷的AI少女',
@@ -284,6 +314,10 @@ const genderLabel = computed(() => {
   return '其他'
 })
 
+const parseSourceMessage = computed(() => getParseSourceMessage(parseSource.value))
+const assetMatchMessage = computed(() => getMatchMessage(assetMatchType.value))
+const unmatchedAttributeLabels = computed(() => mapUnmatchedAttributes(unmatchedAttributes.value))
+
 function getAttrLabel(category) {
   const labels = {
     hair: '发型',
@@ -302,7 +336,10 @@ function applyExample(text) {
 }
 
 async function handleGenerate() {
+  if (generating.value || !generationGuard.tryAcquire()) return
+
   if (!aiDescription.value.trim()) {
+    generationGuard.release()
     ElMessage.warning('请输入角色描述')
     return
   }
@@ -311,6 +348,10 @@ async function handleGenerate() {
   generatedAvatar.value = null
   generatedPersonality.value = null
   generatedAttributes.value = []
+  previewModelUrl.value = ''
+  parseSource.value = ''
+  assetMatchType.value = ''
+  unmatchedAttributes.value = []
 
   try {
     const response = await generateAvatar({
@@ -322,6 +363,9 @@ async function handleGenerate() {
       generatedAvatar.value = response.data.avatar
       generatedPersonality.value = response.data.personality
       generatedAttributes.value = response.data.attributes || []
+      parseSource.value = response.data.parseSource || ''
+      assetMatchType.value = response.data.assetMatchType || ''
+      unmatchedAttributes.value = response.data.unmatchedAttributes || []
       
       // Set the model URL for preview
       if (response.data.avatar.modelUrl) {
@@ -332,9 +376,9 @@ async function handleGenerate() {
     }
   } catch (error) {
     console.error('Generate failed:', error)
-    ElMessage.error('AI 生成失败，请重试')
   } finally {
     generating.value = false
+    generationGuard.release()
   }
 }
 
@@ -361,6 +405,9 @@ function resetGenerate() {
   generatedPersonality.value = null
   generatedAttributes.value = []
   previewModelUrl.value = ''
+  parseSource.value = ''
+  assetMatchType.value = ''
+  unmatchedAttributes.value = []
   aiDescription.value = ''
 }
 
@@ -715,6 +762,26 @@ function buildPersonalityRequest(type, avatarName) {
   margin-bottom: 16px;
 }
 
+.parse-source-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  color: #b26a00;
+  background: #fdf6ec;
+  border: 1px solid #faecd8;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.result-section-title {
+  margin: 0 0 10px;
+  color: #606266;
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .result-info {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -747,6 +814,50 @@ function buildPersonalityRequest(type, avatarName) {
   flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 16px;
+}
+
+.model-match-panel {
+  padding: 12px;
+  margin-bottom: 16px;
+  background: #f5f7fa;
+  border: 1px solid #ebeef5;
+  border-radius: 10px;
+
+  &.matched {
+    background: #f0f9eb;
+    border-color: #e1f3d8;
+  }
+
+  &.nearest {
+    background: #fdf6ec;
+    border-color: #faecd8;
+  }
+}
+
+.model-match-message {
+  color: #303133;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.model-file {
+  margin-top: 6px;
+  color: #909399;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.unmatched-attributes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.unmatched-label {
+  color: #606266;
+  font-size: 12px;
 }
 
 .attr-tag {

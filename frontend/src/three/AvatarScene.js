@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { VRMLoaderPlugin } from '@pixiv/three-vrm'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { createAvatarLoadState } from '@/utils/avatarLoadState'
 
 class AvatarScene {
   constructor(container) {
@@ -21,6 +22,9 @@ class AvatarScene {
     this.onLoadCallback = null
     this.onErrorCallback = null
     this.currentExpression = null
+    this.loadState = createAvatarLoadState()
+    this.activeLoadController = null
+    this.disposed = false
   }
 
   init() {
@@ -147,8 +151,20 @@ class AvatarScene {
   }
 
   async loadVRM(url) {
-    if (this.loading) return
+    if (this.disposed) {
+      throw new Error('AvatarScene has been disposed')
+    }
+
+    const request = this.loadState.begin(url)
+    if (!request) return this.currentVrm
+
+    if (this.activeLoadController) {
+      this.activeLoadController.abort()
+    }
+    const abortController = new AbortController()
+    this.activeLoadController = abortController
     this.loading = true
+    let loadedVrm = null
 
     try {
       if (!this.loader) {
@@ -160,7 +176,7 @@ class AvatarScene {
       const absoluteUrl = this._getAbsoluteUrl(url)
       console.log('Loading VRM from:', absoluteUrl)
       
-      const response = await fetch(absoluteUrl)
+      const response = await fetch(absoluteUrl, { signal: abortController.signal })
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
@@ -172,6 +188,12 @@ class AvatarScene {
       const vrm = gltf.userData.vrm
       if (!vrm) {
         throw new Error('加载的模型不是VRM格式')
+      }
+      loadedVrm = vrm
+
+      if (!this.loadState.isCurrent(request) || this.disposed) {
+        this._disposeVrm(vrm)
+        return null
       }
 
       this._clearAvatar()
@@ -188,14 +210,32 @@ class AvatarScene {
       if (this.onLoadCallback) {
         this.onLoadCallback(vrm)
       }
+      this.loadState.complete(request)
+      return vrm
     } catch (err) {
-      console.error('VRM加载失败:', err)
-      if (this.onErrorCallback) {
+      if (loadedVrm && (!this.loadState.isCurrent(request) || this.disposed)) {
+        this._disposeVrm(loadedVrm)
+      }
+      if (this.loadState.isCurrent(request) && !this.disposed && this.onErrorCallback) {
         this.onErrorCallback(err)
       }
+      throw err
     } finally {
-      this.loading = false
+      if (this.loadState.isCurrent(request)) {
+        this.loading = false
+        if (this.activeLoadController === abortController) {
+          this.activeLoadController = null
+        }
+      }
     }
+  }
+
+  _disposeVrm(vrm) {
+    if (!vrm) return
+    if (vrm.animationMixer) {
+      vrm.animationMixer.stopAllAction()
+    }
+    this._disposeObject(vrm.scene)
   }
 
   _getAbsoluteUrl(url) {
@@ -344,6 +384,14 @@ class AvatarScene {
   }
 
   dispose() {
+    this.disposed = true
+    this.loadState.dispose()
+    if (this.activeLoadController) {
+      this.activeLoadController.abort()
+      this.activeLoadController = null
+    }
+    this.loading = false
+
     if (this.animationId !== null) {
       cancelAnimationFrame(this.animationId)
       this.animationId = null

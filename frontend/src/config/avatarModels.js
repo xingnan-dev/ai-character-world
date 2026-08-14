@@ -10,10 +10,7 @@
 // 角色名称 -> 模型文件路径的映射
 export const MODEL_MAP = {
   nova: '/models/avatars/nova.vrm',
-  sky: '/models/avatars/sky.vrm',
-  luna: '/models/avatars/sky.vrm',
-  星瑶: '/models/avatars/nova.vrm',
-  阿岚: '/models/avatars/sky.vrm'
+  sky: '/models/avatars/sky.vrm'
 }
 
 // 默认模型（当名称无法匹配时使用）
@@ -34,13 +31,6 @@ export const getModelUrlByName = (name) => {
   if (MODEL_MAP[lowerName]) return MODEL_MAP[lowerName]
   if (MODEL_MAP[name]) return MODEL_MAP[name]
 
-  // 2. 模糊匹配（名称包含 key）
-  for (const key of Object.keys(MODEL_MAP)) {
-    if (name.toLowerCase().includes(key)) {
-      return MODEL_MAP[key]
-    }
-  }
-
-  // 3. 回退到默认模型
+  // 2. 旧数据没有明确 baseModel/modelUrl 时回退到基础模型
   return DEFAULT_MODEL
 }

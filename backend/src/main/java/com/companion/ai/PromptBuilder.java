@@ -34,12 +34,10 @@ public class PromptBuilder {
                 "eyeColor": "瞳色（英文单词）",
                 "bodyType": "体型（英文单词）",
                 "earType": "耳朵类型（英文单词）",
-                "hasWing": true | false,
                 "wingType": "翅膀类型（英文单词）",
                 "outfitStyle": "服装风格（英文单词）",
                 "outfitColor": "服装主色（英文单词）",
-                "hasAccessory": true | false,
-                "accessoryType": ["配饰类型1", "配饰类型2"]
+                "accessories": ["配饰类型1", "配饰类型2"]
               },
               "personality": {
                 "type": "gentle | humorous | knowledgeable | adventurous | cool | tsundere",
@@ -59,6 +57,7 @@ public class PromptBuilder {
             wingType: angel, demon, mechanical, energy, none
             outfitStyle: tech_future, gothic, elegant, casual, uniform, kimono, armor
             outfitColor: black, white, red, blue, silver, gold, purple
+            accessories: glasses, headset, earrings, necklace, hairpin, hat, ribbon, scarf
 
             ## 人格类型说明
             - gentle：温柔体贴

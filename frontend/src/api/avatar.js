@@ -1,10 +1,12 @@
 import request from './request'
+import { AVATAR_GENERATE_TIMEOUT_MS } from '../utils/avatarGenerationGuard'
 
 export const generateAvatar = (data) => {
   return request({
     url: '/avatar/generate',
     method: 'post',
-    data
+    data,
+    timeout: AVATAR_GENERATE_TIMEOUT_MS
   })
 }
 

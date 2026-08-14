@@ -22,6 +22,12 @@ public class AvatarGenerateResponse {
 
     private Map<String, Object> parsedResult;
 
+    private String parseSource;
+
+    private String assetMatchType;
+
+    private List<String> unmatchedAttributes;
+
     private String message;
 
     @Data

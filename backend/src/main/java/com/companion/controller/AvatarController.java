@@ -34,7 +34,7 @@ public class AvatarController {
             @AuthenticationPrincipal AuthenticatedUser user,
             @Valid @RequestBody AvatarGenerateRequest request) {
         Long userId = user.userId();
-        log.info("AI生成形象: userId={}, description={}", userId, request.getDescription());
+        log.info("AI生成形象: userId={}, descriptionLength={}", userId, request.getDescription().length());
         AvatarGenerateResponse response = avatarAiService.generateAvatar(userId, request);
         return Result.success(response);
     }
