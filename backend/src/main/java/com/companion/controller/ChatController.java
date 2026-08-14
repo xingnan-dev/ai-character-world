@@ -1,6 +1,9 @@
 package com.companion.controller;
 
 import com.companion.chat.SseSubscriptionLifecycle;
+import com.companion.ai.context.ConversationContextManager;
+import com.companion.ai.exception.LlmProviderException;
+import com.companion.common.exception.BusinessException;
 import com.companion.common.result.Result;
 import com.companion.dto.request.ChatSendRequest;
 import com.companion.dto.request.ChatSessionCreateRequest;
@@ -19,8 +22,6 @@ import reactor.core.publisher.Flux;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 @Slf4j
 @RestController
@@ -28,11 +29,9 @@ import java.util.concurrent.Executors;
 public class ChatController {
 
     private final ChatService chatService;
-    private final ExecutorService executorService;
 
     public ChatController(ChatService chatService) {
         this.chatService = chatService;
-        this.executorService = Executors.newCachedThreadPool();
     }
 
     @PostMapping("/session/create")
@@ -108,7 +107,7 @@ public class ChatController {
                 subscriptionLifecycle.markUpstreamTerminated();
                 log.error("流式响应错误", error);
                 try {
-                    emitter.send(SseEmitter.event().name("error").data(error.getMessage()));
+                    emitter.send(SseEmitter.event().name("error").data(safeError(error)));
                 } catch (IOException e) {
                     log.error("发送错误事件失败", e);
                 }
@@ -142,5 +141,27 @@ public class ChatController {
         });
 
         return emitter;
+    }
+
+    private SseErrorPayload safeError(Throwable error) {
+        if (error instanceof ConversationContextManager.ContextWindowExceededException) {
+            return new SseErrorPayload("INPUT_TOO_LONG", "输入内容过长，请缩短消息后重试");
+        }
+        if (error instanceof LlmProviderException providerException) {
+            return new SseErrorPayload(
+                    "LLM_" + providerException.getErrorType().name(),
+                    "AI 服务暂时不可用，请稍后重试"
+            );
+        }
+        if (error instanceof BusinessException businessException) {
+            return new SseErrorPayload(
+                    "CHAT_REQUEST_" + businessException.getCode(),
+                    "聊天请求处理失败，请稍后重试"
+            );
+        }
+        return new SseErrorPayload("CHAT_INTERNAL_ERROR", "聊天服务暂时不可用，请稍后重试");
+    }
+
+    private record SseErrorPayload(String code, String message) {
     }
 }

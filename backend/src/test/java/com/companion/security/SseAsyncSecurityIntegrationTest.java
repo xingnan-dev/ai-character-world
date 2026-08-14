@@ -2,6 +2,8 @@ package com.companion.security;
 
 import com.companion.entity.User;
 import com.companion.entity.enums.UserStatus;
+import com.companion.ai.exception.LlmErrorType;
+import com.companion.ai.exception.LlmProviderException;
 import com.companion.mapper.UserMapper;
 import com.companion.service.ChatService;
 import org.junit.jupiter.api.BeforeEach;
@@ -110,6 +112,28 @@ class SseAsyncSecurityIntegrationTest {
                 .andExpect(request().asyncNotStarted());
 
         verify(chatService, never()).sendMessage(anyLong(), any());
+    }
+
+    @Test
+    void sseErrorUsesStableSafePayload() throws Exception {
+        when(chatService.sendMessage(anyLong(), any())).thenReturn(Flux.error(
+                new LlmProviderException(
+                        "test", LlmErrorType.UPSTREAM_ERROR, 500, true,
+                        "sensitive provider response"
+                )
+        ));
+
+        MvcResult initialResult = mockMvc.perform(authenticatedStreamRequest())
+                .andExpect(status().isOk())
+                .andExpect(request().asyncStarted())
+                .andReturn();
+
+        initialResult.getAsyncResult();
+        String responseBody = initialResult.getResponse().getContentAsString();
+        org.assertj.core.api.Assertions.assertThat(responseBody)
+                .contains("LLM_UPSTREAM_ERROR")
+                .contains("AI 服务暂时不可用，请稍后重试")
+                .doesNotContain("sensitive provider response");
     }
 
     private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder authenticatedStreamRequest() {
