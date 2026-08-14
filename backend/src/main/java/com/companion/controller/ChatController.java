@@ -98,7 +98,7 @@ public class ChatController {
                 } catch (IOException e) {
                     log.error("发送token失败", e);
                     subscriptionLifecycle.cancelUpstream();
-                    emitter.completeWithError(e);
+                    emitter.complete();
                 }
             }
 
@@ -111,7 +111,9 @@ public class ChatController {
                 } catch (IOException e) {
                     log.error("发送错误事件失败", e);
                 }
-                emitter.completeWithError(error);
+                // The provider error has already been translated into a safe SSE event.
+                // Complete normally to avoid a second ERROR dispatch after commit.
+                emitter.complete();
             }
 
             @Override

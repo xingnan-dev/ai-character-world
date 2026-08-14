@@ -14,6 +14,9 @@ import {
   isMessageActive,
   mapChatMessage
 } from '../utils/chatMessageState'
+import { createChatSendGuard } from '../utils/chatSendGuard'
+
+const sendGuard = createChatSendGuard()
 
 export const useChatStore = defineStore('chat', {
   state: () => ({
@@ -99,8 +102,8 @@ export const useChatStore = defineStore('chat', {
       }
     },
     async sendMessage(content) {
-      if (!this.currentSessionId || this.streaming) return
       const sessionId = this.currentSessionId
+      if (!sessionId || this.streaming || !sendGuard.tryAcquire(sessionId)) return false
       const requestId = createChatRequestId()
       const abortController = markRaw(new AbortController())
       this.streaming = true
@@ -145,7 +148,9 @@ export const useChatStore = defineStore('chat', {
         assistantMessage.streaming = false
         if (this.activeAbortController === abortController) this.activeAbortController = null
         await this.syncMessagesAfterStream(sessionId, requestId)
+        sendGuard.release(sessionId)
       }
+      return true
     },
     async consumeStream(reader, message) {
       const decoder = new TextDecoder()
@@ -241,6 +246,7 @@ export const useChatStore = defineStore('chat', {
     },
     resetState() {
       this.stopGeneration()
+      sendGuard.clear()
       this.sessions = []
       this.currentSessionId = null
       this.messages = []

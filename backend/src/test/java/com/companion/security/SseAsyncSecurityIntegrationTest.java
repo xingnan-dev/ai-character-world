@@ -116,12 +116,23 @@ class SseAsyncSecurityIntegrationTest {
 
     @Test
     void sseErrorUsesStableSafePayload() throws Exception {
-        when(chatService.sendMessage(anyLong(), any())).thenReturn(Flux.error(
-                new LlmProviderException(
-                        "test", LlmErrorType.UPSTREAM_ERROR, 500, true,
-                        "sensitive provider response"
-                )
-        ));
+        assertProviderErrorIsSafelyCompleted(LlmErrorType.UPSTREAM_ERROR, 500);
+    }
+
+    @Test
+    void rateLimitIsReturnedAsSseErrorWithoutSecondaryAccessDenied() throws Exception {
+        assertProviderErrorIsSafelyCompleted(LlmErrorType.RATE_LIMIT, 429);
+    }
+
+    @Test
+    void providerClientErrorIsReturnedAsSseErrorWithoutSecondaryAccessDenied() throws Exception {
+        assertProviderErrorIsSafelyCompleted(LlmErrorType.INVALID_REQUEST, 400);
+    }
+
+    private void assertProviderErrorIsSafelyCompleted(LlmErrorType errorType, int statusCode) throws Exception {
+        when(chatService.sendMessage(anyLong(), any())).thenReturn(Flux.error(new LlmProviderException(
+                "test", errorType, statusCode, false, "sensitive provider response"
+        )));
 
         MvcResult initialResult = mockMvc.perform(authenticatedStreamRequest())
                 .andExpect(status().isOk())
@@ -129,9 +140,12 @@ class SseAsyncSecurityIntegrationTest {
                 .andReturn();
 
         initialResult.getAsyncResult();
-        String responseBody = initialResult.getResponse().getContentAsString();
+        MvcResult completedResult = mockMvc.perform(asyncDispatch(initialResult))
+                .andExpect(status().isOk())
+                .andReturn();
+        String responseBody = completedResult.getResponse().getContentAsString();
         org.assertj.core.api.Assertions.assertThat(responseBody)
-                .contains("LLM_UPSTREAM_ERROR")
+                .contains("LLM_" + errorType.name())
                 .contains("AI 服务暂时不可用，请稍后重试")
                 .doesNotContain("sensitive provider response");
     }
