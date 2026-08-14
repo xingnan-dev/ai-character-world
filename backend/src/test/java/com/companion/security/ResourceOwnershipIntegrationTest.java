@@ -33,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(properties = {
         "spring.sql.init.mode=never",
+        "ai.mock.enabled=true",
         "jwt.secret=resource-ownership-test-jwt-secret-at-least-32-bytes"
 })
 @AutoConfigureMockMvc

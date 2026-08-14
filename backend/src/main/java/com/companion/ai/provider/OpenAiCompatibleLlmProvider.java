@@ -10,6 +10,7 @@ import com.companion.ai.model.LlmResponse;
 import com.companion.ai.model.LlmUsage;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.MediaType;
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Component
 public class OpenAiCompatibleLlmProvider implements LlmProvider {
@@ -121,6 +123,8 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
                         parseStream(response, body, sink, request);
                     } catch (LlmProviderException e) {
                         sink.error(e);
+                    } catch (IOException e) {
+                        sink.error(transportException(e));
                     } catch (Exception e) {
                         sink.error(invalidResponse("Unable to parse LLM stream response", e));
                     }
@@ -133,6 +137,7 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
                              reactor.core.publisher.FluxSink<LlmChunk> sink,
                              LlmRequest request) throws IOException {
         AtomicLong sequence = new AtomicLong();
+        AtomicBoolean completionSignalled = new AtomicBoolean(false);
         String responseRequestId = response.header("x-request-id");
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(body.byteStream(), StandardCharsets.UTF_8))) {
@@ -146,31 +151,77 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
                     continue;
                 }
                 if ("[DONE]".equals(data)) {
+                    completionSignalled.set(true);
                     sink.complete();
                     return;
                 }
 
-                JsonNode root = objectMapper.readTree(data);
-                JsonNode choice = firstChoice(root);
+                JsonNode root;
+                try {
+                    root = objectMapper.readTree(data);
+                } catch (JsonProcessingException error) {
+                    throw invalidResponse("Unable to parse LLM stream event", error);
+                }
+                if (root.has("error")) {
+                    throw new LlmProviderException(
+                            NAME, LlmErrorType.UPSTREAM_ERROR, null, false,
+                            "LLM provider returned a stream error"
+                    );
+                }
+
+                LlmUsage usage = parseUsage(root.get("usage"));
+                JsonNode choices = root.get("choices");
+                if (choices == null || !choices.isArray()) {
+                    if (hasUsage(usage)) {
+                        sink.next(usageChunk(sequence, responseRequestId, root, usage));
+                        continue;
+                    }
+                    throw invalidResponse("LLM stream response does not contain choices", null);
+                }
+                if (choices.isEmpty()) {
+                    if (hasUsage(usage)) {
+                        sink.next(usageChunk(sequence, responseRequestId, root, usage));
+                        continue;
+                    }
+                    throw invalidResponse("LLM stream response contains empty choices", null);
+                }
+
+                JsonNode choice = choices.get(0);
                 JsonNode delta = choice.path("delta");
                 String content = delta.has("content") && !delta.get("content").isNull()
                         ? delta.get("content").asText() : "";
                 String finishReason = textOrNull(choice.get("finish_reason"));
-                if (!content.isEmpty() || finishReason != null) {
+                if (finishReason != null) {
+                    completionSignalled.set(true);
+                }
+                if (!content.isEmpty() || finishReason != null || hasUsage(usage)) {
                     sink.next(new LlmChunk(
                             content,
                             sequence.getAndIncrement(),
                             finishReason != null,
                             finishReason,
                             responseRequestId != null ? responseRequestId : textOrNull(root.get("id")),
-                            parseUsage(root.get("usage"))
+                            usage
                     ));
                 }
             }
             if (!sink.isCancelled()) {
-                sink.complete();
+                if (completionSignalled.get() || !properties.getStream().isRequireCompletionSignal()) {
+                    sink.complete();
+                } else {
+                    sink.error(invalidResponse("LLM stream ended without a completion signal", null));
+                }
             }
         }
+    }
+
+    private LlmChunk usageChunk(AtomicLong sequence, String responseRequestId,
+                                JsonNode root, LlmUsage usage) {
+        return new LlmChunk(
+                "", sequence.getAndIncrement(), false, null,
+                responseRequestId != null ? responseRequestId : textOrNull(root.get("id")),
+                usage
+        );
     }
 
     private Request buildRequest(LlmRequest request, boolean stream) {
@@ -188,6 +239,9 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
             payload.put("model", request.model());
             payload.put("messages", messages);
             payload.put("stream", stream);
+            if (stream && properties.getStream().isIncludeUsage()) {
+                payload.put("stream_options", Map.of("include_usage", true));
+            }
             if (request.temperature() != null) {
                 payload.put("temperature", request.temperature());
             }
@@ -224,7 +278,9 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
             return;
         }
         int status = response.code();
-        LlmErrorType type = status == 401 || status == 403 ? LlmErrorType.AUTHENTICATION
+        LlmErrorType type = status == 400 || status == 404 || status == 409 || status == 422
+                ? LlmErrorType.INVALID_REQUEST
+                : status == 401 || status == 403 ? LlmErrorType.AUTHENTICATION
                 : status == 429 ? LlmErrorType.RATE_LIMIT
                 : status == 408 || status == 504 ? LlmErrorType.TIMEOUT
                 : LlmErrorType.UPSTREAM_ERROR;
@@ -266,6 +322,12 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
                 integerOrNull(usage.get("completion_tokens")),
                 integerOrNull(usage.get("total_tokens"))
         );
+    }
+
+    private boolean hasUsage(LlmUsage usage) {
+        return usage != null && (usage.promptTokens() != null
+                || usage.completionTokens() != null
+                || usage.totalTokens() != null);
     }
 
     private Integer integerOrNull(JsonNode value) {

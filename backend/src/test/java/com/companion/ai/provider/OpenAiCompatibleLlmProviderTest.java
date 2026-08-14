@@ -25,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class OpenAiCompatibleLlmProviderTest {
 
     private HttpServer server;
+    private String requestBody;
 
     @AfterEach
     void stopServer() {
@@ -64,6 +65,38 @@ class OpenAiCompatibleLlmProviderTest {
                 .block(Duration.ofSeconds(3));
 
         assertThat(content).isEqualTo("hello");
+        assertThat(requestBody).contains("\"stream_options\":{\"include_usage\":true}");
+    }
+
+    @Test
+    void parsesUsageOnlyTailWithEmptyChoices() throws Exception {
+        startServer(200, """
+                data: {"id":"stream-usage","choices":[{"delta":{"content":"hello"},"finish_reason":"stop"}]}
+
+                data: {"id":"stream-usage","choices":[],"usage":{"prompt_tokens":7,"completion_tokens":2,"total_tokens":9}}
+
+                data: [DONE]
+
+                """);
+
+        var chunks = provider().stream(request()).collectList().block(Duration.ofSeconds(3));
+
+        assertThat(chunks).isNotNull();
+        assertThat(chunks).hasSize(2);
+        assertThat(chunks.get(1).content()).isEmpty();
+        assertThat(chunks.get(1).usage().totalTokens()).isEqualTo(9);
+    }
+
+    @Test
+    void rejectsUnexpectedEndWithoutDoneOrFinishReason() throws Exception {
+        startServer(200, """
+                data: {"id":"stream-cut","choices":[{"delta":{"content":"partial"},"finish_reason":null}]}
+
+                """);
+
+        assertThatThrownBy(() -> provider().stream(request()).blockLast(Duration.ofSeconds(3)))
+                .isInstanceOfSatisfying(LlmProviderException.class, exception ->
+                        assertThat(exception.getErrorType()).isEqualTo(LlmErrorType.INVALID_RESPONSE));
     }
 
     @Test
@@ -75,6 +108,25 @@ class OpenAiCompatibleLlmProviderTest {
                     assertThat(exception.getErrorType()).isEqualTo(LlmErrorType.RATE_LIMIT);
                     assertThat(exception.isRetryable()).isTrue();
                     assertThat(exception.getMessage()).doesNotContain("secret provider detail");
+                });
+    }
+
+    @Test
+    void mapsInvalidRequestAndRetryableServerFailure() throws Exception {
+        startServer(422, "{\"error\":\"invalid input detail\"}");
+        assertThatThrownBy(() -> provider().complete(request()))
+                .isInstanceOfSatisfying(LlmProviderException.class, exception -> {
+                    assertThat(exception.getErrorType()).isEqualTo(LlmErrorType.INVALID_REQUEST);
+                    assertThat(exception.isRetryable()).isFalse();
+                    assertThat(exception.getMessage()).doesNotContain("invalid input detail");
+                });
+
+        stopServer();
+        startServer(503, "{\"error\":\"internal provider detail\"}");
+        assertThatThrownBy(() -> provider().complete(request()))
+                .isInstanceOfSatisfying(LlmProviderException.class, exception -> {
+                    assertThat(exception.getErrorType()).isEqualTo(LlmErrorType.UPSTREAM_ERROR);
+                    assertThat(exception.isRetryable()).isTrue();
                 });
     }
 
@@ -103,7 +155,7 @@ class OpenAiCompatibleLlmProviderTest {
     }
 
     private void respond(HttpExchange exchange, int status, String responseBody) throws IOException {
-        exchange.getRequestBody().readAllBytes();
+        requestBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
         byte[] bytes = responseBody.getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
         exchange.sendResponseHeaders(status, bytes.length);

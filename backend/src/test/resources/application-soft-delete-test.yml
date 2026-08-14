@@ -25,3 +25,7 @@ mybatis-plus:
 
 jwt:
   secret: soft-delete-test-jwt-secret-key-at-least-32-bytes
+
+ai:
+  mock:
+    enabled: true

@@ -20,6 +20,7 @@ public class LlmProperties {
     private Duration connectTimeout = Duration.ofSeconds(30);
     private Duration readTimeout = Duration.ofSeconds(120);
     private Mock mock = new Mock();
+    private Stream stream = new Stream();
     private Context context = new Context();
     private Memory memory = new Memory();
 
@@ -27,6 +28,12 @@ public class LlmProperties {
     public static class Mock {
         private boolean enabled;
         private Duration delay = Duration.ofMillis(20);
+    }
+
+    @Data
+    public static class Stream {
+        private boolean includeUsage = true;
+        private boolean requireCompletionSignal = true;
     }
 
     @Data

@@ -74,9 +74,15 @@ ai:
   api-url: ${AI_API_URL:https://api.example.com/v1/chat/completions}
   api-key: ${AI_API_KEY:}
   model-name: ${AI_MODEL_NAME:gpt-3.5-turbo}
+  temperature: ${AI_TEMPERATURE:0.7}
   max-tokens: ${AI_MAX_TOKENS:1024}
   connect-timeout: 30s
   read-timeout: 120s
+  mock:
+    enabled: ${AI_MOCK_ENABLED:false}
+  stream:
+    include-usage: ${AI_STREAM_INCLUDE_USAGE:true}
+    require-completion-signal: ${AI_STREAM_REQUIRE_COMPLETION_SIGNAL:true}
   context:
     window-tokens: ${AI_CONTEXT_WINDOW_TOKENS:8192}
     safety-margin-tokens: ${AI_CONTEXT_SAFETY_MARGIN_TOKENS:512}
