@@ -21,6 +21,7 @@ public class LlmProperties {
     private Duration readTimeout = Duration.ofSeconds(120);
     private Mock mock = new Mock();
     private Stream stream = new Stream();
+    private Avatar avatar = new Avatar();
     private Context context = new Context();
     private Memory memory = new Memory();
 
@@ -34,6 +35,11 @@ public class LlmProperties {
     public static class Stream {
         private boolean includeUsage = true;
         private boolean requireCompletionSignal = true;
+    }
+
+    @Data
+    public static class Avatar {
+        private int maxTokens = 1536;
     }
 
     @Data

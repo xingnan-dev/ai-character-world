@@ -83,6 +83,8 @@ ai:
   stream:
     include-usage: ${AI_STREAM_INCLUDE_USAGE:true}
     require-completion-signal: ${AI_STREAM_REQUIRE_COMPLETION_SIGNAL:true}
+  avatar:
+    max-tokens: ${AVATAR_MAX_TOKENS:1536}
   context:
     window-tokens: ${AI_CONTEXT_WINDOW_TOKENS:8192}
     safety-margin-tokens: ${AI_CONTEXT_SAFETY_MARGIN_TOKENS:512}
@@ -102,3 +104,7 @@ app:
 
 chat:
   message-recovery-timeout: ${CHAT_MESSAGE_RECOVERY_TIMEOUT:5m}
+
+avatar:
+  asset:
+    minimum-score: ${AVATAR_ASSET_MINIMUM_SCORE:10}

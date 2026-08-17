@@ -68,6 +68,20 @@ class LlmClientAiUsageTest {
     }
 
     @Test
+    void synchronousStructuredCallPreservesFinishReasonAndOverridesMaxTokens() {
+        provider.response = new LlmResponse(
+                "partial", "actual-provider", "actual-model", "length", "provider-request",
+                new LlmUsage(10, 1536, 1546)
+        );
+
+        LlmResponse response = client.complete("system", "user", 1536);
+
+        assertThat(response.finishReason()).isEqualTo("length");
+        assertThat(provider.lastRequest.maxTokens()).isEqualTo(1536);
+        assertThat(onlyRecord().getCompletionTokens()).isEqualTo(1536);
+    }
+
+    @Test
     void synchronousFailureSavesFailureRecordAndKeepsOriginalError() {
         LlmProviderException failure = failure(LlmErrorType.TIMEOUT);
         provider.failure = failure;
@@ -193,6 +207,7 @@ class LlmClientAiUsageTest {
         private Flux<LlmChunk> stream = Flux.empty();
         private RuntimeException failure;
         private int completeCalls;
+        private LlmRequest lastRequest;
 
         @Override
         public String name() {
@@ -202,6 +217,7 @@ class LlmClientAiUsageTest {
         @Override
         public LlmResponse complete(LlmRequest request) {
             completeCalls++;
+            lastRequest = request;
             if (failure != null) {
                 throw failure;
             }

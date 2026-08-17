@@ -2,7 +2,9 @@ package com.companion.avatar.generation;
 
 import com.companion.ai.LlmClient;
 import com.companion.ai.PromptBuilder;
+import com.companion.ai.config.LlmProperties;
 import com.companion.ai.dto.AvatarGenerateResult;
+import com.companion.ai.model.LlmResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.AllArgsConstructor;
@@ -45,21 +47,26 @@ public class AvatarDescriptionParser {
     private final PromptBuilder promptBuilder;
     private final ObjectMapper objectMapper;
     private final AvatarAppearanceNormalizer normalizer;
+    private final LlmProperties llmProperties;
 
     public ParseResult parse(String description) {
         try {
-            String response = llmClient.chat(
+            LlmResponse response = llmClient.complete(
                     promptBuilder.buildAvatarGenerateSystemPrompt(),
-                    promptBuilder.buildAvatarGenerateUserPrompt(description)
+                    promptBuilder.buildAvatarGenerateUserPrompt(description),
+                    llmProperties.getAvatar().getMaxTokens()
             );
-            AvatarGenerateResult raw = objectMapper.readValue(extractJson(response), AvatarGenerateResult.class);
+            if ("length".equalsIgnoreCase(response.finishReason())) {
+                throw new AvatarLlmTruncatedException();
+            }
+            AvatarGenerateResult raw = objectMapper.readValue(extractJson(response.content()), AvatarGenerateResult.class);
             ParseResult result = normalize(raw, ParseSource.LLM);
             log.info("Avatar description parsed: source={}, descriptionLength={}",
                     result.getParseSource(), length(description));
             return result;
         } catch (Exception exception) {
-            log.warn("Avatar LLM parsing failed; using rule fallback: descriptionLength={}, errorType={}",
-                    length(description), exception.getClass().getSimpleName());
+            log.warn("Avatar LLM parsing failed; using rule fallback: descriptionLength={}, reason={}",
+                    length(description), fallbackReason(exception));
             return normalize(buildFallback(description), ParseSource.RULE_FALLBACK);
         }
     }
@@ -250,5 +257,14 @@ public class AvatarDescriptionParser {
 
     private int length(String value) {
         return value == null ? 0 : value.length();
+    }
+
+    private String fallbackReason(Exception exception) {
+        return exception instanceof AvatarLlmTruncatedException
+                ? "LLM_TRUNCATED"
+                : exception.getClass().getSimpleName();
+    }
+
+    private static final class AvatarLlmTruncatedException extends RuntimeException {
     }
 }

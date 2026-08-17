@@ -44,6 +44,12 @@ public class AvatarGenerationCoordinator {
         long startedAt = System.nanoTime();
         AvatarDescriptionParser.ParseResult parsed = parser.parse(request.getDescription());
         AvatarAssetSelector.Selection selection = assetSelector.select(parsed.getAppearanceConfig());
+        if (selection.matchType() == AvatarAssetSelector.MatchType.UNAVAILABLE) {
+            throw new BusinessException(
+                    ResultCode.NOT_FOUND.getCode(),
+                    "当前资产库没有匹配该外观的3D模型，请调整描述或稍后重试。"
+            );
+        }
         AvatarAsset asset = selection.asset();
         if (asset == null || asset.getFileUrl() == null || asset.getFileUrl().isBlank()) {
             throw new BusinessException(ResultCode.SERVER_ERROR.getCode(), "没有可用的形象模型");

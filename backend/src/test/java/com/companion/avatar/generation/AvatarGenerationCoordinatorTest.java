@@ -202,6 +202,50 @@ class AvatarGenerationCoordinatorTest {
         verify(attributeMapper, never()).insert(any());
     }
 
+    @Test
+    void unavailableAssetFailsBeforeAnyPersistence() {
+        when(parser.parse(any())).thenReturn(parsed);
+        when(assetSelector.select(any())).thenReturn(new AvatarAssetSelector.Selection(
+                selectedAsset, -25, AvatarAssetSelector.MatchType.UNAVAILABLE,
+                List.of("hairColor", "earType", "wingType")
+        ));
+
+        assertThatThrownBy(() -> coordinator.generate(7L, request("银色长发猫耳机械翅膀女孩")))
+                .isInstanceOfSatisfying(com.companion.common.exception.BusinessException.class, exception ->
+                        assertThat(exception.getMessage()).isEqualTo(
+                                "当前资产库没有匹配该外观的3D模型，请调整描述或稍后重试。"
+                        ));
+
+        verify(avatarMapper, never()).insert(any());
+        verify(personalityMapper, never()).insert(any());
+        verify(attributeMapper, never()).insert(any());
+        verify(avatarMapper, never()).updateById(any());
+    }
+
+    @Test
+    void matchedAssetCreatesNormally() {
+        when(parser.parse(any())).thenReturn(parsed);
+        when(assetSelector.select(any())).thenReturn(new AvatarAssetSelector.Selection(
+                selectedAsset, 40, AvatarAssetSelector.MatchType.MATCHED, List.of()
+        ));
+        when(avatarMapper.insert(any())).thenAnswer(invocation -> {
+            ((Avatar) invocation.getArgument(0)).setId(101L);
+            return 1;
+        });
+        when(personalityMapper.insert(any())).thenAnswer(invocation -> {
+            ((Personality) invocation.getArgument(0)).setId(201L);
+            return 1;
+        });
+        when(avatarMapper.updateById(any())).thenReturn(1);
+        when(attributeMapper.insert(any())).thenReturn(1);
+
+        AvatarGenerateResponse response = coordinator.generate(7L, request("匹配描述"));
+
+        assertThat(response.getAssetMatchType()).isEqualTo("MATCHED");
+        verify(avatarMapper).insert(any());
+        verify(personalityMapper).insert(any());
+    }
+
     private AvatarGenerateRequest request(String description) {
         AvatarGenerateRequest request = new AvatarGenerateRequest();
         request.setDescription(description);
@@ -211,7 +255,7 @@ class AvatarGenerationCoordinatorTest {
 
     private AvatarAssetSelector.Selection selection() {
         return new AvatarAssetSelector.Selection(
-                selectedAsset, AvatarAssetSelector.MatchType.NEAREST, List.of("gender")
+                selectedAsset, 20, AvatarAssetSelector.MatchType.NEAREST, List.of("gender")
         );
     }
 }

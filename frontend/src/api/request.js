@@ -23,8 +23,9 @@ service.interceptors.response.use(
   (response) => {
     const res = response.data
     if (res.code !== undefined && res.code !== 200) {
-      ElMessage.error(res.message || '请求失败')
-      return Promise.reject(new Error(res.message || '请求失败'))
+      const message = res.msg || res.message || '请求失败'
+      ElMessage.error(message)
+      return Promise.reject(new Error(message))
     }
     return res
   },
@@ -35,7 +36,7 @@ service.interceptors.response.use(
       localStorage.removeItem('token')
       window.location.href = '/login'
     } else {
-      ElMessage.error(error.response?.data?.message || error.message || '网络错误')
+      ElMessage.error(error.response?.data?.msg || error.response?.data?.message || error.message || '网络错误')
     }
     return Promise.reject(error)
   }

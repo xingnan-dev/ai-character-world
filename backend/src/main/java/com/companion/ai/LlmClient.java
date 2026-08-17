@@ -104,7 +104,23 @@ public class LlmClient {
     }
 
     public String chat(ComposedChatPrompt prompt) {
-        LlmRequest request = buildRequest(prompt);
+        return complete(prompt, null).content();
+    }
+
+    /**
+     * Executes a synchronous request while preserving provider response metadata such as
+     * finishReason. The optional maxTokens override is intended for bounded structured-output
+     * use cases and does not change the global chat configuration.
+     */
+    public LlmResponse complete(String systemPrompt, String userPrompt, Integer maxTokens) {
+        return complete(new ComposedChatPrompt(
+                legacyMessages(systemPrompt, userPrompt),
+                Map.of()
+        ), maxTokens);
+    }
+
+    public LlmResponse complete(ComposedChatPrompt prompt, Integer maxTokens) {
+        LlmRequest request = buildRequest(prompt, maxTokens);
         long startedAt = System.nanoTime();
         LlmProvider provider;
         try {
@@ -126,7 +142,7 @@ public class LlmClient {
                     response.usage(),
                     elapsedMillis(startedAt)
             ));
-            return response.content();
+            return response;
         } catch (RuntimeException error) {
             safeRecord(failureRecord(
                     request, providerName(error, provider.name()), request.model(), null,
@@ -254,12 +270,16 @@ public class LlmClient {
     }
 
     private LlmRequest buildRequest(ComposedChatPrompt prompt) {
+        return buildRequest(prompt, null);
+    }
+
+    private LlmRequest buildRequest(ComposedChatPrompt prompt, Integer maxTokens) {
         return new LlmRequest(
                 UUID.randomUUID().toString(),
                 properties.getModelName(),
                 prompt.messages(),
                 properties.getTemperature(),
-                properties.getMaxTokens(),
+                maxTokens == null ? properties.getMaxTokens() : maxTokens,
                 prompt.metadata()
         );
     }

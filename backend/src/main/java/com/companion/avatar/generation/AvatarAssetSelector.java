@@ -1,5 +1,6 @@
 package com.companion.avatar.generation;
 
+import com.companion.ai.AssetMatchResult;
 import com.companion.ai.ModelMatcher;
 import com.companion.entity.AvatarAsset;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -16,20 +17,57 @@ public class AvatarAssetSelector {
 
     public enum MatchType {
         MATCHED,
-        NEAREST
+        NEAREST,
+        UNAVAILABLE
     }
 
-    public record Selection(AvatarAsset asset, MatchType matchType, List<String> unmatchedAttributes) {
+    public record Selection(AvatarAsset asset, int score, MatchType matchType, List<String> unmatchedAttributes) {
     }
 
     private final ModelMatcher modelMatcher;
     private final ObjectMapper objectMapper;
+    private final AvatarAssetProperties properties;
 
     public Selection select(AvatarAppearanceConfig appearanceConfig) {
-        AvatarAsset asset = modelMatcher.match(appearanceConfig);
+        AssetMatchResult match = modelMatcher.match(appearanceConfig);
+        if (match.isEmpty()) {
+            return new Selection(null, match.score(), MatchType.UNAVAILABLE, List.of("asset"));
+        }
+        AvatarAsset asset = match.asset();
         List<String> unmatched = findUnmatched(appearanceConfig, asset);
-        MatchType type = unmatched.isEmpty() ? MatchType.MATCHED : MatchType.NEAREST;
-        return new Selection(asset, type, List.copyOf(unmatched));
+        MatchType type;
+        if (match.score() < properties.getMinimumScore() || hasCriticalMismatch(appearanceConfig, asset)) {
+            type = MatchType.UNAVAILABLE;
+        } else {
+            type = unmatched.isEmpty() ? MatchType.MATCHED : MatchType.NEAREST;
+        }
+        return new Selection(asset, match.score(), type, List.copyOf(unmatched));
+    }
+
+    private boolean hasCriticalMismatch(AvatarAppearanceConfig config, AvatarAsset asset) {
+        int requestedGender = gender(config.getGender());
+        Integer assetGender = asset.getGender();
+        if (requestedGender != 0 && assetGender != null && assetGender != 0 && assetGender != requestedGender) {
+            return true;
+        }
+
+        JsonNode supported = supported(asset);
+        if (config.getEarType() != null && !"human".equalsIgnoreCase(config.getEarType())
+                && !contains(supported.path("ear"), config.getEarType())) {
+            return true;
+        }
+        if (config.getWingType() != null && !"none".equalsIgnoreCase(config.getWingType())
+                && !contains(supported.path("wing"), config.getWingType())) {
+            return true;
+        }
+        if (config.getAccessories() != null) {
+            for (String accessory : config.getAccessories()) {
+                if (!contains(supported.path("accessories"), accessory)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private List<String> findUnmatched(AvatarAppearanceConfig config, AvatarAsset asset) {
@@ -37,7 +75,7 @@ public class AvatarAssetSelector {
         if (asset == null) {
             return List.of("asset");
         }
-        int requestedGender = "male".equals(config.getGender()) ? 1 : "female".equals(config.getGender()) ? 2 : 0;
+        int requestedGender = gender(config.getGender());
         if (requestedGender != 0 && (asset.getGender() == null || asset.getGender() == 0 || asset.getGender() != requestedGender)) {
             unmatched.add("gender");
         }
@@ -51,13 +89,19 @@ public class AvatarAssetSelector {
         check(unmatched, supported.path("outfit").path("color"), config.getOutfitColor(), "outfitColor");
         check(unmatched, supported.path("ear"), config.getEarType(), "earType");
         check(unmatched, supported.path("wing"), config.getWingType(), "wingType");
-        for (String accessory : config.getAccessories()) {
-            if (!contains(supported.path("accessories"), accessory)) {
-                unmatched.add("accessories");
-                break;
+        if (config.getAccessories() != null) {
+            for (String accessory : config.getAccessories()) {
+                if (!contains(supported.path("accessories"), accessory)) {
+                    unmatched.add("accessories");
+                    break;
+                }
             }
         }
         return unmatched;
+    }
+
+    private int gender(String value) {
+        return "male".equalsIgnoreCase(value) ? 1 : "female".equalsIgnoreCase(value) ? 2 : 0;
     }
 
     private JsonNode supported(AvatarAsset asset) {
