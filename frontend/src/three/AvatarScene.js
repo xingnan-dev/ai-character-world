@@ -10,6 +10,7 @@ class AvatarScene {
     this.container = container
     this.presentation = options.presentation || 'standard'
     this.isHomePresentation = this.presentation === 'home'
+    this.isChatPresentation = this.presentation === 'chat'
     this.scene = null
     this.camera = null
     this.renderer = null
@@ -38,6 +39,7 @@ class AvatarScene {
 
     this.scene = new THREE.Scene()
     this.scene.background = this.isHomePresentation ? null : new THREE.Color(0x16213e)
+    if (this.isChatPresentation) this.scene.background = null
 
     this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000)
     this.camera.position.set(0, 1.5, 3)
@@ -49,7 +51,7 @@ class AvatarScene {
     })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.setSize(width, height)
-    if (this.isHomePresentation) {
+    if (this.isHomePresentation || this.isChatPresentation) {
       this.renderer.setClearColor(0x000000, 0)
     }
     this.renderer.shadowMap.enabled = true
@@ -81,17 +83,19 @@ class AvatarScene {
     this._createPlaceholderAvatar()
 
     if (!this.isHomePresentation) {
-      const planeGeo = new THREE.PlaneGeometry(20, 20)
-      const planeMat = new THREE.MeshStandardMaterial({
-        color: 0x1a1a2e,
-        roughness: 0.9,
-        metalness: 0.1
-      })
-      const plane = new THREE.Mesh(planeGeo, planeMat)
-      plane.rotation.x = -Math.PI / 2
-      plane.position.y = -1
-      plane.receiveShadow = true
-      this.scene.add(plane)
+      if (!this.isChatPresentation) {
+        const planeGeo = new THREE.PlaneGeometry(20, 20)
+        const planeMat = new THREE.MeshStandardMaterial({
+          color: 0x1a1a2e,
+          roughness: 0.9,
+          metalness: 0.1
+        })
+        const plane = new THREE.Mesh(planeGeo, planeMat)
+        plane.rotation.x = -Math.PI / 2
+        plane.position.y = -1
+        plane.receiveShadow = true
+        this.scene.add(plane)
+      }
     }
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
@@ -101,6 +105,7 @@ class AvatarScene {
     this.controls.maxDistance = 10
     this.controls.target.set(0, 1, 0)
     this.controls.autoRotate = !this.isHomePresentation
+    if (this.isChatPresentation) this.controls.autoRotate = false
     this.controls.autoRotateSpeed = 1.0
 
     window.addEventListener('resize', this.resizeHandler)
@@ -305,16 +310,18 @@ class AvatarScene {
     this.camera.updateProjectionMatrix()
 
     const target = center.clone()
-    const distanceScale = this.isHomePresentation ? 0.62 : 0.8
+    const distanceScale = this.isHomePresentation ? 0.62 : (this.isChatPresentation ? 0.82 : 0.8)
     if (this.isHomePresentation) {
       target.y += size.y * 0.08
+    } else if (this.isChatPresentation) {
+      target.y += size.y * 0.03
     }
 
     this.camera.position.set(center.x, target.y, center.z + fitHeightDistance * distanceScale)
     this.camera.lookAt(target)
 
     this.controls.target.copy(target)
-    this.controls.enablePan = !this.isHomePresentation
+    this.controls.enablePan = !this.isHomePresentation && !this.isChatPresentation
     this.controls.update()
   }
 
