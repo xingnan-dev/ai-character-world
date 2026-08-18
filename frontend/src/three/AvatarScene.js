@@ -21,6 +21,7 @@ class AvatarScene {
     this.meshes = []
     this.currentVrm = null
     this.behaviorController = null
+    this.behaviorState = 'idle'
     this.loader = null
     this.loading = false
     this.onLoadCallback = null
@@ -209,6 +210,7 @@ class AvatarScene {
 
       this.currentVrm = vrm
       this.behaviorController = new AvatarBehaviorController(vrm)
+      this.behaviorController.setState(this.behaviorState)
       vrm.scene.position.y = 0
       vrm.scene.rotation.y = Math.PI
       vrm.scene.scale.setScalar(1)
@@ -282,6 +284,12 @@ class AvatarScene {
     if (!this.behaviorController) return
     this.behaviorController.dispose()
     this.behaviorController = null
+  }
+
+  setBehaviorState(state) {
+    this.behaviorState = state || 'idle'
+    if (!this.behaviorController) return true
+    return this.behaviorController.setState(this.behaviorState)
   }
 
   _fitCameraToVRM(vrm) {

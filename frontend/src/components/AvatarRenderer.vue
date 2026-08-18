@@ -24,6 +24,10 @@ const props = defineProps({
   presentation: {
     type: String,
     default: 'standard'
+  },
+  behaviorState: {
+    type: String,
+    default: 'idle'
   }
 })
 
@@ -34,6 +38,7 @@ const loading = ref(false)
 const vrmLoaded = ref(false)
 const sceneInstance = shallowRef(null)
 const loadState = createAvatarLoadState()
+const pendingBehaviorState = ref(props.behaviorState)
 
 const resolvedModelUrl = computed(() => props.modelUrl?.trim() || '')
 
@@ -75,6 +80,7 @@ onMounted(() => {
   const scene = new AvatarScene(containerRef.value, {
     presentation: props.presentation
   })
+  scene.setBehaviorState(pendingBehaviorState.value)
   scene.init()
   sceneInstance.value = scene
 
@@ -85,6 +91,14 @@ watch(
   resolvedModelUrl,
   (newUrl, oldUrl) => {
     if (newUrl !== oldUrl) loadModel(newUrl)
+  }
+)
+
+watch(
+  () => props.behaviorState,
+  (state) => {
+    pendingBehaviorState.value = state
+    sceneInstance.value?.setBehaviorState(state)
   }
 )
 

@@ -106,6 +106,7 @@
               v-if="currentAvatarModelUrl"
               :key="`${sessionAvatar.id}:${currentAvatarModelUrl}`"
               :model-url="currentAvatarModelUrl"
+              :behavior-state="avatarBehaviorState"
               @loaded="onAvatarLoaded"
               @error="onAvatarError"
             />
@@ -317,6 +318,7 @@ import { useAvatarStore } from '../stores/avatar'
 import { useUserStore } from '../stores/user'
 import AvatarRenderer from '../components/AvatarRenderer.vue'
 import { getAvatarById } from '../api/avatar'
+import { resolveChatAvatarBehaviorState } from '../avatar/chatAvatarBehaviorState'
 import {
   CHAT_MESSAGE_STATUS,
   isMessageRetryable,
@@ -348,6 +350,10 @@ const currentSessionAvatarName = computed(() => {
 
 const currentAvatarModelUrl = computed(() => {
   return sessionAvatar.value?.modelUrl?.trim() || ''
+})
+
+const avatarBehaviorState = computed(() => {
+  return resolveChatAvatarBehaviorState(chatStore.messages)
 })
 
 const loadSessionAvatar = async (avatarId) => {

@@ -126,3 +126,63 @@ test('idle update applies only subtle motion and dispose restores rotation', () 
   controller.dispose()
   assert.deepEqual(head.rotation, { x: 0.1, y: 0.2, z: 0.3 })
 })
+
+test('thinking and talking apply bounded subtle motion', () => {
+  const timers = fakeTimers()
+  const head = { rotation: { x: 0, y: 0, z: 0 } }
+  const controller = new AvatarBehaviorController({
+    humanoid: { getNormalizedBoneNode: (name) => name === 'head' ? head : null }
+  }, {
+    setTimeout: timers.setTimeout,
+    clearTimeout: timers.clearTimeout
+  })
+
+  controller.setState('thinking')
+  for (let index = 0; index < 60; index += 1) controller.update(0.016, index * 0.016)
+  assert.ok(Math.abs(head.rotation.x) <= 0.02)
+  assert.ok(Math.abs(head.rotation.y) <= 0.02)
+  assert.ok(Math.abs(head.rotation.z) <= 0.02)
+  assert.notDeepEqual(head.rotation, { x: 0, y: 0, z: 0 })
+
+  controller.setState('talking')
+  for (let index = 0; index < 60; index += 1) controller.update(0.016, index * 0.016)
+  assert.ok(Math.abs(head.rotation.x) <= 0.02)
+  assert.ok(Math.abs(head.rotation.y) <= 0.02)
+  assert.ok(Math.abs(head.rotation.z) <= 0.02)
+  controller.dispose()
+})
+
+test('switching back to idle smoothly clears the previous state offset', () => {
+  const timers = fakeTimers()
+  const head = { rotation: { x: 0, y: 0, z: 0 } }
+  const controller = new AvatarBehaviorController({
+    humanoid: { getNormalizedBoneNode: (name) => name === 'head' ? head : null }
+  }, {
+    setTimeout: timers.setTimeout,
+    clearTimeout: timers.clearTimeout
+  })
+
+  controller.setState('thinking')
+  for (let index = 0; index < 60; index += 1) controller.update(0.016, 0)
+  const thinkingOffset = Math.abs(head.rotation.x) + Math.abs(head.rotation.z)
+  controller.setState('idle')
+  for (let index = 0; index < 60; index += 1) controller.update(0.016, 0)
+  const idleOffset = Math.abs(head.rotation.x) + Math.abs(head.rotation.z)
+  assert.ok(idleOffset < thinkingOffset)
+  controller.dispose()
+})
+
+test('thinking and talking safely degrade without head or neck bones', () => {
+  const timers = fakeTimers()
+  const controller = new AvatarBehaviorController({}, {
+    setTimeout: timers.setTimeout,
+    clearTimeout: timers.clearTimeout
+  })
+  assert.doesNotThrow(() => {
+    controller.setState('thinking')
+    controller.update(0.016, 1)
+    controller.setState('talking')
+    controller.update(0.016, 2)
+  })
+  controller.dispose()
+})

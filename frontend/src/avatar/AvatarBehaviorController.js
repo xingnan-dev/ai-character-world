@@ -25,6 +25,7 @@ export class AvatarBehaviorController {
     this.random = options.random ?? Math.random
     this.timing = { ...DEFAULT_TIMING, ...options.timing }
     this.state = 'idle'
+    this.stateElapsed = 0
     this.disposed = false
     this.blinkTimer = null
     this.blinkStepTimers = new Set()
@@ -43,7 +44,9 @@ export class AvatarBehaviorController {
 
   setState(state) {
     if (this.disposed || !AVATAR_BEHAVIOR_STATES.includes(state)) return false
+    if (this.state === state) return true
     this.state = state
+    this.stateElapsed = 0
     return true
   }
 
@@ -55,11 +58,18 @@ export class AvatarBehaviorController {
     return false
   }
 
-  update(_delta, elapsed = 0) {
-    if (this.disposed || this.state !== 'idle') return
-    const sway = Math.sin(elapsed * 0.7) * 0.012
-    this.#setIdleRotation(this.head, this.initialHeadRotation, sway)
-    this.#setIdleRotation(this.neck, this.initialNeckRotation, sway * 0.45)
+  update(delta, elapsed = 0) {
+    if (this.disposed) return
+    const safeDelta = Math.max(0, Math.min(Number(delta) || 0, 0.1))
+    this.stateElapsed += safeDelta
+    const offset = this.#stateOffset(elapsed)
+    const blend = 1 - Math.exp(-safeDelta * 10)
+    this.#applyRotation(this.head, this.initialHeadRotation, offset, blend)
+    this.#applyRotation(this.neck, this.initialNeckRotation, {
+      x: offset.x * 0.45,
+      y: offset.y * 0.45,
+      z: offset.z * 0.45
+    }, blend)
   }
 
   dispose() {
@@ -133,10 +143,30 @@ export class AvatarBehaviorController {
     return { x: node.rotation.x, y: node.rotation.y, z: node.rotation.z }
   }
 
-  #setIdleRotation(node, initial, sway) {
+  #stateOffset(elapsed) {
+    if (this.state === 'thinking') {
+      return {
+        x: -0.008 + Math.sin(this.stateElapsed * 0.8) * 0.003,
+        y: Math.sin(this.stateElapsed * 0.65) * 0.005,
+        z: 0.014 + Math.sin(this.stateElapsed * 0.55) * 0.003
+      }
+    }
+    if (this.state === 'talking') {
+      return {
+        x: Math.sin(this.stateElapsed * 2.4) * 0.012,
+        y: Math.sin(this.stateElapsed * 1.8) * 0.007,
+        z: Math.sin(this.stateElapsed * 1.4) * 0.003
+      }
+    }
+    const sway = Math.sin(elapsed * 0.7) * 0.012
+    return { x: 0, y: sway, z: sway * 0.35 }
+  }
+
+  #applyRotation(node, initial, offset, blend) {
     if (!node?.rotation || !initial) return
-    node.rotation.y = initial.y + sway
-    node.rotation.z = initial.z + sway * 0.35
+    node.rotation.x += (initial.x + offset.x - node.rotation.x) * blend
+    node.rotation.y += (initial.y + offset.y - node.rotation.y) * blend
+    node.rotation.z += (initial.z + offset.z - node.rotation.z) * blend
   }
 
   #restoreRotation(node, initial) {
