@@ -103,11 +103,24 @@
         <div class="chat-avatar-area">
           <div class="avatar-stage">
             <AvatarRenderer
+              v-if="currentAvatarModelUrl"
+              :key="`${sessionAvatar.id}:${currentAvatarModelUrl}`"
               :model-url="currentAvatarModelUrl"
-              :avatar-name="currentSessionAvatarName"
               @loaded="onAvatarLoaded"
               @error="onAvatarError"
             />
+            <div v-else-if="sessionAvatarLoading" class="avatar-model-state">
+              <el-icon class="is-loading" :size="24"><Loading /></el-icon>
+              <span>正在加载会话形象...</span>
+            </div>
+            <div v-else-if="sessionAvatarError" class="avatar-model-state avatar-model-error">
+              <el-icon :size="24"><Warning /></el-icon>
+              <span>{{ sessionAvatarError }}</span>
+            </div>
+            <div v-else class="avatar-model-state">
+              <el-icon :size="24"><Warning /></el-icon>
+              <span>当前会话没有可加载的3D模型</span>
+            </div>
           </div>
         </div>
 
@@ -303,7 +316,7 @@ import { useChatStore } from '../stores/chat'
 import { useAvatarStore } from '../stores/avatar'
 import { useUserStore } from '../stores/user'
 import AvatarRenderer from '../components/AvatarRenderer.vue'
-import { getModelUrlByName } from '@/config/avatarModels'
+import { getAvatarById } from '../api/avatar'
 import {
   CHAT_MESSAGE_STATUS,
   isMessageRetryable,
@@ -319,6 +332,11 @@ const messagesRef = ref(null)
 const inputMessage = ref('')
 const showAvatarDialog = ref(false)
 const tempAvatarId = ref(null)
+const sessionAvatar = ref(null)
+const sessionAvatarLoading = ref(false)
+const sessionAvatarError = ref('')
+const sessionAvatarCache = new Map()
+let sessionAvatarRequestVersion = 0
 
 const avatarList = computed(() => avatarStore.avatarList)
 
@@ -329,14 +347,49 @@ const currentSessionAvatarName = computed(() => {
 })
 
 const currentAvatarModelUrl = computed(() => {
-  if (!chatStore.currentSession) return ''
-  const avatarId = chatStore.currentSession.avatarId
-  const avatarName = currentSessionAvatarName.value
-  if (!avatarId) return getModelUrlByName(avatarName)
-  const avatar = avatarStore.avatarList.find((a) => a.id === avatarId)
-  if (avatar?.modelUrl) return avatar.modelUrl
-  return getModelUrlByName(avatarName)
+  return sessionAvatar.value?.modelUrl?.trim() || ''
 })
+
+const loadSessionAvatar = async (avatarId) => {
+  const requestVersion = ++sessionAvatarRequestVersion
+  sessionAvatarError.value = ''
+
+  if (!avatarId) {
+    sessionAvatar.value = null
+    sessionAvatarLoading.value = false
+    return
+  }
+
+  const cacheKey = String(avatarId)
+  const cachedAvatar = sessionAvatarCache.get(cacheKey)
+  if (cachedAvatar) {
+    sessionAvatar.value = cachedAvatar
+    sessionAvatarLoading.value = false
+    return
+  }
+
+  sessionAvatar.value = null
+  sessionAvatarLoading.value = true
+  try {
+    const res = await getAvatarById(avatarId)
+    const avatar = res.data || res
+    if (
+      requestVersion !== sessionAvatarRequestVersion
+      || String(chatStore.currentSession?.avatarId ?? '') !== cacheKey
+    ) return
+
+    sessionAvatarCache.set(cacheKey, avatar)
+    sessionAvatar.value = avatar
+  } catch (err) {
+    if (requestVersion !== sessionAvatarRequestVersion) return
+    sessionAvatar.value = null
+    sessionAvatarError.value = err.message || '会话3D形象加载失败'
+  } finally {
+    if (requestVersion === sessionAvatarRequestVersion) {
+      sessionAvatarLoading.value = false
+    }
+  }
+}
 
 const colorPalette = [
   'linear-gradient(135deg, #f093fb, #f5576c)',
@@ -383,6 +436,12 @@ watch(
   { deep: true }
 )
 
+watch(
+  () => chatStore.currentSession?.avatarId ?? null,
+  (avatarId) => loadSessionAvatar(avatarId),
+  { immediate: true }
+)
+
 onMounted(async () => {
   if (avatarStore.avatarList.length === 0) {
     await avatarStore.fetchAvatarList()
@@ -391,6 +450,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  sessionAvatarRequestVersion += 1
   chatStore.stopGeneration()
 })
 
@@ -761,6 +821,21 @@ const onAvatarError = (err) => {
       transparent 70%
     );
   }
+}
+
+.avatar-model-state {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+}
+
+.avatar-model-error {
+  color: #ffb4c0;
 }
 
 .chat-messages {
