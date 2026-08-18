@@ -218,6 +218,7 @@
             </div>
             <div class="avatar-stage">
               <AvatarRenderer
+                ref="avatarRendererRef"
                 v-if="currentAvatarModelUrl"
                 :key="`${sessionAvatar.id}:${currentAvatarModelUrl}`"
                 :model-url="currentAvatarModelUrl"
@@ -335,6 +336,7 @@ import { useUserStore } from '../stores/user'
 import AvatarRenderer from '../components/AvatarRenderer.vue'
 import { getAvatarById } from '../api/avatar'
 import { resolveChatAvatarBehaviorState } from '../avatar/chatAvatarBehaviorState'
+import { mapReplyToReaction } from '../avatar/AvatarEmotionMapper'
 import {
   CHAT_MESSAGE_STATUS,
   isMessageRetryable,
@@ -353,7 +355,10 @@ const tempAvatarId = ref(null)
 const sessionAvatar = ref(null)
 const sessionAvatarLoading = ref(false)
 const sessionAvatarError = ref('')
+const avatarRendererRef = ref(null)
 const sessionAvatarCache = new Map()
+const previousAssistantStatuses = new Map()
+const reactedMessageIds = new Set()
 let sessionAvatarRequestVersion = 0
 
 const avatarList = computed(() => avatarStore.avatarList)
@@ -371,6 +376,26 @@ const currentAvatarModelUrl = computed(() => {
 const avatarBehaviorState = computed(() => {
   return resolveChatAvatarBehaviorState(chatStore.messages)
 })
+
+const playCompletedAssistantReaction = (message) => {
+  if (message?.role !== 'assistant' || message.status !== CHAT_MESSAGE_STATUS.COMPLETED) return false
+  const key = message.requestId ?? message.id
+  if (key == null) return false
+  const stableKey = String(key)
+  if (reactedMessageIds.has(stableKey)) return false
+
+  reactedMessageIds.add(stableKey)
+  const reaction = mapReplyToReaction(message.content)
+  if (!reaction) return false
+
+  const sessionId = chatStore.currentSessionId
+  nextTick(() => {
+    if (sessionId === chatStore.currentSessionId) {
+      avatarRendererRef.value?.playReaction(reaction)
+    }
+  })
+  return true
+}
 
 const loadSessionAvatar = async (avatarId) => {
   const requestVersion = ++sessionAvatarRequestVersion
@@ -454,8 +479,32 @@ watch(
 
 watch(
   () => chatStore.messages,
-  () => scrollToBottom(),
+  (messages) => {
+    scrollToBottom()
+    for (const message of messages) {
+      if (message?.role !== 'assistant') continue
+      const key = message.requestId ?? message.id
+      if (key == null) continue
+      const stableKey = String(key)
+      const previousStatus = previousAssistantStatuses.get(stableKey)
+      previousAssistantStatuses.set(stableKey, message.status)
+
+      const justCompleted = message.status === CHAT_MESSAGE_STATUS.COMPLETED
+        && [CHAT_MESSAGE_STATUS.PENDING, CHAT_MESSAGE_STATUS.STREAMING].includes(previousStatus)
+      if (!justCompleted || reactedMessageIds.has(stableKey)) continue
+
+      playCompletedAssistantReaction(message)
+    }
+  },
   { deep: true }
+)
+
+watch(
+  () => chatStore.currentSessionId,
+  () => {
+    previousAssistantStatuses.clear()
+    reactedMessageIds.clear()
+  }
 )
 
 watch(
@@ -474,6 +523,8 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   sessionAvatarRequestVersion += 1
   chatStore.stopGeneration()
+  previousAssistantStatuses.clear()
+  reactedMessageIds.clear()
 })
 
 const goHome = () => {
@@ -544,6 +595,10 @@ const handleSend = async () => {
 
   inputMessage.value = ''
   await chatStore.sendMessage(text)
+  const completedAssistant = [...chatStore.messages].reverse().find((message) =>
+    message.role === 'assistant' && message.status === CHAT_MESSAGE_STATUS.COMPLETED
+  )
+  playCompletedAssistantReaction(completedAssistant)
 }
 
 const handleStop = () => {
@@ -552,6 +607,10 @@ const handleStop = () => {
 
 const handleRetry = async (message) => {
   await chatStore.retryMessage(message)
+  const completedAssistant = [...chatStore.messages].reverse().find((item) =>
+    item.role === 'assistant' && item.status === CHAT_MESSAGE_STATUS.COMPLETED
+  )
+  playCompletedAssistantReaction(completedAssistant)
 }
 
 const emptyMessageText = (message) => {

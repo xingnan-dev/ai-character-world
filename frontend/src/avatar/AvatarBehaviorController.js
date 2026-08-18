@@ -33,6 +33,7 @@ export class AvatarBehaviorController {
     this.neck = this.#getBone('neck')
     this.initialHeadRotation = this.#copyRotation(this.head)
     this.initialNeckRotation = this.#copyRotation(this.neck)
+    this.reaction = null
     this.start()
   }
 
@@ -45,6 +46,7 @@ export class AvatarBehaviorController {
   setState(state) {
     if (this.disposed || !AVATAR_BEHAVIOR_STATES.includes(state)) return false
     if (this.state === state) return true
+    this.#cancelReaction()
     this.state = state
     this.stateElapsed = 0
     return true
@@ -52,10 +54,27 @@ export class AvatarBehaviorController {
 
   playReaction(reaction) {
     if (this.disposed) return false
-    if (reaction === 'happy' || reaction === 'sad' || reaction === 'surprised') {
-      return this.expressionAdapter.setEmotion(reaction, 1)
-    }
-    return false
+    const normalized = typeof reaction === 'string' ? { emotion: reaction } : reaction
+    if (!normalized || typeof normalized !== 'object') return false
+
+    const emotion = ['happy', 'sad', 'surprised'].includes(normalized.emotion)
+      ? normalized.emotion
+      : null
+    const action = ['nod', 'shakeHead'].includes(normalized.action)
+      ? normalized.action
+      : null
+    const canAnimateAction = Boolean(action && (this.head || this.neck))
+    const intensity = Math.min(1, Math.max(0, Number(normalized.intensity) || 0.5))
+    const duration = Math.min(2000, Math.max(400, Number(normalized.duration) || 1000)) / 1000
+
+    this.#cancelReaction()
+    const emotionApplied = emotion
+      ? this.expressionAdapter.setEmotion(emotion, intensity)
+      : false
+    if (!emotionApplied && !canAnimateAction) return false
+
+    this.reaction = { emotion: emotionApplied ? emotion : null, action, intensity, duration, elapsed: 0 }
+    return true
   }
 
   update(delta, elapsed = 0) {
@@ -63,6 +82,10 @@ export class AvatarBehaviorController {
     const safeDelta = Math.max(0, Math.min(Number(delta) || 0, 0.1))
     this.stateElapsed += safeDelta
     const offset = this.#stateOffset(elapsed)
+    const reactionOffset = this.#reactionOffset(safeDelta)
+    offset.x += reactionOffset.x
+    offset.y += reactionOffset.y
+    offset.z += reactionOffset.z
     const blend = 1 - Math.exp(-safeDelta * 10)
     this.#applyRotation(this.head, this.initialHeadRotation, offset, blend)
     this.#applyRotation(this.neck, this.initialNeckRotation, {
@@ -75,6 +98,7 @@ export class AvatarBehaviorController {
   dispose() {
     if (this.disposed) return
     this.disposed = true
+    this.#cancelReaction()
     this.#clearAllTimers()
     this.expressionAdapter.dispose()
     this.#restoreRotation(this.head, this.initialHeadRotation)
@@ -160,6 +184,33 @@ export class AvatarBehaviorController {
     }
     const sway = Math.sin(elapsed * 0.7) * 0.012
     return { x: 0, y: sway, z: sway * 0.35 }
+  }
+
+  #reactionOffset(delta) {
+    if (!this.reaction) return { x: 0, y: 0, z: 0 }
+    this.reaction.elapsed += delta
+    const progress = Math.min(1, this.reaction.elapsed / this.reaction.duration)
+    const envelope = Math.sin(Math.PI * progress)
+    const cycles = this.reaction.action === 'shakeHead' ? 2 : 1.5
+    const wave = Math.sin(progress * Math.PI * 2 * cycles) * envelope
+    // Keep reactions visible in a full-body chat framing while staying below
+    // the deliberately subtle 0.08 rad ceiling.
+    const motionIntensity = 0.65 + this.reaction.intensity * 0.35
+    const offset = this.reaction.action === 'nod'
+      ? { x: wave * 0.08 * motionIntensity, y: 0, z: 0 }
+      : this.reaction.action === 'shakeHead'
+        ? { x: 0, y: wave * 0.06 * motionIntensity, z: 0 }
+        : { x: 0, y: 0, z: 0 }
+
+    if (progress >= 1) this.#cancelReaction()
+    return offset
+  }
+
+  #cancelReaction() {
+    if (this.reaction?.emotion) {
+      this.expressionAdapter.setEmotion(this.reaction.emotion, 0)
+    }
+    this.reaction = null
   }
 
   #applyRotation(node, initial, offset, blend) {

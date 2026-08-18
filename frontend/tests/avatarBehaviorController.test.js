@@ -186,3 +186,94 @@ test('thinking and talking safely degrade without head or neck bones', () => {
   })
   controller.dispose()
 })
+
+function reactionVrm(expressions = ['happy', 'sad', 'surprised'], withBone = true) {
+  const writes = []
+  const head = { rotation: { x: 0, y: 0, z: 0 } }
+  return {
+    writes,
+    head,
+    expressionManager: {
+      getExpression: (name) => expressions.includes(name) ? { expressionName: name } : null,
+      setValue: (name, value) => writes.push([name, value])
+    },
+    humanoid: withBone
+      ? { getNormalizedBoneNode: (name) => name === 'head' ? head : null }
+      : undefined
+  }
+}
+
+test('happy, sad and surprised reactions use supported expressions', () => {
+  for (const emotion of ['happy', 'sad', 'surprised']) {
+    const timers = fakeTimers()
+    const vrm = reactionVrm()
+    const controller = new AvatarBehaviorController(vrm, {
+      setTimeout: timers.setTimeout,
+      clearTimeout: timers.clearTimeout
+    })
+    assert.equal(controller.playReaction({ emotion, intensity: 0.6, duration: 600 }), true)
+    assert.deepEqual(vrm.writes.at(-1), [emotion, 0.6])
+    controller.dispose()
+  }
+})
+
+test('nod and shakeHead remain subtle and finish without changing the base pose', () => {
+  for (const action of ['nod', 'shakeHead']) {
+    const timers = fakeTimers()
+    const vrm = reactionVrm([])
+    const controller = new AvatarBehaviorController(vrm, {
+      setTimeout: timers.setTimeout,
+      clearTimeout: timers.clearTimeout
+    })
+    assert.equal(controller.playReaction({ action, intensity: 1, duration: 400 }), true)
+    let maximum = 0
+    for (let index = 0; index < 30; index += 1) {
+      controller.update(0.02, 0)
+      maximum = Math.max(maximum, Math.abs(vrm.head.rotation.x), Math.abs(vrm.head.rotation.y))
+    }
+    assert.ok(maximum > 0)
+    assert.ok(maximum <= 0.08)
+    assert.equal(controller.reaction, null)
+    for (let index = 0; index < 40; index += 1) controller.update(0.02, 0)
+    assert.ok(Math.abs(vrm.head.rotation.x) < 0.001)
+    assert.ok(Math.abs(vrm.head.rotation.y) < 0.001)
+    controller.dispose()
+  }
+})
+
+test('reaction safely degrades across missing expression and bone capabilities', () => {
+  const timers = fakeTimers()
+  const expressionOnly = reactionVrm(['happy'], false)
+  const expressionController = new AvatarBehaviorController(expressionOnly, {
+    setTimeout: timers.setTimeout,
+    clearTimeout: timers.clearTimeout
+  })
+  assert.doesNotThrow(() => expressionController.playReaction({ emotion: 'happy', action: 'nod' }))
+  assert.equal(expressionController.reaction?.emotion, 'happy')
+  expressionController.dispose()
+
+  const unsupportedController = new AvatarBehaviorController({}, {
+    setTimeout: timers.setTimeout,
+    clearTimeout: timers.clearTimeout
+  })
+  assert.equal(unsupportedController.playReaction({ emotion: 'sad', action: 'shakeHead' }), false)
+  assert.doesNotThrow(() => unsupportedController.update(0.016, 0))
+  unsupportedController.dispose()
+})
+
+test('a new behavior state interrupts reaction and dispose prevents further reaction', () => {
+  const timers = fakeTimers()
+  const vrm = reactionVrm(['happy'])
+  const controller = new AvatarBehaviorController(vrm, {
+    setTimeout: timers.setTimeout,
+    clearTimeout: timers.clearTimeout
+  })
+  controller.playReaction({ emotion: 'happy', action: 'nod', duration: 1200 })
+  assert.ok(controller.reaction)
+  controller.setState('thinking')
+  assert.equal(controller.reaction, null)
+  assert.deepEqual(vrm.writes.at(-1), ['happy', 0])
+  controller.dispose()
+  assert.equal(controller.playReaction({ emotion: 'happy' }), false)
+  assert.doesNotThrow(() => controller.update(0.016, 1))
+})

@@ -297,6 +297,11 @@ class AvatarScene {
     return this.behaviorController.setState(this.behaviorState)
   }
 
+  playReaction(reaction) {
+    if (!this.behaviorController) return false
+    return this.behaviorController.playReaction(reaction)
+  }
+
   _fitCameraToVRM(vrm) {
     const box = new THREE.Box3().setFromObject(vrm.scene)
     const size = box.getSize(new THREE.Vector3())

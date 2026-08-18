@@ -112,6 +112,7 @@ onBeforeUnmount(() => {
 
 const exposed = {
   getScene: () => sceneInstance.value,
+  playReaction: (reaction) => sceneInstance.value?.playReaction(reaction) ?? false,
   setExpression: (name, value) => sceneInstance.value?.setExpression(name, value),
   setLookAt: (position) => sceneInstance.value?.setLookAt(position)
 }
