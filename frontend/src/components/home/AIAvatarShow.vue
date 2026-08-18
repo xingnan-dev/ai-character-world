@@ -22,45 +22,25 @@
         <div class="avatar-3d-scene">
           <div class="avatar-light light-1"></div>
           <div class="avatar-light light-2"></div>
-          
-          <div class="avatar-3d">
-            <div class="avatar-shadow"></div>
-            <div class="avatar-model" ref="avatarModel">
-              <div class="avatar-head">
-                <div class="face-glow"></div>
-                <div class="face">
-                  <div class="face-highlight"></div>
-                  <div class="eyes">
-                    <div class="eye left">
-                      <div class="eye-shine"></div>
-                      <div class="pupil"></div>
-                    </div>
-                    <div class="eye right">
-                      <div class="eye-shine"></div>
-                      <div class="pupil"></div>
-                    </div>
-                  </div>
-                  <div class="mouth">
-                    <div class="mouth-inner"></div>
-                  </div>
-                  <div class="cheek cheek-left"></div>
-                  <div class="cheek cheek-right"></div>
-                </div>
-                <div class="hair">
-                  <div class="hair-shine"></div>
-                </div>
-              </div>
-              <div class="avatar-neck"></div>
-              <div class="avatar-body">
-                <div class="body-armor"></div>
-                <div class="body-core"></div>
-                <div class="body-glow"></div>
-                <div class="body-lines"></div>
-              </div>
-            </div>
-            <div class="floating-particles">
-              <span v-for="i in 12" :key="i" class="particle" :style="getParticleStyle(i)"></span>
-            </div>
+
+          <AvatarRenderer
+            v-if="avatar?.modelUrl"
+            class="home-avatar-renderer"
+            :model-url="avatar.modelUrl"
+            presentation="home"
+            @loaded="handleAvatarLoaded"
+            @error="handleAvatarError"
+          />
+          <div v-else class="avatar-model-state">
+            <span class="model-state-icon">◇</span>
+            <span>当前形象没有可加载的3D模型</span>
+          </div>
+          <div v-if="avatarLoadError" class="avatar-model-state avatar-model-error">
+            <span class="model-state-icon">!</span>
+            <span>3D模型加载失败，请稍后重试</span>
+          </div>
+          <div class="floating-particles">
+            <span v-for="i in 12" :key="i" class="particle" :style="getParticleStyle(i)"></span>
           </div>
         </div>
 
@@ -126,7 +106,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
+import AvatarRenderer from '../AvatarRenderer.vue'
 
 const props = defineProps({
   userName: {
@@ -158,7 +139,15 @@ const props = defineProps({
 
 defineEmits(['create', 'chat', 'switch'])
 
-const avatarModel = ref(null)
+const avatarLoadError = ref(false)
+
+const handleAvatarLoaded = () => {
+  avatarLoadError.value = false
+}
+
+const handleAvatarError = () => {
+  avatarLoadError.value = true
+}
 
 const getParticleStyle = (i) => {
   const angle = (i / 12) * 360
@@ -174,17 +163,6 @@ const getParticleStyle = (i) => {
   }
 }
 
-onMounted(() => {
-  let angle = 0
-  const animate = () => {
-    if (avatarModel.value) {
-      angle += 0.005
-      avatarModel.value.style.transform = `rotateY(${Math.sin(angle) * 5}deg) rotateX(${Math.sin(angle * 0.5) * 3}deg)`
-    }
-    requestAnimationFrame(animate)
-  }
-  animate()
-})
 </script>
 
 <style lang="scss" scoped>
@@ -363,10 +341,46 @@ onMounted(() => {
 
 .avatar-3d-scene {
   position: relative;
-  width: 200px;
-  height: 280px;
+  width: min(380px, 78vw);
+  height: 410px;
   perspective: 1000px;
   z-index: 2;
+}
+
+.home-avatar-renderer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: 50% 50% 24px 24px;
+  filter: drop-shadow(0 20px 32px rgba(0, 0, 0, 0.3));
+}
+
+.avatar-model-state {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+  border: 1px dashed rgba(124, 92, 255, 0.35);
+  border-radius: 20px;
+  background: rgba(6, 8, 22, 0.72);
+  color: rgba(255, 255, 255, 0.65);
+  text-align: center;
+  font-size: 13px;
+}
+
+.avatar-model-error {
+  border-color: rgba(255, 107, 129, 0.4);
+  color: rgba(255, 180, 190, 0.9);
+}
+
+.model-state-icon {
+  font-size: 28px;
+  line-height: 1;
 }
 
 .avatar-light {
@@ -1075,8 +1089,8 @@ onMounted(() => {
   }
 
   .avatar-3d-scene {
-    width: 160px;
-    height: 240px;
+    width: min(300px, 82vw);
+    height: 340px;
   }
 
   .avatar-head {

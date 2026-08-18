@@ -134,6 +134,8 @@ const avatarList = computed(() => {
   return avatarStore.avatarList.map(avatar => ({
     id: avatar.id,
     name: avatar.name,
+    modelUrl: avatar.modelUrl,
+    baseModel: avatar.baseModel,
     identity: personalityIdentity(avatar.personality),
     personality: personalityText(avatar.personality),
     interests: personalityInterests(avatar.personality),

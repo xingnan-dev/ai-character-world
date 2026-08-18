@@ -3,10 +3,13 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { VRMLoaderPlugin } from '@pixiv/three-vrm'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { createAvatarLoadState } from '@/utils/avatarLoadState'
+import AvatarBehaviorController from '@/avatar/AvatarBehaviorController.js'
 
 class AvatarScene {
-  constructor(container) {
+  constructor(container, options = {}) {
     this.container = container
+    this.presentation = options.presentation || 'standard'
+    this.isHomePresentation = this.presentation === 'home'
     this.scene = null
     this.camera = null
     this.renderer = null
@@ -17,6 +20,7 @@ class AvatarScene {
     this.animateHandler = this.animate.bind(this)
     this.meshes = []
     this.currentVrm = null
+    this.behaviorController = null
     this.loader = null
     this.loading = false
     this.onLoadCallback = null
@@ -32,7 +36,7 @@ class AvatarScene {
     const height = this.container.clientHeight
 
     this.scene = new THREE.Scene()
-    this.scene.background = new THREE.Color(0x16213e)
+    this.scene.background = this.isHomePresentation ? null : new THREE.Color(0x16213e)
 
     this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000)
     this.camera.position.set(0, 1.5, 3)
@@ -44,45 +48,50 @@ class AvatarScene {
     })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.setSize(width, height)
+    if (this.isHomePresentation) {
+      this.renderer.setClearColor(0x000000, 0)
+    }
     this.renderer.shadowMap.enabled = true
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
     this.container.appendChild(this.renderer.domElement)
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6)
+    const ambientLight = new THREE.AmbientLight(0xffffff, this.isHomePresentation ? 1.0 : 0.6)
     this.scene.add(ambientLight)
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8)
-    directionalLight.position.set(5, 10, 7)
+    const directionalLight = new THREE.DirectionalLight(0xffffff, this.isHomePresentation ? 1.15 : 0.8)
+    directionalLight.position.set(this.isHomePresentation ? 2.5 : 5, 10, 7)
     directionalLight.castShadow = true
     directionalLight.shadow.mapSize.width = 1024
     directionalLight.shadow.mapSize.height = 1024
     this.scene.add(directionalLight)
 
-    const pointLight = new THREE.PointLight(0x667eea, 1, 100)
+    const pointLight = new THREE.PointLight(0x667eea, this.isHomePresentation ? 1.35 : 1, 100)
     pointLight.position.set(-3, 2, -3)
     this.scene.add(pointLight)
 
-    const fillLight = new THREE.PointLight(0xf093fb, 0.6, 100)
+    const fillLight = new THREE.PointLight(0xf093fb, this.isHomePresentation ? 0.85 : 0.6, 100)
     fillLight.position.set(3, 1, -3)
     this.scene.add(fillLight)
 
-    const rimLight = new THREE.PointLight(0x764ba2, 0.8, 100)
+    const rimLight = new THREE.PointLight(0x764ba2, this.isHomePresentation ? 1.15 : 0.8, 100)
     rimLight.position.set(0, 3, -5)
     this.scene.add(rimLight)
 
     this._createPlaceholderAvatar()
 
-    const planeGeo = new THREE.PlaneGeometry(20, 20)
-    const planeMat = new THREE.MeshStandardMaterial({
-      color: 0x1a1a2e,
-      roughness: 0.9,
-      metalness: 0.1
-    })
-    const plane = new THREE.Mesh(planeGeo, planeMat)
-    plane.rotation.x = -Math.PI / 2
-    plane.position.y = -1
-    plane.receiveShadow = true
-    this.scene.add(plane)
+    if (!this.isHomePresentation) {
+      const planeGeo = new THREE.PlaneGeometry(20, 20)
+      const planeMat = new THREE.MeshStandardMaterial({
+        color: 0x1a1a2e,
+        roughness: 0.9,
+        metalness: 0.1
+      })
+      const plane = new THREE.Mesh(planeGeo, planeMat)
+      plane.rotation.x = -Math.PI / 2
+      plane.position.y = -1
+      plane.receiveShadow = true
+      this.scene.add(plane)
+    }
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement)
     this.controls.enableDamping = true
@@ -90,7 +99,7 @@ class AvatarScene {
     this.controls.minDistance = 0.5
     this.controls.maxDistance = 10
     this.controls.target.set(0, 1, 0)
-    this.controls.autoRotate = true
+    this.controls.autoRotate = !this.isHomePresentation
     this.controls.autoRotateSpeed = 1.0
 
     window.addEventListener('resize', this.resizeHandler)
@@ -199,6 +208,7 @@ class AvatarScene {
       this._clearAvatar()
 
       this.currentVrm = vrm
+      this.behaviorController = new AvatarBehaviorController(vrm)
       vrm.scene.position.y = 0
       vrm.scene.rotation.y = Math.PI
       vrm.scene.scale.setScalar(1)
@@ -247,6 +257,8 @@ class AvatarScene {
   }
 
   _clearAvatar() {
+    this._disposeBehaviorController()
+
     if (this.placeholderGroup) {
       this.scene.remove(this.placeholderGroup)
       this._disposeObject(this.placeholderGroup)
@@ -266,6 +278,12 @@ class AvatarScene {
     }
   }
 
+  _disposeBehaviorController() {
+    if (!this.behaviorController) return
+    this.behaviorController.dispose()
+    this.behaviorController = null
+  }
+
   _fitCameraToVRM(vrm) {
     const box = new THREE.Box3().setFromObject(vrm.scene)
     const size = box.getSize(new THREE.Vector3())
@@ -278,10 +296,17 @@ class AvatarScene {
     this.camera.far = 1000
     this.camera.updateProjectionMatrix()
 
-    this.camera.position.set(center.x, center.y + size.y / 2, center.z + fitHeightDistance * 0.8)
-    this.camera.lookAt(center)
+    const target = center.clone()
+    const distanceScale = this.isHomePresentation ? 0.62 : 0.8
+    if (this.isHomePresentation) {
+      target.y += size.y * 0.08
+    }
 
-    this.controls.target.copy(center)
+    this.camera.position.set(center.x, target.y, center.z + fitHeightDistance * distanceScale)
+    this.camera.lookAt(target)
+
+    this.controls.target.copy(target)
+    this.controls.enablePan = !this.isHomePresentation
     this.controls.update()
   }
 
@@ -339,10 +364,12 @@ class AvatarScene {
   animate() {
     this.animationId = requestAnimationFrame(this.animateHandler)
 
-    const elapsed = this.clock.getElapsedTime()
+    const delta = this.clock.getDelta()
+    const elapsed = this.clock.elapsedTime
 
     if (this.currentVrm) {
-      this.currentVrm.update(this.clock.getDelta())
+      this.currentVrm.update(delta)
+      this.behaviorController?.update(delta, elapsed)
     } else {
       this.meshes.forEach((mesh, i) => {
         mesh.rotation.y = elapsed * (0.5 + i * 0.3)
@@ -385,6 +412,7 @@ class AvatarScene {
 
   dispose() {
     this.disposed = true
+    this._disposeBehaviorController()
     this.loadState.dispose()
     if (this.activeLoadController) {
       this.activeLoadController.abort()

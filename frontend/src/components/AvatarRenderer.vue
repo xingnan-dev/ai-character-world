@@ -10,7 +10,6 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, watch, shallowRef } from 'vue'
 import AvatarScene from '@/three/AvatarScene.js'
-import { getModelUrlByName } from '@/config/avatarModels'
 import { createAvatarLoadState, runAvatarLoad } from '@/utils/avatarLoadState'
 
 const props = defineProps({
@@ -21,6 +20,10 @@ const props = defineProps({
   avatarName: {
     type: String,
     default: ''
+  },
+  presentation: {
+    type: String,
+    default: 'standard'
   }
 })
 
@@ -32,10 +35,7 @@ const vrmLoaded = ref(false)
 const sceneInstance = shallowRef(null)
 const loadState = createAvatarLoadState()
 
-const resolvedModelUrl = computed(() => {
-  if (props.modelUrl) return props.modelUrl
-  return getModelUrlByName(props.avatarName)
-})
+const resolvedModelUrl = computed(() => props.modelUrl?.trim() || '')
 
 const showLoading = computed(() => loading.value && !vrmLoaded.value)
 
@@ -72,7 +72,9 @@ const loadModel = async (url = resolvedModelUrl.value) => {
 
 onMounted(() => {
   if (!containerRef.value) return
-  const scene = new AvatarScene(containerRef.value)
+  const scene = new AvatarScene(containerRef.value, {
+    presentation: props.presentation
+  })
   scene.init()
   sceneInstance.value = scene
 
