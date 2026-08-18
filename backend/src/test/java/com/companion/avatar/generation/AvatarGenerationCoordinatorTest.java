@@ -116,8 +116,20 @@ class AvatarGenerationCoordinatorTest {
 
         JsonNode appearance = objectMapper.readTree(storedAvatar.get().getAppearanceConfig());
         JsonNode generation = objectMapper.readTree(storedAvatar.get().getGenerateResult());
-        assertThat(generation.get("appearanceConfig")).isEqualTo(appearance);
+        assertThat(appearance.get("hairColor").asText()).isEqualTo("brown");
+        assertThat(appearance.get("accessories")).isEqualTo(objectMapper.readTree("[\"glasses\"]"));
+        assertThat(storedAvatar.get().getGender()).isEqualTo(1);
+        assertThat(generation.get("schemaVersion").asInt()).isEqualTo(1);
+        assertThat(generation.get("requestedAppearance").get("hairColor").asText()).isEqualTo("purple");
+        assertThat(generation.get("realizedAppearance")).isEqualTo(appearance);
+        assertThat(generation.get("appearanceConfig"))
+                .isEqualTo(generation.get("requestedAppearance"));
         assertThat(generation.get("parseSource").asText()).isEqualTo("LLM");
+        assertThat(generation.get("assetMatch").get("assetId").asLong()).isEqualTo(2L);
+        assertThat(generation.get("assetMatch").get("score").asInt()).isEqualTo(20);
+        assertThat(generation.get("assetMatch").get("matchType").asText()).isEqualTo("NEAREST");
+        assertThat(generation.get("assetMatch").get("unmatchedAttributes"))
+                .isEqualTo(objectMapper.readTree("[\"gender\"]"));
 
         ArgumentCaptor<AvatarAttribute> attributeCaptor = ArgumentCaptor.forClass(AvatarAttribute.class);
         verify(attributeMapper, org.mockito.Mockito.times(9)).insert(attributeCaptor.capture());
@@ -126,7 +138,12 @@ class AvatarGenerationCoordinatorTest {
         assertThat(accessories).hasSize(1);
         assertThat(accessories.get(0).getAttrKey()).isEqualTo("types");
         assertThat(objectMapper.readTree(accessories.get(0).getAttrValue()))
-                .isEqualTo(objectMapper.readTree("[\"glasses\",\"headset\"]"));
+                .isEqualTo(objectMapper.readTree("[\"glasses\"]"));
+
+        List<AvatarAttribute> hairColors = attributeCaptor.getAllValues().stream()
+                .filter(value -> "hair".equals(value.getCategory()) && "color".equals(value.getAttrKey()))
+                .toList();
+        assertThat(hairColors).extracting(AvatarAttribute::getAttrValue).containsExactly("brown");
     }
 
     @Test
@@ -207,7 +224,7 @@ class AvatarGenerationCoordinatorTest {
         when(parser.parse(any())).thenReturn(parsed);
         when(assetSelector.select(any())).thenReturn(new AvatarAssetSelector.Selection(
                 selectedAsset, -25, AvatarAssetSelector.MatchType.UNAVAILABLE,
-                List.of("hairColor", "earType", "wingType")
+                List.of("hairColor", "earType", "wingType"), parsed.getAppearanceConfig(), null
         ));
 
         assertThatThrownBy(() -> coordinator.generate(7L, request("银色长发猫耳机械翅膀女孩")))
@@ -226,7 +243,8 @@ class AvatarGenerationCoordinatorTest {
     void matchedAssetCreatesNormally() {
         when(parser.parse(any())).thenReturn(parsed);
         when(assetSelector.select(any())).thenReturn(new AvatarAssetSelector.Selection(
-                selectedAsset, 40, AvatarAssetSelector.MatchType.MATCHED, List.of()
+                selectedAsset, 40, AvatarAssetSelector.MatchType.MATCHED, List.of(),
+                parsed.getAppearanceConfig(), parsed.getAppearanceConfig()
         ));
         when(avatarMapper.insert(any())).thenAnswer(invocation -> {
             ((Avatar) invocation.getArgument(0)).setId(101L);
@@ -254,8 +272,13 @@ class AvatarGenerationCoordinatorTest {
     }
 
     private AvatarAssetSelector.Selection selection() {
+        AvatarAppearanceConfig realized = new AvatarAppearanceConfig(
+                "male", "brown", "short", "blue", "slim",
+                "casual", "white", "human", "none", List.of("glasses")
+        );
         return new AvatarAssetSelector.Selection(
-                selectedAsset, 20, AvatarAssetSelector.MatchType.NEAREST, List.of("gender")
+                selectedAsset, 20, AvatarAssetSelector.MatchType.NEAREST, List.of("gender"),
+                parsed.getAppearanceConfig(), realized
         );
     }
 }

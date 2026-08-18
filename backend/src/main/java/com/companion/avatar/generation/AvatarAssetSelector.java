@@ -21,17 +21,27 @@ public class AvatarAssetSelector {
         UNAVAILABLE
     }
 
-    public record Selection(AvatarAsset asset, int score, MatchType matchType, List<String> unmatchedAttributes) {
+    public record Selection(
+            AvatarAsset asset,
+            int score,
+            MatchType matchType,
+            List<String> unmatchedAttributes,
+            AvatarAppearanceConfig requestedAppearance,
+            AvatarAppearanceConfig realizedAppearance
+    ) {
     }
 
     private final ModelMatcher modelMatcher;
     private final ObjectMapper objectMapper;
     private final AvatarAssetProperties properties;
+    private final AvatarAppearanceResolver appearanceResolver;
 
     public Selection select(AvatarAppearanceConfig appearanceConfig) {
         AssetMatchResult match = modelMatcher.match(appearanceConfig);
         if (match.isEmpty()) {
-            return new Selection(null, match.score(), MatchType.UNAVAILABLE, List.of("asset"));
+            AvatarAppearanceResolution resolution = appearanceResolver.resolve(appearanceConfig, null);
+            return new Selection(null, match.score(), MatchType.UNAVAILABLE, List.of("asset"),
+                    resolution.requestedAppearance(), null);
         }
         AvatarAsset asset = match.asset();
         List<String> unmatched = findUnmatched(appearanceConfig, asset);
@@ -41,7 +51,10 @@ public class AvatarAssetSelector {
         } else {
             type = unmatched.isEmpty() ? MatchType.MATCHED : MatchType.NEAREST;
         }
-        return new Selection(asset, match.score(), type, List.copyOf(unmatched));
+        AvatarAppearanceResolution resolution = appearanceResolver.resolve(appearanceConfig, asset);
+        return new Selection(asset, match.score(), type, List.copyOf(unmatched),
+                resolution.requestedAppearance(),
+                type == MatchType.UNAVAILABLE ? null : resolution.realizedAppearance());
     }
 
     private boolean hasCriticalMismatch(AvatarAppearanceConfig config, AvatarAsset asset) {

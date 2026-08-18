@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -54,15 +55,20 @@ public class AvatarGenerationCoordinator {
         if (asset == null || asset.getFileUrl() == null || asset.getFileUrl().isBlank()) {
             throw new BusinessException(ResultCode.SERVER_ERROR.getCode(), "没有可用的形象模型");
         }
+        AvatarAppearanceConfig realizedAppearance = selection.realizedAppearance();
+        if (realizedAppearance == null) {
+            throw new BusinessException(ResultCode.SERVER_ERROR.getCode(), "形象实际外观解析失败");
+        }
 
-        String appearanceJson = writeJson(parsed.getAppearanceConfig());
-        String generationJson = writeJson(parsed);
+        String appearanceJson = writeJson(realizedAppearance);
+        String generationJson = writeJson(buildGenerationResult(parsed, selection));
         LocalDateTime now = LocalDateTime.now();
 
-        Avatar avatar = createAvatar(userId, request, parsed, asset, appearanceJson, generationJson, now);
+        Avatar avatar = createAvatar(userId, request, parsed, realizedAppearance,
+                asset, appearanceJson, generationJson, now);
         Personality personality = createPersonality(avatar, parsed, now);
         bindPersonality(avatar, personality, now);
-        List<AvatarAttribute> attributes = saveAttributes(avatar.getId(), parsed.getAppearanceConfig(), now);
+        List<AvatarAttribute> attributes = saveAttributes(avatar.getId(), realizedAppearance, now);
 
         long durationMs = (System.nanoTime() - startedAt) / 1_000_000;
         log.info("Avatar generation completed: userId={}, parseSource={}, assetId={}, durationMs={}",
@@ -71,13 +77,14 @@ public class AvatarGenerationCoordinator {
     }
 
     private Avatar createAvatar(Long userId, AvatarGenerateRequest request,
-                                AvatarDescriptionParser.ParseResult parsed, AvatarAsset asset,
+                                AvatarDescriptionParser.ParseResult parsed,
+                                AvatarAppearanceConfig realizedAppearance, AvatarAsset asset,
                                 String appearanceJson, String generationJson, LocalDateTime now) {
         Avatar avatar = new Avatar();
         avatar.setUserId(userId);
         avatar.setName(parsed.getName());
         avatar.setType(1);
-        avatar.setGender(parseGender(parsed.getAppearanceConfig().getGender()));
+        avatar.setGender(parseGender(realizedAppearance.getGender()));
         avatar.setBaseModel(extractBaseModel(asset.getFileUrl()));
         avatar.setModelUrl(asset.getFileUrl());
         avatar.setThumbnailUrl(asset.getThumbnailUrl());
@@ -207,6 +214,28 @@ public class AvatarGenerationCoordinator {
         response.setUnmatchedAttributes(selection.unmatchedAttributes());
         response.setMessage("形象『" + avatar.getName() + "』生成成功！");
         return response;
+    }
+
+    private Map<String, Object> buildGenerationResult(AvatarDescriptionParser.ParseResult parsed,
+                                                       AvatarAssetSelector.Selection selection) {
+        Map<String, Object> assetMatch = new LinkedHashMap<>();
+        assetMatch.put("assetId", selection.asset() == null ? null : selection.asset().getId());
+        assetMatch.put("score", selection.score());
+        assetMatch.put("matchType", selection.matchType().name());
+        assetMatch.put("unmatchedAttributes", selection.unmatchedAttributes());
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("schemaVersion", 1);
+        result.put("parseSource", parsed.getParseSource().name());
+        result.put("requestedAppearance", selection.requestedAppearance());
+        result.put("realizedAppearance", selection.realizedAppearance());
+        result.put("assetMatch", assetMatch);
+        result.put("name", parsed.getName());
+        result.put("personality", parsed.getPersonality());
+        result.put("tags", parsed.getTags());
+        // Legacy alias retained because generate_result previously exposed this key.
+        result.put("appearanceConfig", selection.requestedAppearance());
+        return result;
     }
 
     private String buildSystemPrompt(AvatarDescriptionParser.ParseResult parsed) {

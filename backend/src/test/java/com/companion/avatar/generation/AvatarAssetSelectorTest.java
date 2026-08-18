@@ -153,7 +153,12 @@ class AvatarAssetSelectorTest {
         ObjectMapper objectMapper = new ObjectMapper();
         AvatarAssetProperties properties = new AvatarAssetProperties();
         properties.setMinimumScore(minimumScore);
-        return new AvatarAssetSelector(new ModelMatcher(mapper, objectMapper), objectMapper, properties);
+        return new AvatarAssetSelector(
+                new ModelMatcher(mapper, objectMapper),
+                objectMapper,
+                properties,
+                new AvatarAppearanceResolver(objectMapper)
+        );
     }
 
     private AvatarAppearanceConfig standardFemale() {
