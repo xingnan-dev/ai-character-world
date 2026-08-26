@@ -137,6 +137,8 @@ CREATE TABLE t_ai_usage (
     created_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+DROP TABLE IF EXISTS t_world_participant;
+DROP TABLE IF EXISTS t_world;
 DROP TABLE IF EXISTS t_character;
 CREATE TABLE t_character (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -163,4 +165,33 @@ CREATE TABLE t_character (
     update_time DATETIME,
     INDEX idx_character_user_active_created (user_id, status, deleted, create_time),
     INDEX idx_character_avatar_id (avatar_id)
+);
+
+CREATE TABLE t_world (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    owner_user_id BIGINT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    background VARCHAR(2000),
+    rules VARCHAR(2000),
+    status TINYINT NOT NULL DEFAULT 1,
+    deleted TINYINT NOT NULL DEFAULT 0,
+    create_time DATETIME,
+    update_time DATETIME,
+    INDEX idx_world_owner_active_created (owner_user_id, status, deleted, create_time)
+);
+
+CREATE TABLE t_world_participant (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    world_id BIGINT NOT NULL,
+    participant_type TINYINT NOT NULL,
+    source_character_id BIGINT NOT NULL,
+    character_snapshot VARCHAR(10000) NOT NULL,
+    display_order INT NOT NULL,
+    deleted TINYINT NOT NULL DEFAULT 0,
+    create_time DATETIME,
+    CONSTRAINT fk_world_participant_world FOREIGN KEY (world_id) REFERENCES t_world(id) ON DELETE CASCADE,
+    CONSTRAINT uk_world_participant_character UNIQUE (world_id, source_character_id),
+    CONSTRAINT uk_world_participant_order UNIQUE (world_id, display_order),
+    INDEX idx_world_participant_order (world_id, deleted, display_order),
+    INDEX idx_world_participant_source (source_character_id)
 );
