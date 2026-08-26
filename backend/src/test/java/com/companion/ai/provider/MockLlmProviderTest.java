@@ -43,6 +43,21 @@ class MockLlmProviderTest {
                 .contains("\"type\":\"gentle\"");
     }
 
+    @Test
+    void returnsValidCharacterJsonForCharacterParsingPrompt() {
+        MockLlmProvider provider = new MockLlmProvider(properties());
+
+        String response = provider.complete(request(
+                "# CHARACTER_DRAFT_JSON\n只输出角色草稿", "角色类型：USER\n用户描述：一名摄影师"
+        )).content();
+
+        assertThat(response)
+                .contains("\"characterType\":\"USER\"")
+                .contains("\"name\":\"林澈\"")
+                .contains("\"profile\"")
+                .doesNotContain("appearanceConfig");
+    }
+
     private LlmProperties properties() {
         LlmProperties properties = new LlmProperties();
         properties.setModelName("mock-model");

@@ -136,3 +136,31 @@ CREATE TABLE t_ai_usage (
     error_code VARCHAR(50),
     created_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+DROP TABLE IF EXISTS t_character;
+CREATE TABLE t_character (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    character_type TINYINT NOT NULL,
+    name VARCHAR(80) NOT NULL,
+    age SMALLINT,
+    identity VARCHAR(200),
+    core_personality VARCHAR(1000),
+    current_goal VARCHAR(500),
+    biography VARCHAR(5000),
+    relationship_to_user VARCHAR(300),
+    speaking_style VARCHAR(500),
+    profile_config VARCHAR(10000),
+    source_description VARCHAR(2000),
+    generate_type TINYINT NOT NULL DEFAULT 0,
+    visual_type TINYINT NOT NULL DEFAULT 0,
+    avatar_id BIGINT,
+    image_url VARCHAR(500),
+    avatar_color VARCHAR(32),
+    status TINYINT NOT NULL DEFAULT 1,
+    deleted TINYINT NOT NULL DEFAULT 0,
+    create_time DATETIME,
+    update_time DATETIME,
+    INDEX idx_character_user_active_created (user_id, status, deleted, create_time),
+    INDEX idx_character_avatar_id (avatar_id)
+);

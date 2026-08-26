@@ -12,7 +12,13 @@ public enum PromptTemplateKey {
     ),
     CHAT_MEMORY("prompts/chat/memory-v1.md", "1", Set.of("memoryContext")),
     AVATAR_GENERATION_SYSTEM("prompts/avatar/generation-system-v1.md", "1", Set.of()),
-    AVATAR_GENERATION_USER("prompts/avatar/generation-user-v1.md", "1", Set.of("userDescription"));
+    AVATAR_GENERATION_USER("prompts/avatar/generation-user-v1.md", "1", Set.of("userDescription")),
+    CHARACTER_PARSE_SYSTEM("prompts/character/parse-system-v1.md", "1", Set.of()),
+    CHARACTER_PARSE_USER(
+            "prompts/character/parse-user-v1.md",
+            "1",
+            Set.of("characterType", "description")
+    );
 
     private final String resourcePath;
     private final String version;

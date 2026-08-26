@@ -63,6 +63,9 @@ public class MockLlmProvider implements LlmProvider {
         if (isAvatarGeneration(systemPrompt)) {
             return avatarJson(userPrompt);
         }
+        if (isCharacterParsing(systemPrompt)) {
+            return characterJson(userPrompt);
+        }
 
         String lower = userPrompt.toLowerCase();
         if (lower.contains("你好") || lower.contains("hello") || lower.contains("hi")) {
@@ -81,6 +84,17 @@ public class MockLlmProvider implements LlmProvider {
         return systemPrompt.contains("appearanceConfig")
                 || systemPrompt.contains("虚拟角色创造")
                 || systemPrompt.contains("角色属性");
+    }
+
+    private boolean isCharacterParsing(String systemPrompt) {
+        return systemPrompt.contains("CHARACTER_DRAFT_JSON");
+    }
+
+    private String characterJson(String userPrompt) {
+        String type = userPrompt.contains("角色类型：USER") ? "USER" : "AI";
+        return """
+                {"characterType":"%s","name":"林澈","age":28,"identity":"独立研究员","corePersonality":"冷静、好奇且富有同理心","currentGoal":"探索未知并帮助同伴成长","biography":"长期研究人工智能与人类协作。","relationshipToUser":"可信赖的伙伴","speakingStyle":"简洁、自然、理性","profile":{"values":["诚实","成长"],"likes":["阅读"],"dislikes":["欺骗"],"interests":["人工智能","宇宙"],"fears":[],"secrets":[],"behaviorTendencies":["先分析再行动"]}}
+                """.formatted(type).trim();
     }
 
     private String avatarJson(String userPrompt) {
