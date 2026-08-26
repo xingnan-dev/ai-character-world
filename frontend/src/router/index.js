@@ -37,6 +37,24 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/character/create',
+    name: 'CharacterCreate',
+    component: () => import('../views/CharacterCreate.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/characters',
+    name: 'CharacterList',
+    component: () => import('../views/CharacterList.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/character/:id',
+    name: 'CharacterDetail',
+    component: () => import('../views/CharacterDetail.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/chat',
     name: 'Chat',
     component: () => import('../views/Chat.vue'),

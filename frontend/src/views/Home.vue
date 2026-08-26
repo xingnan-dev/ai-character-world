@@ -123,6 +123,7 @@ const showToast = (message, icon = '✨', type = 'success') => {
 const menuItems = [
   { key: 'space', label: 'AI空间', icon: '🌌', path: '/home' },
   { key: 'create', label: '创造生命', icon: '✨', path: '/avatar/create' },
+  { key: 'characters', label: '角色空间', icon: '🎭', path: '/characters' },
   { key: 'chat', label: '与TA聊天', icon: '💬', path: '/chat', badge: 'New' },
   { key: 'memory', label: '记忆空间', icon: '🧠', path: '/memory' },
   { key: 'warehouse', label: '形象仓库', icon: '🎨', path: '/avatars' },
