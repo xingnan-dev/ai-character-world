@@ -137,6 +137,8 @@ CREATE TABLE t_ai_usage (
     created_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+DROP TABLE IF EXISTS t_world_event;
+DROP TABLE IF EXISTS t_world_round;
 DROP TABLE IF EXISTS t_world_participant;
 DROP TABLE IF EXISTS t_world;
 DROP TABLE IF EXISTS t_character;
@@ -194,4 +196,37 @@ CREATE TABLE t_world_participant (
     CONSTRAINT uk_world_participant_order UNIQUE (world_id, display_order),
     INDEX idx_world_participant_order (world_id, deleted, display_order),
     INDEX idx_world_participant_source (source_character_id)
+);
+
+CREATE TABLE t_world_round (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    world_id BIGINT NOT NULL,
+    request_id VARCHAR(64) NOT NULL,
+    user_input TEXT NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    error_code VARCHAR(64),
+    started_time DATETIME,
+    completion_time DATETIME,
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_world_round_world FOREIGN KEY (world_id) REFERENCES t_world(id) ON DELETE CASCADE,
+    CONSTRAINT uk_world_round_request UNIQUE (world_id, request_id),
+    INDEX idx_world_round_status_created (world_id, status, create_time)
+);
+
+CREATE TABLE t_world_event (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    round_id BIGINT NOT NULL,
+    sequence_no INT NOT NULL,
+    participant_id BIGINT,
+    event_type VARCHAR(32) NOT NULL,
+    content TEXT NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    error_code VARCHAR(64),
+    completion_time DATETIME,
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_world_event_round FOREIGN KEY (round_id) REFERENCES t_world_round(id) ON DELETE CASCADE,
+    CONSTRAINT uk_world_event_sequence UNIQUE (round_id, sequence_no),
+    INDEX idx_world_event_round_sequence (round_id, sequence_no),
+    INDEX idx_world_event_participant (participant_id)
 );
