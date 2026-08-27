@@ -19,6 +19,8 @@ public enum PromptTemplateKey {
             "1",
             Set.of("characterType", "description")
     ),
+    WORLD_DRAFT_SYSTEM("prompts/world/draft-system-v1.md", "1", Set.of()),
+    WORLD_DRAFT_USER("prompts/world/draft-user-v1.md", "1", Set.of("description")),
     WORLD_SYSTEM(
             "prompts/world/system-v1.md",
             "1",

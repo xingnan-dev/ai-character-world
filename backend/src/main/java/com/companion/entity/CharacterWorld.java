@@ -17,6 +17,9 @@ public class CharacterWorld {
     private String name;
     private String background;
     private String rules;
+    private String atmosphere;
+    private String scene;
+    private String sourceDescription;
     private Integer status;
     @TableLogic
     private Integer deleted;

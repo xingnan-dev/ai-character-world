@@ -36,7 +36,9 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -71,20 +73,20 @@ class CharacterWorldIntegrationTest {
     @Test
     void createsWorldPersistsSnapshotsAndReturnsParticipantsInStableOrder() throws Exception {
         CharacterResponse ai = createCharacter(userA.getId(), "AI", "分析师");
-        CharacterResponse human = createCharacter(userA.getId(), "USER", "观察者");
+        CharacterResponse observer = createCharacter(userA.getId(), "AI", "观察者");
 
         long worldId = createWorld(tokenA, List.of(
-                participant(human.getId(), "USER", 20),
+                participant(observer.getId(), "AI", 20),
                 participant(ai.getId(), "AI", 10)
         ));
 
         mockMvc.perform(get("/api/worlds/{id}", worldId).header(authHeader(), bearer(tokenA)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.participants[0].displayOrder").value(10))
+                .andExpect(jsonPath("$.data.participants[0].displayOrder").value(0))
                 .andExpect(jsonPath("$.data.participants[0].character.name").value("分析师"))
-                .andExpect(jsonPath("$.data.participants[1].displayOrder").value(20))
-                .andExpect(jsonPath("$.data.participants[1].participantType").value("USER"));
+                .andExpect(jsonPath("$.data.participants[1].displayOrder").value(1))
+                .andExpect(jsonPath("$.data.participants[1].participantType").value("AI"));
 
         List<WorldParticipant> persisted = participantMapper.selectList(
                 new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<WorldParticipant>()
@@ -132,10 +134,11 @@ class CharacterWorldIntegrationTest {
         long before = worldMapper.selectCount(null);
         long participantsBefore = participantMapper.selectCount(null);
 
-        expectCode(createWorldRequest(tokenA, List.of(participant(deleted.getId(), "AI", 0))), 404);
-        expectCode(createWorldRequest(tokenA, List.of(participant(foreign.getId(), "AI", 0))), 404);
-
         CharacterResponse owned = createCharacter(userA.getId(), "AI", "合法角色");
+        expectCode(createWorldRequest(tokenA, List.of(
+                participant(deleted.getId(), "AI", 0), participant(owned.getId(), "AI", 1))), 404);
+        expectCode(createWorldRequest(tokenA, List.of(
+                participant(foreign.getId(), "AI", 0), participant(owned.getId(), "AI", 1))), 404);
         expectCode(createWorldRequest(tokenA, List.of(
                 participant(owned.getId(), "AI", 0), participant(foreign.getId(), "AI", 1)
         )), 404);
@@ -146,7 +149,9 @@ class CharacterWorldIntegrationTest {
     @Test
     void worldOwnershipComesFromJwtAndOtherUsersCannotAccessIt() throws Exception {
         CharacterResponse character = createCharacter(userA.getId(), "AI", "所有权角色");
-        Map<String, Object> payload = worldPayload(List.of(participant(character.getId(), "AI", 0)));
+        CharacterResponse companion = createCharacter(userA.getId(), "AI", "所有权辅助角色");
+        Map<String, Object> payload = worldPayload(List.of(
+                participant(character.getId(), "AI", 0), participant(companion.getId(), "AI", 1)));
         payload.put("ownerUserId", userB.getId());
         MvcResult result = mockMvc.perform(post("/api/worlds")
                         .header(authHeader(), bearer(tokenA))
@@ -167,15 +172,19 @@ class CharacterWorldIntegrationTest {
     @Test
     void rejectsDuplicateCharacterOrderInvalidTypeAndOversizedInput() throws Exception {
         CharacterResponse first = createCharacter(userA.getId(), "AI", "角色一");
-        CharacterResponse second = createCharacter(userA.getId(), "USER", "角色二");
+        CharacterResponse second = createCharacter(userA.getId(), "AI", "角色二");
+        CharacterResponse userCharacter = createCharacter(userA.getId(), "USER", "用户角色");
 
         expectCode(createWorldRequest(tokenA, List.of(
-                participant(first.getId(), "AI", 0), participant(first.getId(), "USER", 1)
+                participant(first.getId(), "AI", 0), participant(first.getId(), "AI", 1)
         )), 400);
         expectCode(createWorldRequest(tokenA, List.of(
-                participant(first.getId(), "AI", 0), participant(second.getId(), "USER", 0)
+                participant(first.getId(), "AI", 0), participant(second.getId(), "AI", 0)
         )), 400);
-        expectCode(createWorldRequest(tokenA, List.of(participant(first.getId(), "ROBOT", 0))), 400);
+        expectCode(createWorldRequest(tokenA, List.of(
+                participant(first.getId(), "ROBOT", 0), participant(second.getId(), "AI", 1))), 400);
+        expectCode(createWorldRequest(tokenA, List.of(
+                participant(userCharacter.getId(), "AI", 0), participant(second.getId(), "AI", 1))), 400);
 
         Map<String, Object> nullParticipant = worldPayload(new ArrayList<>());
         ((List<Object>) nullParticipant.get("participants")).add(null);
@@ -206,7 +215,94 @@ class CharacterWorldIntegrationTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void listsUpdatesAndSoftDeletesOnlyOwnedWorldsWithoutChangingSnapshots() throws Exception {
+        CharacterResponse first = createCharacter(userA.getId(), "AI", "语义角色一");
+        CharacterResponse second = createCharacter(userA.getId(), "AI", "语义角色二");
+        long worldId = createWorld(tokenA, List.of(
+                participant(first.getId(), "AI", 8), participant(second.getId(), "AI", 3)));
+        CharacterResponse foreignFirst = createCharacter(userB.getId(), "AI", "外部一");
+        CharacterResponse foreignSecond = createCharacter(userB.getId(), "AI", "外部二");
+        createWorld(tokenB, List.of(
+                participant(foreignFirst.getId(), "AI", 0), participant(foreignSecond.getId(), "AI", 1)));
+
+        Map<String, Object> update = new LinkedHashMap<>();
+        update.put("name", "更新后的世界"); update.put("background", "新背景");
+        update.put("rules", "新规则"); update.put("atmosphere", "宁静");
+        update.put("scene", "湖边木屋"); update.put("sourceDescription", "原始世界描述");
+        mockMvc.perform(put("/api/worlds/{id}", worldId).header(authHeader(), bearer(tokenA))
+                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(update)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.name").value("更新后的世界"))
+                .andExpect(jsonPath("$.data.atmosphere").value("宁静"))
+                .andExpect(jsonPath("$.data.scene").value("湖边木屋"))
+                .andExpect(jsonPath("$.data.participants[0].character.name").value("语义角色二"));
+
+        mockMvc.perform(get("/api/worlds").header(authHeader(), bearer(tokenA)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].id").value(worldId));
+        mockMvc.perform(delete("/api/worlds/{id}", worldId).header(authHeader(), bearer(tokenA)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.code").value(200));
+        mockMvc.perform(get("/api/worlds/{id}", worldId).header(authHeader(), bearer(tokenA)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.code").value(404));
+        mockMvc.perform(get("/api/worlds").header(authHeader(), bearer(tokenA)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.length()").value(0));
+    }
+
+    @Test
+    void replacesUnlockedRosterWithFreshSnapshotsAndNormalizesOrder() throws Exception {
+        CharacterResponse first = createCharacter(userA.getId(), "AI", "替换前一");
+        CharacterResponse second = createCharacter(userA.getId(), "AI", "替换前二");
+        long worldId = createWorld(tokenA, List.of(
+                participant(first.getId(), "AI", 0), participant(second.getId(), "AI", 1)));
+        CharacterUpdateRequest update = new CharacterUpdateRequest(); update.setName("替换后新名");
+        characterService.update(userA.getId(), first.getId(), update);
+
+        Map<String, Object> body = Map.of("participants", List.of(
+                participant(first.getId(), "AI", 40), participant(second.getId(), "AI", 10)));
+        mockMvc.perform(put("/api/worlds/{id}/participants", worldId)
+                        .header(authHeader(), bearer(tokenA)).contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.participants[0].displayOrder").value(0))
+                .andExpect(jsonPath("$.data.participants[0].character.name").value("替换前二"))
+                .andExpect(jsonPath("$.data.participants[1].displayOrder").value(1))
+                .andExpect(jsonPath("$.data.participants[1].character.name").value("替换后新名"))
+                .andExpect(jsonPath("$.data.participantsLocked").value(false));
+    }
+
+    @Test
+    void locksRosterAfterAnyRoundAndHidesForeignWorld() throws Exception {
+        CharacterResponse first = createCharacter(userA.getId(), "AI", "锁定一");
+        CharacterResponse second = createCharacter(userA.getId(), "AI", "锁定二");
+        long worldId = createWorld(tokenA, List.of(
+                participant(first.getId(), "AI", 0), participant(second.getId(), "AI", 1)));
+        mockMvc.perform(post("/api/worlds/{worldId}/rounds", worldId)
+                        .header(authHeader(), bearer(tokenA)).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"requestId\":\"lock-round\",\"userInput\":\"hello\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.code").value(200));
+        mockMvc.perform(get("/api/worlds/{id}", worldId).header(authHeader(), bearer(tokenA)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.participantsLocked").value(true));
+
+        Map<String, Object> body = Map.of("participants", List.of(
+                participant(first.getId(), "AI", 0), participant(second.getId(), "AI", 1)));
+        mockMvc.perform(put("/api/worlds/{id}/participants", worldId)
+                        .header(authHeader(), bearer(tokenA)).contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.code").value(409))
+                .andExpect(jsonPath("$.msg").value("WORLD_PARTICIPANTS_LOCKED"));
+        mockMvc.perform(put("/api/worlds/{id}/participants", worldId)
+                        .header(authHeader(), bearer(tokenB)).contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.code").value(404));
+    }
+
     private long createWorld(String token, List<Map<String, Object>> participants) throws Exception {
+        if (participants.size() == 1) {
+            CharacterResponse companion = createCharacter(userA.getId(), "AI", "辅助角色-" + System.nanoTime());
+            List<Map<String, Object>> expanded = new ArrayList<>(participants);
+            expanded.add(participant(companion.getId(), "AI", 9999));
+            participants = expanded;
+        }
         MvcResult result = createWorldRequest(token, participants)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))

@@ -40,7 +40,9 @@ public class WorldRoundServiceImpl implements WorldRoundService {
     @Override
     @Transactional
     public WorldRoundResponse create(Long userId, Long worldId, WorldRoundCreateRequest request) {
-        requireOwnedWorld(userId, worldId);
+        if (worldMapper.selectOwnedForUpdate(userId, worldId) == null) {
+            throw new BusinessException(ResultCode.NOT_FOUND);
+        }
         String requestId = normalizeRequired(request.getRequestId(), 64, "requestId不能为空", "requestId不能超过64字符");
         String userInput = normalizeRequired(request.getUserInput(), 4000, "用户输入不能为空", "用户输入不能超过4000字符");
 

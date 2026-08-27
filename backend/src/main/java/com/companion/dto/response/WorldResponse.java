@@ -11,7 +11,11 @@ public class WorldResponse {
     private String name;
     private String background;
     private String rules;
+    private String atmosphere;
+    private String scene;
+    private String sourceDescription;
     private Integer status;
+    private boolean participantsLocked;
     private List<WorldParticipantResponse> participants;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
