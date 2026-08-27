@@ -18,6 +18,17 @@ public enum PromptTemplateKey {
             "prompts/character/parse-user-v1.md",
             "1",
             Set.of("characterType", "description")
+    ),
+    WORLD_SYSTEM(
+            "prompts/world/system-v1.md",
+            "1",
+            Set.of("worldName", "worldBackground", "worldRules", "participantRoster",
+                    "actorName", "actorSnapshot")
+    ),
+    WORLD_TURN(
+            "prompts/world/turn-v1.md",
+            "1",
+            Set.of("transcript", "actorName")
     );
 
     private final String resourcePath;

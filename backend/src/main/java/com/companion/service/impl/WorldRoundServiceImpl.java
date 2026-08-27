@@ -17,6 +17,7 @@ import com.companion.mapper.CharacterWorldMapper;
 import com.companion.mapper.WorldEventMapper;
 import com.companion.mapper.WorldRoundMapper;
 import com.companion.service.WorldRoundService;
+import com.companion.world.WorldRoundOrchestrator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,7 @@ public class WorldRoundServiceImpl implements WorldRoundService {
     private final CharacterWorldMapper worldMapper;
     private final WorldRoundMapper roundMapper;
     private final WorldEventMapper eventMapper;
+    private final WorldRoundOrchestrator roundOrchestrator;
 
     @Override
     @Transactional
@@ -94,6 +96,14 @@ public class WorldRoundServiceImpl implements WorldRoundService {
                         .orderByAsc(WorldEvent::getSequenceNo)
                         .orderByAsc(WorldEvent::getId))
                 .stream().map(this::toEventResponse).toList();
+    }
+
+    @Override
+    public WorldRoundResponse execute(Long userId, Long worldId, Long roundId) {
+        CharacterWorld world = requireOwnedWorld(userId, worldId);
+        WorldRound round = requireRound(worldId, roundId);
+        roundOrchestrator.execute(userId, world, round);
+        return toRoundResponse(requireRound(worldId, roundId));
     }
 
     @Override

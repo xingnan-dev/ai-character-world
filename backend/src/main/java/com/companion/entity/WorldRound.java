@@ -21,4 +21,6 @@ public class WorldRound {
     private LocalDateTime completionTime;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+    private Long executionVersion;
+    private LocalDateTime leaseUntil;
 }

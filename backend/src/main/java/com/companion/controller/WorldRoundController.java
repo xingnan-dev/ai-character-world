@@ -41,6 +41,14 @@ public class WorldRoundController {
         return Result.success(roundService.get(user.userId(), worldId, roundId));
     }
 
+    @PostMapping("/{roundId}/execute")
+    public Result<WorldRoundResponse> execute(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable Long worldId,
+            @PathVariable Long roundId) {
+        return Result.success(roundService.execute(user.userId(), worldId, roundId));
+    }
+
     @GetMapping("/{roundId}/events")
     public Result<List<WorldEventResponse>> getEvents(
             @AuthenticationPrincipal AuthenticatedUser user,

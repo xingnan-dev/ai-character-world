@@ -16,6 +16,41 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class WorldRoundMigrationTest {
 
     @Test
+    void v16AddsLeaseFencingRecoveryIndexAndParticipantUniqueness() throws Exception {
+        String url = "jdbc:h2:mem:world_v16;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1";
+        try (Connection connection = DriverManager.getConnection(url, "sa", "");
+             Statement statement = connection.createStatement()) {
+            ScriptUtils.executeSqlScript(connection,
+                    new ClassPathResource("db/migration/V14__create_world_participant_foundation.sql"));
+            ScriptUtils.executeSqlScript(connection,
+                    new ClassPathResource("db/migration/V15__create_world_round_event.sql"));
+            ScriptUtils.executeSqlScript(connection,
+                    new ClassPathResource("db/migration/V16__add_world_execution_recovery.sql"));
+
+            assertThat(columnType(statement, "t_world_round", "execution_version")).isEqualTo(Types.BIGINT);
+            assertThat(columnType(statement, "t_world_round", "lease_until")).isEqualTo(Types.TIMESTAMP);
+            assertThat(indexExists(statement, "idx_world_round_recovery")).isTrue();
+            assertThat(constraintExists(statement, "uk_world_event_participant")).isTrue();
+
+            statement.executeUpdate("INSERT INTO t_world (owner_user_id, name) VALUES (1, 'world')");
+            statement.executeUpdate("INSERT INTO t_world_round (world_id, request_id, user_input, status) "
+                    + "VALUES (1, 'request', 'hello', 'PENDING')");
+            assertThat(value(statement, "SELECT execution_version FROM t_world_round WHERE id=1")).isEqualTo(0L);
+
+            statement.executeUpdate("INSERT INTO t_world_event "
+                    + "(round_id, sequence_no, participant_id, event_type, content, status) "
+                    + "VALUES (1, 1, NULL, 'USER_MESSAGE', 'hello', 'COMPLETED')");
+            statement.executeUpdate("INSERT INTO t_world_event "
+                    + "(round_id, sequence_no, participant_id, event_type, content, status) "
+                    + "VALUES (1, 2, 10, 'AI_MESSAGE', 'one', 'COMPLETED')");
+            assertThatThrownBy(() -> statement.executeUpdate("INSERT INTO t_world_event "
+                    + "(round_id, sequence_no, participant_id, event_type, content, status) "
+                    + "VALUES (1, 3, 10, 'AI_MESSAGE', 'duplicate', 'COMPLETED')"))
+                    .isInstanceOf(Exception.class);
+        }
+    }
+
+    @Test
     void v15CreatesRoundEventConstraintsIndexesDefaultsAndCascades() throws Exception {
         String url = "jdbc:h2:mem:world_v15;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1";
         try (Connection connection = DriverManager.getConnection(url, "sa", "");

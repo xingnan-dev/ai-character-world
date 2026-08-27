@@ -209,9 +209,12 @@ CREATE TABLE t_world_round (
     completion_time DATETIME,
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    execution_version BIGINT NOT NULL DEFAULT 0,
+    lease_until DATETIME,
     CONSTRAINT fk_world_round_world FOREIGN KEY (world_id) REFERENCES t_world(id) ON DELETE CASCADE,
     CONSTRAINT uk_world_round_request UNIQUE (world_id, request_id),
-    INDEX idx_world_round_status_created (world_id, status, create_time)
+    INDEX idx_world_round_status_created (world_id, status, create_time),
+    INDEX idx_world_round_recovery (status, lease_until)
 );
 
 CREATE TABLE t_world_event (
@@ -227,6 +230,7 @@ CREATE TABLE t_world_event (
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_world_event_round FOREIGN KEY (round_id) REFERENCES t_world_round(id) ON DELETE CASCADE,
     CONSTRAINT uk_world_event_sequence UNIQUE (round_id, sequence_no),
+    CONSTRAINT uk_world_event_participant UNIQUE (round_id, participant_id),
     INDEX idx_world_event_round_sequence (round_id, sequence_no),
     INDEX idx_world_event_participant (participant_id)
 );

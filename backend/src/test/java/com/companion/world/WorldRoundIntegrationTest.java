@@ -160,6 +160,9 @@ class WorldRoundIntegrationTest {
         mockMvc.perform(get("/api/worlds/{worldId}/rounds/{roundId}", world.getId(), roundId)
                         .header(authHeader(), bearer(otherToken)))
                 .andExpect(jsonPath("$.code").value(404));
+        mockMvc.perform(post("/api/worlds/{worldId}/rounds/{roundId}/execute", world.getId(), roundId)
+                        .header(authHeader(), bearer(otherToken)))
+                .andExpect(jsonPath("$.code").value(404));
         mockMvc.perform(get("/api/worlds/{worldId}/rounds/{roundId}", otherWorld.getId(), roundId)
                         .header(authHeader(), bearer(ownerToken)))
                 .andExpect(jsonPath("$.code").value(404));
@@ -168,6 +171,9 @@ class WorldRoundIntegrationTest {
                 .isInstanceOf(com.companion.common.exception.BusinessException.class);
 
         worldMapper.deleteById(world.getId());
+        mockMvc.perform(post("/api/worlds/{worldId}/rounds/{roundId}/execute", world.getId(), roundId)
+                        .header(authHeader(), bearer(ownerToken)))
+                .andExpect(jsonPath("$.code").value(404));
         mockMvc.perform(get("/api/worlds/{worldId}/rounds/{roundId}", world.getId(), roundId)
                         .header(authHeader(), bearer(ownerToken)))
                 .andExpect(jsonPath("$.code").value(404));
@@ -241,6 +247,8 @@ class WorldRoundIntegrationTest {
                         .content("{}"))
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/worlds/{worldId}/rounds/1", world.getId()))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/worlds/{worldId}/rounds/1/execute", world.getId()))
                 .andExpect(status().isUnauthorized());
     }
 
