@@ -53,6 +53,31 @@
   --spacing-lg: 24px;
   --spacing-xl: 32px;
 
+  /* World Builder — Stitch-inspired light visual system */
+  --world-bg: #fff9f3;
+  --world-surface: #ffffff;
+  --world-surface-blue: #f1f9fe;
+  --world-ink: #14242c;
+  --world-muted: #64727b;
+  --world-primary: #168ac0;
+  --world-primary-strong: #00658c;
+  --world-primary-soft: #dff2fd;
+  --world-mint: #90e7c5;
+  --world-mint-soft: #e8fbf3;
+  --world-peach: #ffab87;
+  --world-peach-soft: #fff0e9;
+  --world-sky: #83cdf3;
+  --world-sky-soft: #e8f6ff;
+  --world-lavender-soft: #f2edff;
+  --world-border: #e4e9e9;
+  --world-danger: #c84646;
+  --world-radius-sm: 10px;
+  --world-radius-md: 16px;
+  --world-radius-lg: 24px;
+  --world-shadow-sm: 0 8px 24px rgba(46, 73, 86, 0.07);
+  --world-shadow-lg: 0 20px 55px rgba(60, 89, 101, 0.11);
+  --world-content: 1180px;
+
   --transition-fast: 0.15s ease;
   --transition-normal: 0.3s ease;
   --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);

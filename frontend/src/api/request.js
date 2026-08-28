@@ -1,6 +1,10 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
+const friendlyMessage = (message) => message === 'WORLD_PARTICIPANTS_LOCKED'
+  ? '该世界已有互动记录，角色阵容已冻结'
+  : message
+
 const service = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   timeout: 15000
@@ -23,7 +27,7 @@ service.interceptors.response.use(
   (response) => {
     const res = response.data
     if (res.code !== undefined && res.code !== 200) {
-      const message = res.msg || res.message || '请求失败'
+      const message = friendlyMessage(res.msg || res.message || '请求失败')
       ElMessage.error(message)
       return Promise.reject(new Error(message))
     }
@@ -36,7 +40,9 @@ service.interceptors.response.use(
       localStorage.removeItem('token')
       window.location.href = '/login'
     } else {
-      ElMessage.error(error.response?.data?.msg || error.response?.data?.message || error.message || '网络错误')
+      ElMessage.error(friendlyMessage(
+        error.response?.data?.msg || error.response?.data?.message || error.message || '网络错误'
+      ))
     }
     return Promise.reject(error)
   }

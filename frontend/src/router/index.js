@@ -49,6 +49,24 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/worlds',
+    name: 'WorldList',
+    component: () => import('../views/WorldList.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/worlds/create',
+    name: 'WorldCreate',
+    component: () => import('../views/WorldCreate.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/worlds/:worldId',
+    name: 'WorldDetail',
+    component: () => import('../views/WorldDetail.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/character/:id',
     name: 'CharacterDetail',
     component: () => import('../views/CharacterDetail.vue'),
