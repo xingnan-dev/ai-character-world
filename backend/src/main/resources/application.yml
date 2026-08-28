@@ -101,6 +101,12 @@ logging:
 app:
   redis:
     enabled: false
+  world:
+    execution:
+      core-pool-size: 2
+      max-pool-size: 2
+      queue-capacity: 32
+      shutdown-await-seconds: 30
 
 chat:
   message-recovery-timeout: ${CHAT_MESSAGE_RECOVERY_TIMEOUT:5m}

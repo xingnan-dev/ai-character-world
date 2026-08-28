@@ -1,6 +1,7 @@
 package com.companion.world;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.companion.common.exception.BusinessException;
 import com.companion.dto.request.WorldRoundCreateRequest;
 import com.companion.entity.CharacterWorld;
 import com.companion.entity.User;
@@ -150,6 +151,133 @@ class WorldRoundIntegrationTest {
     }
 
     @Test
+    void concurrentDifferentRequestsCreateOnlyOneActiveRound() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        List<Long> ids = java.util.Collections.synchronizedList(new ArrayList<>());
+        List<Throwable> errors = java.util.Collections.synchronizedList(new ArrayList<>());
+        for (int i = 0; i < 2; i++) {
+            String requestId = "different-" + i;
+            executor.submit(() -> {
+                ready.countDown();
+                try {
+                    start.await(5, TimeUnit.SECONDS);
+                    ids.add(roundService.create(owner.getId(), world.getId(), request(requestId, "input")).getId());
+                } catch (Throwable error) {
+                    errors.add(error);
+                }
+            });
+        }
+        assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+        start.countDown();
+        executor.shutdown();
+        assertThat(executor.awaitTermination(15, TimeUnit.SECONDS)).isTrue();
+
+        assertThat(ids).hasSize(1);
+        assertThat(errors).singleElement().isInstanceOf(BusinessException.class);
+        BusinessException conflict = (BusinessException) errors.get(0);
+        assertThat(conflict.getCode()).isEqualTo(409);
+        assertThat(conflict.getMessage()).isEqualTo("WORLD_ROUND_ACTIVE");
+        assertThat(roundMapper.selectCount(new LambdaQueryWrapper<WorldRound>()
+                .eq(WorldRound::getWorldId, world.getId()))).isEqualTo(1);
+    }
+
+    @Test
+    void timelineUsesExclusiveDescendingCursorAndAscendingEvents() throws Exception {
+        long first = completedRound("timeline-1", "first");
+        insertEvent(first, 3, "third");
+        insertEvent(first, 2, "second");
+        long second = completedRound("timeline-2", "second round");
+        long third = completedRound("timeline-3", "third round");
+
+        mockMvc.perform(get("/api/worlds/{worldId}/timeline", world.getId())
+                        .param("limit", "2")
+                        .header(authHeader(), bearer(ownerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].round.id").value(third))
+                .andExpect(jsonPath("$.data.items[1].round.id").value(second))
+                .andExpect(jsonPath("$.data.hasMore").value(true))
+                .andExpect(jsonPath("$.data.nextBeforeRoundId").value(second))
+                .andExpect(jsonPath("$.data.items[0].round.executionVersion").doesNotExist())
+                .andExpect(jsonPath("$.data.items[0].round.leaseUntil").doesNotExist());
+
+        mockMvc.perform(get("/api/worlds/{worldId}/timeline", world.getId())
+                        .param("beforeRoundId", Long.toString(second))
+                        .param("limit", "2")
+                        .header(authHeader(), bearer(ownerToken)))
+                .andExpect(jsonPath("$.data.items.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].round.id").value(first))
+                .andExpect(jsonPath("$.data.items[0].events[0].sequenceNo").value(1))
+                .andExpect(jsonPath("$.data.items[0].events[1].sequenceNo").value(2))
+                .andExpect(jsonPath("$.data.items[0].events[2].sequenceNo").value(3))
+                .andExpect(jsonPath("$.data.hasMore").value(false))
+                .andExpect(jsonPath("$.data.nextBeforeRoundId").doesNotExist());
+    }
+
+    @Test
+    void timelineEmptyAndLimitBoundsAreStable() throws Exception {
+        mockMvc.perform(get("/api/worlds/{worldId}/timeline", world.getId())
+                        .header(authHeader(), bearer(ownerToken)))
+                .andExpect(jsonPath("$.data.items.length()").value(0))
+                .andExpect(jsonPath("$.data.hasMore").value(false));
+        mockMvc.perform(get("/api/worlds/{worldId}/timeline", world.getId()).param("limit", "0")
+                        .header(authHeader(), bearer(ownerToken)))
+                .andExpect(jsonPath("$.code").value(400));
+        mockMvc.perform(get("/api/worlds/{worldId}/timeline", world.getId()).param("limit", "51")
+                        .header(authHeader(), bearer(ownerToken)))
+                .andExpect(jsonPath("$.code").value(400));
+    }
+
+    @Test
+    void activeRoundReportsRecoverabilityWithoutInternalLeaseFields() throws Exception {
+        mockMvc.perform(get("/api/worlds/{worldId}/rounds/active", world.getId())
+                        .header(authHeader(), bearer(ownerToken)))
+                .andExpect(jsonPath("$.data").doesNotExist());
+
+        long roundId = roundService.create(owner.getId(), world.getId(), request("active", "hello")).getId();
+        mockMvc.perform(get("/api/worlds/{worldId}/rounds/active", world.getId())
+                        .header(authHeader(), bearer(ownerToken)))
+                .andExpect(jsonPath("$.data.id").value(roundId))
+                .andExpect(jsonPath("$.data.executionRecoverable").value(true))
+                .andExpect(jsonPath("$.data.executionVersion").doesNotExist())
+                .andExpect(jsonPath("$.data.leaseUntil").doesNotExist());
+
+        WorldRound running = roundMapper.selectById(roundId);
+        running.setStatus("RUNNING");
+        running.setLeaseUntil(LocalDateTime.now().plusMinutes(2));
+        roundMapper.updateById(running);
+        assertThat(roundService.getActive(owner.getId(), world.getId()).isExecutionRecoverable()).isFalse();
+        running.setLeaseUntil(LocalDateTime.now().minusSeconds(1));
+        roundMapper.updateById(running);
+        assertThat(roundService.getActive(owner.getId(), world.getId()).isExecutionRecoverable()).isTrue();
+        running.setLeaseUntil(null);
+        roundMapper.updateById(running);
+        assertThat(roundService.getActive(owner.getId(), world.getId()).isExecutionRecoverable()).isTrue();
+        running.setStatus("FAILED");
+        roundMapper.updateById(running);
+        assertThat(roundService.getActive(owner.getId(), world.getId())).isNull();
+    }
+
+    @Test
+    void executeReturnsAcceptedBeforeBackgroundCompletion() throws Exception {
+        long roundId = roundService.create(owner.getId(), world.getId(), request("dispatch", "hello")).getId();
+        long started = System.nanoTime();
+        mockMvc.perform(post("/api/worlds/{worldId}/rounds/{roundId}/execute", world.getId(), roundId)
+                        .header(authHeader(), bearer(ownerToken)))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.data.dispatchStatus").value("ACCEPTED"))
+                .andExpect(jsonPath("$.data.round.id").value(roundId));
+        assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)).isLessThan(1000);
+
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (!"FAILED".equals(roundMapper.selectById(roundId).getStatus()) && System.nanoTime() < deadline) {
+            Thread.sleep(20);
+        }
+        assertThat(roundMapper.selectById(roundId).getStatus()).isEqualTo("FAILED");
+    }
+
+    @Test
     void protectsWorldOwnershipPathBindingAndSoftDeletedWorld() throws Exception {
         long roundId = responseId(createRound(ownerToken, world.getId(), "secure-id", "hello")
                 .andExpect(jsonPath("$.code").value(200)).andReturn());
@@ -175,6 +303,12 @@ class WorldRoundIntegrationTest {
                         .header(authHeader(), bearer(ownerToken)))
                 .andExpect(jsonPath("$.code").value(404));
         mockMvc.perform(get("/api/worlds/{worldId}/rounds/{roundId}", world.getId(), roundId)
+                        .header(authHeader(), bearer(ownerToken)))
+                .andExpect(jsonPath("$.code").value(404));
+        mockMvc.perform(get("/api/worlds/{worldId}/timeline", world.getId())
+                        .header(authHeader(), bearer(ownerToken)))
+                .andExpect(jsonPath("$.code").value(404));
+        mockMvc.perform(get("/api/worlds/{worldId}/rounds/active", world.getId())
                         .header(authHeader(), bearer(ownerToken)))
                 .andExpect(jsonPath("$.code").value(404));
         assertThat(org.assertj.core.api.Assertions.catchThrowable(
@@ -212,6 +346,10 @@ class WorldRoundIntegrationTest {
         WorldRound running = roundMapper.selectById(roundId);
         assertThat(running.getStatus()).isEqualTo(WorldRoundStatus.RUNNING.name());
         assertThat(running.getStartedTime()).isNotNull();
+
+        running.setStatus(WorldRoundStatus.COMPLETED.name());
+        running.setCompletionTime(LocalDateTime.now());
+        roundMapper.updateById(running);
 
         long completedId = roundService.create(owner.getId(), world.getId(), request("completed-id", "hello")).getId();
         WorldRound completed = roundMapper.selectById(completedId);
@@ -280,6 +418,15 @@ class WorldRoundIntegrationTest {
     private List<WorldEvent> events(long roundId) {
         return eventMapper.selectList(new LambdaQueryWrapper<WorldEvent>()
                 .eq(WorldEvent::getRoundId, roundId).orderByAsc(WorldEvent::getSequenceNo));
+    }
+
+    private long completedRound(String requestId, String input) {
+        long id = roundService.create(owner.getId(), world.getId(), request(requestId, input)).getId();
+        WorldRound round = roundMapper.selectById(id);
+        round.setStatus(WorldRoundStatus.COMPLETED.name());
+        round.setCompletionTime(LocalDateTime.now());
+        roundMapper.updateById(round);
+        return id;
     }
 
     private void insertEvent(long roundId, int sequence, String content) {

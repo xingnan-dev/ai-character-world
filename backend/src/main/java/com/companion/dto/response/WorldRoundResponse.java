@@ -12,6 +12,7 @@ public class WorldRoundResponse {
     private String userInput;
     private String status;
     private String errorCode;
+    private boolean executionRecoverable;
     private LocalDateTime startedTime;
     private LocalDateTime completionTime;
     private LocalDateTime createTime;

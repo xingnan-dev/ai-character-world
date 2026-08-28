@@ -7,6 +7,8 @@ import com.companion.common.result.ResultCode;
 import com.companion.dto.request.WorldRoundCreateRequest;
 import com.companion.dto.response.WorldEventResponse;
 import com.companion.dto.response.WorldRoundResponse;
+import com.companion.dto.response.WorldTimelineItemResponse;
+import com.companion.dto.response.WorldTimelinePageResponse;
 import com.companion.entity.CharacterWorld;
 import com.companion.entity.WorldEvent;
 import com.companion.entity.WorldRound;
@@ -23,19 +25,27 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class WorldRoundServiceImpl implements WorldRoundService {
 
     private static final int FIRST_SEQUENCE = 1;
+    private static final int DEFAULT_TIMELINE_LIMIT = 20;
+    private static final int MAX_TIMELINE_LIMIT = 50;
 
     private final CharacterWorldMapper worldMapper;
     private final WorldRoundMapper roundMapper;
     private final WorldEventMapper eventMapper;
     private final WorldRoundOrchestrator roundOrchestrator;
+    private final Clock clock;
 
     @Override
     @Transactional
@@ -51,7 +61,16 @@ public class WorldRoundServiceImpl implements WorldRoundService {
             return resolveIdempotent(existing, userInput);
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        WorldRound active = roundMapper.selectOne(new LambdaQueryWrapper<WorldRound>()
+                .eq(WorldRound::getWorldId, worldId)
+                .in(WorldRound::getStatus, WorldRoundStatus.PENDING.name(), WorldRoundStatus.RUNNING.name())
+                .orderByDesc(WorldRound::getId)
+                .last("LIMIT 1"));
+        if (active != null) {
+            throw new BusinessException(409, "WORLD_ROUND_ACTIVE");
+        }
+
+        LocalDateTime now = LocalDateTime.now(clock);
         WorldRound round = new WorldRound();
         round.setWorldId(worldId);
         round.setRequestId(requestId);
@@ -90,6 +109,57 @@ public class WorldRoundServiceImpl implements WorldRoundService {
     }
 
     @Override
+    public WorldRoundResponse getActive(Long userId, Long worldId) {
+        requireOwnedWorld(userId, worldId);
+        WorldRound active = roundMapper.selectOne(new LambdaQueryWrapper<WorldRound>()
+                .eq(WorldRound::getWorldId, worldId)
+                .in(WorldRound::getStatus, WorldRoundStatus.PENDING.name(), WorldRoundStatus.RUNNING.name())
+                .orderByDesc(WorldRound::getId)
+                .last("LIMIT 1"));
+        return active == null ? null : toRoundResponse(active);
+    }
+
+    @Override
+    public WorldTimelinePageResponse getTimeline(Long userId, Long worldId, Long beforeRoundId, Integer limit) {
+        requireOwnedWorld(userId, worldId);
+        int pageSize = validateTimelineLimit(limit);
+        if (beforeRoundId != null && beforeRoundId <= 0) {
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "beforeRoundId必须为正整数");
+        }
+
+        LambdaQueryWrapper<WorldRound> query = new LambdaQueryWrapper<WorldRound>()
+                .eq(WorldRound::getWorldId, worldId)
+                .orderByDesc(WorldRound::getId)
+                .last("LIMIT " + (pageSize + 1));
+        if (beforeRoundId != null) {
+            query.lt(WorldRound::getId, beforeRoundId);
+        }
+        List<WorldRound> fetched = roundMapper.selectList(query);
+        boolean hasMore = fetched.size() > pageSize;
+        List<WorldRound> rounds = hasMore ? fetched.subList(0, pageSize) : fetched;
+        if (rounds.isEmpty()) {
+            return new WorldTimelinePageResponse(Collections.emptyList(), null, false);
+        }
+
+        List<Long> roundIds = rounds.stream().map(WorldRound::getId).toList();
+        Map<Long, List<WorldEventResponse>> eventsByRound = new LinkedHashMap<>();
+        for (Long roundId : roundIds) {
+            eventsByRound.put(roundId, new ArrayList<>());
+        }
+        eventMapper.selectList(new LambdaQueryWrapper<WorldEvent>()
+                        .in(WorldEvent::getRoundId, roundIds)
+                        .orderByAsc(WorldEvent::getRoundId)
+                        .orderByAsc(WorldEvent::getSequenceNo)
+                        .orderByAsc(WorldEvent::getId))
+                .forEach(event -> eventsByRound.get(event.getRoundId()).add(toEventResponse(event)));
+        List<WorldTimelineItemResponse> items = rounds.stream()
+                .map(round -> new WorldTimelineItemResponse(toRoundResponse(round), eventsByRound.get(round.getId())))
+                .toList();
+        Long nextBeforeRoundId = hasMore ? rounds.get(rounds.size() - 1).getId() : null;
+        return new WorldTimelinePageResponse(items, nextBeforeRoundId, hasMore);
+    }
+
+    @Override
     public List<WorldEventResponse> getEvents(Long userId, Long worldId, Long roundId) {
         requireOwnedWorld(userId, worldId);
         requireRound(worldId, roundId);
@@ -112,7 +182,7 @@ public class WorldRoundServiceImpl implements WorldRoundService {
     public boolean tryStart(Long userId, Long worldId, Long roundId) {
         requireOwnedWorld(userId, worldId);
         requireRound(worldId, roundId);
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(clock);
         int updated = roundMapper.update(null, new LambdaUpdateWrapper<WorldRound>()
                 .eq(WorldRound::getId, roundId)
                 .eq(WorldRound::getWorldId, worldId)
@@ -168,6 +238,16 @@ public class WorldRoundServiceImpl implements WorldRoundService {
         return normalized;
     }
 
+    private int validateTimelineLimit(Integer limit) {
+        if (limit == null) {
+            return DEFAULT_TIMELINE_LIMIT;
+        }
+        if (limit < 1 || limit > MAX_TIMELINE_LIMIT) {
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "limit必须在1到50之间");
+        }
+        return limit;
+    }
+
     private WorldRoundResponse toRoundResponse(WorldRound round) {
         WorldRoundResponse response = new WorldRoundResponse();
         response.setId(round.getId());
@@ -176,11 +256,22 @@ public class WorldRoundServiceImpl implements WorldRoundService {
         response.setUserInput(round.getUserInput());
         response.setStatus(round.getStatus());
         response.setErrorCode(round.getErrorCode());
+        response.setExecutionRecoverable(isExecutionRecoverable(round));
         response.setStartedTime(round.getStartedTime());
         response.setCompletionTime(round.getCompletionTime());
         response.setCreateTime(round.getCreateTime());
         response.setUpdateTime(round.getUpdateTime());
         return response;
+    }
+
+    private boolean isExecutionRecoverable(WorldRound round) {
+        if (WorldRoundStatus.PENDING.name().equals(round.getStatus())) {
+            return true;
+        }
+        if (!WorldRoundStatus.RUNNING.name().equals(round.getStatus())) {
+            return false;
+        }
+        return round.getLeaseUntil() == null || !round.getLeaseUntil().isAfter(LocalDateTime.now(clock));
     }
 
     private WorldEventResponse toEventResponse(WorldEvent event) {
