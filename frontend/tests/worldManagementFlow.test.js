@@ -54,6 +54,6 @@ test('detail reloads by route id and enforces locked roster UX', () => {
   assert.match(detail, /worldStore\.loadDetail\(id\)/)
   assert.match(detail, /world\.participantsLocked/)
   assert.match(detail, /角色阵容已冻结/)
-  assert.match(detail, /互动页面将在下一阶段开放/)
+  assert.match(detail, /router\.push\(`\/worlds\/\$\{id\}\/interaction`\)/)
   assert.doesNotMatch(detail, /execute|Timeline|EventSource|v-html/)
 })

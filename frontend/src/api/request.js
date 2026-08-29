@@ -28,7 +28,7 @@ service.interceptors.response.use(
     const res = response.data
     if (res.code !== undefined && res.code !== 200) {
       const message = friendlyMessage(res.msg || res.message || '请求失败')
-      ElMessage.error(message)
+      if (!response.config?.skipGlobalError) ElMessage.error(message)
       return Promise.reject(new Error(message))
     }
     return res
@@ -39,7 +39,7 @@ service.interceptors.response.use(
       ElMessage.error('登录已过期，请重新登录')
       localStorage.removeItem('token')
       window.location.href = '/login'
-    } else {
+    } else if (!error.config?.skipGlobalError) {
       ElMessage.error(friendlyMessage(
         error.response?.data?.msg || error.response?.data?.message || error.message || '网络错误'
       ))

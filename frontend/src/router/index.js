@@ -67,6 +67,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/worlds/:worldId/interaction',
+    name: 'WorldInteraction',
+    component: () => import('../views/WorldInteraction.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/character/:id',
     name: 'CharacterDetail',
     component: () => import('../views/CharacterDetail.vue'),
