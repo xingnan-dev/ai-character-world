@@ -15,7 +15,11 @@
         class="menu-item"
         :class="{ active: currentKey === item.key }"
         :style="{ '--item-delay': `${index * 0.05}s` }"
-        @click="handleClick(item)"
+        role="link"
+        tabindex="0"
+        @click="handleClick(item, $event)"
+        @keydown.enter.prevent="handleClick(item)"
+        @keydown.space.prevent="handleClick(item)"
       >
         <span class="item-glow"></span>
         <span class="item-icon">{{ item.icon }}</span>
@@ -92,21 +96,24 @@ const currentKey = computed(() => {
 })
 
 const handleClick = (item, e) => {
-  const rect = e.currentTarget.getBoundingClientRect()
-  const x = e.clientX - rect.left
-  const y = e.clientY - rect.top
-  
-  const newRipple = {
-    id: rippleId++,
-    style: {
-      left: `${x}px`,
-      top: `${y}px`
+  const target = e?.currentTarget
+  if (target && typeof target.getBoundingClientRect === 'function') {
+    const rect = target.getBoundingClientRect()
+    const x = Number.isFinite(e.clientX) ? e.clientX - rect.left : rect.width / 2
+    const y = Number.isFinite(e.clientY) ? e.clientY - rect.top : rect.height / 2
+
+    const newRipple = {
+      id: rippleId++,
+      style: {
+        left: `${x}px`,
+        top: `${y}px`
+      }
     }
+    ripples.value.push(newRipple)
+    setTimeout(() => {
+      ripples.value.shift()
+    }, 600)
   }
-  ripples.value.push(newRipple)
-  setTimeout(() => {
-    ripples.value.shift()
-  }, 600)
 
   emit('navigate', item)
   if (item.path) {
