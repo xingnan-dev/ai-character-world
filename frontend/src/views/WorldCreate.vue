@@ -1,6 +1,5 @@
 <template>
   <div class="builder-page">
-    <WorldTopNav />
     <header><button @click="router.push('/worlds')">← 返回世界列表</button><span>WORLD BUILDER</span><h1>创造一个世界</h1><p>先描述想象，再亲手确认每一条设定。</p><div class="flow"><b class="active">1</b><span>世界设定</span><i></i><b>2</b><span>角色阵容</span><i></i><b>3</b><span>完成</span></div></header>
     <main>
       <section class="panel prompt-panel">
@@ -33,7 +32,6 @@ import { ElMessage } from 'element-plus'
 import { getCharacterList } from '../api/character'
 import { useWorldStore } from '../stores/world'
 import WorldRosterEditor from '../components/world/WorldRosterEditor.vue'
-import WorldTopNav from '../components/world/WorldTopNav.vue'
 import { applyWorldDraft, buildParticipantPayload, buildWorldSemanticPayload, createWorldForm, eligibleAiCharacters } from '../utils/worldBuilder'
 
 const router=useRouter(); const worldStore=useWorldStore(); const formRef=ref(null)

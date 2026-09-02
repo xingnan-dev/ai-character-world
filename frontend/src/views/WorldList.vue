@@ -1,6 +1,5 @@
 <template>
   <div class="world-page">
-    <WorldTopNav />
     <header class="page-header">
       <div><span class="eyebrow">MY UNIVERSES</span><h1>我的世界</h1><p>你的所有创作宇宙都汇聚于此。每个世界，等待你继续书写。</p></div>
       <el-button class="world-primary-button" type="primary" size="large" @click="router.push('/worlds/create')">＋ 创建世界</el-button>
@@ -27,7 +26,6 @@ import { onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useWorldStore } from '../stores/world'
-import WorldTopNav from '../components/world/WorldTopNav.vue'
 import { accentForWorld, visibleWorldParticipants } from '../utils/worldBuilder'
 const router=useRouter(); const worldStore=useWorldStore()
 const load=()=>worldStore.loadList().catch(error=>console.error('Load worlds failed:',error))

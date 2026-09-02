@@ -10,7 +10,7 @@ const list = source('../src/views/WorldList.vue')
 const create = source('../src/views/WorldCreate.vue')
 const detail = source('../src/views/WorldDetail.vue')
 const home = source('../src/views/Home.vue')
-const nav = source('../src/components/world/WorldTopNav.vue')
+const nav = source('../src/components/layout/AppTopNav.vue')
 
 test('World API covers parse, CRUD and roster replacement', () => {
   for (const path of ['/worlds/parse', '/worlds', '/participants']) assert.match(api, new RegExp(path.replace('/', '\\/')))
@@ -31,7 +31,7 @@ test('authenticated World routes and Home navigation exist', () => {
   assert.match(router, /WorldDetail\.vue[\s\S]*requiresAuth:\s*true/)
   assert.match(home, /label:\s*'我的世界'[\s\S]*path:\s*'\/worlds'/)
   assert.match(nav, /AI Character World/)
-  assert.match(nav, /router\.push\('\/characters'\)/)
+  assert.match(nav, /to:'\/characters'/)
 })
 
 test('create flow supports AI fallback, selection, sorting and duplicate-submit guard', () => {

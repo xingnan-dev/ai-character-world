@@ -1,6 +1,5 @@
 <template>
   <div class="interaction-page">
-    <WorldTopNav />
     <WorldInteractionHeader :world="world" :round="activeRound" @back="backToWorld" />
     <main v-loading="loadingInitial">
       <div v-if="error && !world" class="state-card"><p>{{ error }}</p><el-button type="primary" @click="initialize">重新加载</el-button></div>
@@ -24,7 +23,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '../stores/user'
 import { useWorldInteractionStore } from '../stores/worldInteraction'
-import WorldTopNav from '../components/world/WorldTopNav.vue'
 import WorldInteractionHeader from '../components/world/WorldInteractionHeader.vue'
 import WorldInteractionCast from '../components/world/WorldInteractionCast.vue'
 import WorldTimeline from '../components/world/WorldTimeline.vue'

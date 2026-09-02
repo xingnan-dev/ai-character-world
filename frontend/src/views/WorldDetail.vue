@@ -1,6 +1,5 @@
 <template>
   <div class="detail-page">
-    <WorldTopNav />
     <header class="page-header"><button @click="router.push('/worlds')">← 返回世界列表</button><div class="header-actions"><el-button v-if="world && !editing" @click="startEditing">编辑世界</el-button><el-button type="primary" :disabled="!world" @click="enterWorld">进入世界</el-button></div></header>
     <main v-loading="worldStore.loading">
       <div v-if="worldStore.error && !world" class="state-card"><p>{{ worldStore.error }}</p><el-button @click="load">重新加载</el-button></div>
@@ -28,7 +27,6 @@ import { ElMessage } from 'element-plus'
 import { getCharacterList } from '../api/character'
 import { useWorldStore } from '../stores/world'
 import WorldRosterEditor from '../components/world/WorldRosterEditor.vue'
-import WorldTopNav from '../components/world/WorldTopNav.vue'
 import { accentForWorld, buildParticipantPayload, buildWorldSemanticPayload, createWorldForm, eligibleAiCharacters, snapshotSummary, visibleWorldParticipants } from '../utils/worldBuilder'
 const route=useRoute();const router=useRouter();const worldStore=useWorldStore();const world=computed(()=>worldStore.currentWorld)
 const editing=ref(false),editingRoster=ref(false),saving=ref(false),savingRoster=ref(false),formRef=ref(null);const form=reactive(createWorldForm());const characters=ref([]),selectedCharacters=ref([]);const rules={name:[{required:true,message:'请输入世界名称',trigger:'blur'}]}

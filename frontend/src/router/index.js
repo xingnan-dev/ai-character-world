@@ -22,7 +22,7 @@ const routes = [
     path: '/home',
     name: 'Home',
     component: () => import('../views/Home.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, navSection: 'home' }
   },
   {
     path: '/avatar/create',
@@ -40,49 +40,49 @@ const routes = [
     path: '/character/create',
     name: 'CharacterCreate',
     component: () => import('../views/CharacterCreate.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, navSection: 'characters' }
   },
   {
     path: '/characters',
     name: 'CharacterList',
     component: () => import('../views/CharacterList.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, navSection: 'characters' }
   },
   {
     path: '/worlds',
     name: 'WorldList',
     component: () => import('../views/WorldList.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, appShell: true, navSection: 'worlds' }
   },
   {
     path: '/worlds/create',
     name: 'WorldCreate',
     component: () => import('../views/WorldCreate.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, appShell: true, navSection: 'worlds' }
   },
   {
     path: '/worlds/:worldId',
     name: 'WorldDetail',
     component: () => import('../views/WorldDetail.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, appShell: true, navSection: 'worlds' }
   },
   {
     path: '/worlds/:worldId/interaction',
     name: 'WorldInteraction',
     component: () => import('../views/WorldInteraction.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, appShell: true, navSection: 'worlds' }
   },
   {
     path: '/character/:id',
     name: 'CharacterDetail',
     component: () => import('../views/CharacterDetail.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, navSection: 'characters' }
   },
   {
     path: '/chat',
     name: 'Chat',
     component: () => import('../views/Chat.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, navSection: 'chat' }
   }
 ]
 
