@@ -9,6 +9,7 @@ import com.companion.chat.model.ChatMessageExchange;
 import com.companion.entity.ChatMessage;
 import com.companion.entity.Personality;
 import com.companion.entity.enums.ChatMessageStatus;
+import com.companion.character.snapshot.CharacterSnapshot;
 import com.companion.mapper.ChatMessageMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -50,6 +51,18 @@ public class ChatContextAssembler {
                 memoryContext, selectedHistory, userMessage
         );
         return withAssistantMessageId(prompt, exchange.assistantMessageId());
+    }
+
+    public ComposedChatPrompt assembleCharacter(Long userId, Long sessionId, String userMessage,
+                                                 CharacterSnapshot character,
+                                                 ChatMessageExchange exchange) {
+        String memoryContext = contextManager.limitMemory(memoryEngine.getMemoryContext(userId, userMessage));
+        List<ChatMessage> history = loadHistory(sessionId, exchange.userMessageId(), exchange.assistantMessageId());
+        ComposedChatPrompt required = promptComposer.composeCharacter(
+                userId, sessionId, character, memoryContext, List.of(), userMessage);
+        List<ChatMessage> selected = contextManager.selectHistory(history, required.messages());
+        return withAssistantMessageId(promptComposer.composeCharacter(
+                userId, sessionId, character, memoryContext, selected, userMessage), exchange.assistantMessageId());
     }
 
     private List<ChatMessage> loadHistory(Long sessionId, Long userMessageId, Long assistantMessageId) {

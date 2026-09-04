@@ -3,6 +3,8 @@ package com.companion.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.companion.common.exception.BusinessException;
+import com.companion.character.snapshot.CharacterSnapshot;
+import com.companion.character.snapshot.CharacterSnapshotJsonMapper;
 import com.companion.common.result.ResultCode;
 import com.companion.dto.request.WorldRoundCreateRequest;
 import com.companion.dto.response.WorldEventResponse;
@@ -19,6 +21,7 @@ import com.companion.mapper.CharacterWorldMapper;
 import com.companion.mapper.WorldEventMapper;
 import com.companion.mapper.WorldRoundMapper;
 import com.companion.service.WorldRoundService;
+import com.companion.service.CharacterService;
 import com.companion.world.WorldRoundOrchestrator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
@@ -34,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 
 @Service
-@RequiredArgsConstructor
 public class WorldRoundServiceImpl implements WorldRoundService {
 
     private static final int FIRST_SEQUENCE = 1;
@@ -46,12 +48,38 @@ public class WorldRoundServiceImpl implements WorldRoundService {
     private final WorldEventMapper eventMapper;
     private final WorldRoundOrchestrator roundOrchestrator;
     private final Clock clock;
+    private final CharacterService characterService;
+    private final CharacterSnapshotJsonMapper snapshotJsonMapper;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public WorldRoundServiceImpl(CharacterWorldMapper worldMapper, WorldRoundMapper roundMapper,
+                                 WorldEventMapper eventMapper, WorldRoundOrchestrator orchestrator,
+                                 Clock clock, CharacterService characterService,
+                                 CharacterSnapshotJsonMapper snapshotJsonMapper) {
+        this.worldMapper=worldMapper; this.roundMapper=roundMapper; this.eventMapper=eventMapper;
+        this.roundOrchestrator=orchestrator; this.clock=clock; this.characterService=characterService;
+        this.snapshotJsonMapper=snapshotJsonMapper;
+    }
+
+    public WorldRoundServiceImpl(CharacterWorldMapper worldMapper, WorldRoundMapper roundMapper,
+                                 WorldEventMapper eventMapper, WorldRoundOrchestrator orchestrator, Clock clock) {
+        this(worldMapper, roundMapper, eventMapper, orchestrator, clock, null, null);
+    }
 
     @Override
     @Transactional
     public WorldRoundResponse create(Long userId, Long worldId, WorldRoundCreateRequest request) {
-        if (worldMapper.selectOwnedForUpdate(userId, worldId) == null) {
+        CharacterWorld world = worldMapper.selectOwnedForUpdate(userId, worldId);
+        if (world == null) {
             throw new BusinessException(ResultCode.NOT_FOUND);
+        }
+        if (world.getUserCharacterId() == null) {
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "请先为世界选择当前USER Character身份");
+        }
+        CharacterSnapshot userSnapshot = CharacterSnapshot.from(
+                characterService.get(userId, world.getUserCharacterId()));
+        if (!"USER".equals(userSnapshot.characterType())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "世界用户身份必须是USER Character");
         }
         String requestId = normalizeRequired(request.getRequestId(), 64, "requestId不能为空", "requestId不能超过64字符");
         String userInput = normalizeRequired(request.getUserInput(), 4000, "用户输入不能为空", "用户输入不能超过4000字符");
@@ -75,6 +103,9 @@ public class WorldRoundServiceImpl implements WorldRoundService {
         round.setWorldId(worldId);
         round.setRequestId(requestId);
         round.setUserInput(userInput);
+        round.setUserCharacterId(userSnapshot.sourceCharacterId());
+        round.setUserCharacterSnapshot(snapshotJsonMapper.write(userSnapshot));
+        round.setUserCharacterSnapshotVersion(userSnapshot.snapshotVersion());
         round.setStatus(WorldRoundStatus.PENDING.name());
         round.setCreateTime(now);
         round.setUpdateTime(now);
@@ -254,6 +285,10 @@ public class WorldRoundServiceImpl implements WorldRoundService {
         response.setWorldId(round.getWorldId());
         response.setRequestId(round.getRequestId());
         response.setUserInput(round.getUserInput());
+        response.setUserCharacterId(round.getUserCharacterId());
+        if (round.getUserCharacterSnapshot() != null) {
+            response.setUserCharacter(snapshotJsonMapper.read(round.getUserCharacterSnapshot()));
+        }
         response.setStatus(round.getStatus());
         response.setErrorCode(round.getErrorCode());
         response.setExecutionRecoverable(isExecutionRecoverable(round));
