@@ -34,6 +34,12 @@
               <div><dt>当前目标</dt><dd>{{ character.currentGoal || '未设置' }}</dd></div>
             </dl>
             <span class="view-link">查看完整资料 →</span>
+            <el-button v-if="character.characterType === 'USER'" size="small"
+              :type="userStore.userInfo.currentUserCharacterId === character.id ? 'success' : 'primary'"
+              :disabled="userStore.userInfo.currentUserCharacterId === character.id"
+              @click.stop="selectIdentity(character)">
+              {{ userStore.userInfo.currentUserCharacterId === character.id ? '当前身份' : '设为当前身份' }}
+            </el-button>
           </article>
         </div>
       </div>
@@ -46,8 +52,11 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getCharacterList } from '../api/character'
 import SimpleAvatar from '../components/ui/SimpleAvatar.vue'
+import { useUserStore } from '../stores/user'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
+const userStore = useUserStore()
 const loading = ref(false)
 const characters = ref([])
 const selectedType = ref('')
@@ -73,7 +82,8 @@ async function loadCharacters() {
 
 function selectType(type) { if (selectedType.value !== type) { selectedType.value = type; loadCharacters() } }
 function openCharacter(id) { router.push(`/character/${id}`) }
-onMounted(loadCharacters)
+async function selectIdentity(character) { await userStore.selectCurrentUserCharacter(character.id); ElMessage.success('当前用户身份已更新') }
+onMounted(()=>{ userStore.getUserInfoAction(); loadCharacters() })
 </script>
 
 <style lang="scss" scoped>

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { login as loginApi, logout as logoutApi, getUserInfo } from '../api/user'
+import { login as loginApi, logout as logoutApi, getUserInfo, setCurrentUserCharacter } from '../api/user'
 
 export const useUserStore = defineStore('user', {
   state: () => ({
@@ -9,6 +9,8 @@ export const useUserStore = defineStore('user', {
       username: '',
       nickname: '',
       avatarUrl: ''
+      ,currentUserCharacterId: null
+      ,currentUserCharacter: null
     }
   }),
   getters: {
@@ -47,9 +49,15 @@ export const useUserStore = defineStore('user', {
       }
       this.resetState()
     },
+    async selectCurrentUserCharacter(characterId) {
+      const res = await setCurrentUserCharacter(characterId)
+      const data = res.data || res
+      this.setUserInfo(data)
+      return data
+    },
     resetState() {
       this.token = ''
-      this.userInfo = { id: null, username: '', nickname: '', avatarUrl: '' }
+      this.userInfo = { id: null, username: '', nickname: '', avatarUrl: '', currentUserCharacterId: null, currentUserCharacter: null }
       localStorage.removeItem('token')
     }
   },

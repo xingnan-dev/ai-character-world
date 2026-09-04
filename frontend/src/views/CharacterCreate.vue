@@ -127,13 +127,14 @@
 
 <script setup>
 import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { createCharacter, parseCharacter } from '../api/character'
 import { applyCharacterDraft, buildCharacterCreatePayload, createCharacterForm } from '../utils/characterDraft'
 import SimpleAvatar from '../components/ui/SimpleAvatar.vue'
 
 const router = useRouter()
+const route = useRoute()
 const mode = ref('ai')
 const description = ref('')
 const parsing = ref(false)
@@ -142,6 +143,7 @@ const parsed = ref(false)
 const parseError = ref('')
 const formRef = ref(null)
 const form = reactive(createCharacterForm())
+if (route.query.type === 'USER') form.characterType = 'USER'
 
 const profileFields = [
   { key: 'values', label: '价值观', placeholder: '诚实\n成长' },

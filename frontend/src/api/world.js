@@ -10,3 +10,6 @@ export const deleteWorld = (id) => request({ url: `/worlds/${id}`, method: 'dele
 export const replaceWorldParticipants = (id, data) => request({
   url: `/worlds/${id}/participants`, method: 'put', data
 })
+export const setWorldUserCharacter = (id, characterId) => request({
+  url: `/worlds/${id}/user-character/${characterId}`, method: 'put'
+})
