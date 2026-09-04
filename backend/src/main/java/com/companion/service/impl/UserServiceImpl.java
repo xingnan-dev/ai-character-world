@@ -13,6 +13,8 @@ import com.companion.dto.request.RegisterRequest;
 import com.companion.dto.response.LoginVO;
 import com.companion.dto.response.UserVO;
 import com.companion.entity.User;
+import com.companion.dto.response.CharacterResponse;
+import com.companion.service.CharacterService;
 import com.companion.mapper.UserMapper;
 import com.companion.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +34,7 @@ public class UserServiceImpl implements UserService {
     private final JwtTokenService jwtTokenService;
     private final TokenSessionService tokenSessionService;
     private final PasswordEncoder passwordEncoder;
+    private final CharacterService characterService;
 
     @Override
     public void register(RegisterRequest request) {
@@ -134,12 +137,36 @@ public class UserServiceImpl implements UserService {
         return convertToVO(user);
     }
 
+    @Override
+    public UserVO setCurrentUserCharacter(Long userId, Long characterId) {
+        User user = userMapper.selectById(userId);
+        if (user == null) throw new BusinessException(ResultCode.NOT_FOUND);
+        if (characterId != null) {
+            CharacterResponse character = characterService.get(userId, characterId);
+            if (!"USER".equals(character.getCharacterType())) {
+                throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "当前用户身份必须是USER Character");
+            }
+        }
+        user.setCurrentUserCharacterId(characterId);
+        user.setUpdateTime(LocalDateTime.now());
+        userMapper.updateById(user);
+        return convertToVO(user);
+    }
+
     private UserVO convertToVO(User user) {
         UserVO vo = new UserVO();
         vo.setId(user.getId());
         vo.setUsername(user.getUsername());
         vo.setNickname(user.getNickname());
         vo.setAvatarUrl(user.getAvatarUrl());
+        vo.setCurrentUserCharacterId(user.getCurrentUserCharacterId());
+        if (user.getCurrentUserCharacterId() != null) {
+            try {
+                vo.setCurrentUserCharacter(characterService.get(user.getId(), user.getCurrentUserCharacterId()));
+            } catch (BusinessException ignored) {
+                vo.setCurrentUserCharacter(null);
+            }
+        }
         vo.setCreateTime(user.getCreateTime() != null ? user.getCreateTime().toString() : null);
         return vo;
     }

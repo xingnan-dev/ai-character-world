@@ -6,12 +6,15 @@ import com.companion.chat.ChatMessageLifecycleService;
 import com.companion.chat.SessionPersonalityResolver;
 import com.companion.chat.model.ChatMessageExchange;
 import com.companion.chat.model.PersonalitySnapshot;
+import com.companion.character.snapshot.CharacterSnapshot;
+import com.companion.character.snapshot.CharacterSnapshotJsonMapper;
 import com.companion.common.exception.BusinessException;
 import com.companion.common.result.ResultCode;
 import com.companion.dto.request.ChatSendRequest;
 import com.companion.dto.request.ChatSessionCreateRequest;
 import com.companion.dto.response.ChatMessageVO;
 import com.companion.dto.response.ChatSessionVO;
+import com.companion.dto.response.CharacterResponse;
 import com.companion.entity.Avatar;
 import com.companion.entity.ChatMessage;
 import com.companion.entity.ChatSession;
@@ -21,6 +24,7 @@ import com.companion.mapper.AvatarMapper;
 import com.companion.mapper.ChatMessageMapper;
 import com.companion.mapper.ChatSessionMapper;
 import com.companion.service.ChatService;
+import com.companion.service.CharacterService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -32,7 +36,6 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ChatServiceImpl implements ChatService {
 
     private final ChatSessionMapper chatSessionMapper;
@@ -41,9 +44,33 @@ public class ChatServiceImpl implements ChatService {
     private final SessionPersonalityResolver sessionPersonalityResolver;
     private final ChatMessageLifecycleService chatMessageLifecycleService;
     private final AiService aiService;
+    private final CharacterService characterService;
+    private final CharacterSnapshotJsonMapper characterSnapshotJsonMapper;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ChatServiceImpl(ChatSessionMapper chatSessionMapper, ChatMessageMapper chatMessageMapper,
+                           AvatarMapper avatarMapper, SessionPersonalityResolver sessionPersonalityResolver,
+                           ChatMessageLifecycleService chatMessageLifecycleService, AiService aiService,
+                           CharacterService characterService, CharacterSnapshotJsonMapper characterSnapshotJsonMapper) {
+        this.chatSessionMapper = chatSessionMapper; this.chatMessageMapper = chatMessageMapper;
+        this.avatarMapper = avatarMapper; this.sessionPersonalityResolver = sessionPersonalityResolver;
+        this.chatMessageLifecycleService = chatMessageLifecycleService; this.aiService = aiService;
+        this.characterService = characterService; this.characterSnapshotJsonMapper = characterSnapshotJsonMapper;
+    }
+
+    public ChatServiceImpl(ChatSessionMapper a, ChatMessageMapper b, AvatarMapper c,
+                           SessionPersonalityResolver d, ChatMessageLifecycleService e, AiService f) {
+        this(a,b,c,d,e,f,null,null);
+    }
 
     @Override
     public ChatSessionVO createSession(Long userId, ChatSessionCreateRequest request) {
+        if ((request.getAvatarId() == null) == (request.getCharacterId() == null)) {
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "avatarId与characterId必须且只能提供一个");
+        }
+        if (request.getCharacterId() != null) {
+            return createCharacterSession(userId, request);
+        }
         Avatar avatar = findOwnedActiveAvatar(userId, request.getAvatarId());
         if (avatar == null) {
             throw new BusinessException(ResultCode.NOT_FOUND);
@@ -103,12 +130,6 @@ public class ChatServiceImpl implements ChatService {
             throw new BusinessException(ResultCode.NOT_FOUND);
         }
 
-        Avatar avatar = findOwnedActiveAvatar(userId, session.getAvatarId());
-        if (avatar == null) {
-            throw new BusinessException(ResultCode.NOT_FOUND.getCode(), "头像不存在");
-        }
-
-        Personality personality = sessionPersonalityResolver.resolveFromSession(session);
         ChatMessageExchange exchange = chatMessageLifecycleService.createExchange(
                 session.getId(), request.getContent(), request.getRequestId()
         );
@@ -117,6 +138,18 @@ public class ChatServiceImpl implements ChatService {
             return replayExistingExchange(exchange, request.getContent());
         }
 
+        if (session.getCharacterId() != null) {
+            CharacterSnapshot snapshot = characterSnapshotJsonMapper.read(session.getCharacterSnapshot());
+            if (!session.getCharacterId().equals(snapshot.sourceCharacterId())
+                    || !Integer.valueOf(snapshot.snapshotVersion()).equals(session.getCharacterSnapshotVersion())
+                    || !"AI".equals(snapshot.characterType())) {
+                throw new BusinessException(ResultCode.SERVER_ERROR.getCode(), "会话角色快照不一致");
+            }
+            return aiService.chatStream(userId, session.getId(), request.getContent(), snapshot, exchange);
+        }
+        Avatar avatar = findOwnedActiveAvatar(userId, session.getAvatarId());
+        if (avatar == null) throw new BusinessException(ResultCode.NOT_FOUND.getCode(), "头像不存在");
+        Personality personality = sessionPersonalityResolver.resolveFromSession(session);
         return aiService.chatStream(userId, session.getId(), request.getContent(), personality, exchange);
     }
 
@@ -160,6 +193,15 @@ public class ChatServiceImpl implements ChatService {
         vo.setId(session.getId());
         vo.setUserId(session.getUserId());
         vo.setAvatarId(session.getAvatarId());
+        vo.setCharacterId(session.getCharacterId());
+        if (session.getCharacterSnapshot() != null) {
+            CharacterSnapshot snapshot = characterSnapshotJsonMapper.read(session.getCharacterSnapshot());
+            vo.setCharacterType(snapshot.characterType());
+            vo.setCharacterName(snapshot.name());
+            vo.setImageUrl(snapshot.imageUrl());
+            vo.setAvatarColor(snapshot.avatarColor());
+            vo.setVisualType(snapshot.visualType());
+        }
         vo.setTitle(session.getTitle());
         vo.setCreateTime(session.getCreateTime() != null ? session.getCreateTime().toString() : null);
         return vo;
@@ -178,6 +220,25 @@ public class ChatServiceImpl implements ChatService {
         vo.setErrorMessage(msg.getErrorMessage());
         vo.setCreateTime(msg.getCreateTime() != null ? msg.getCreateTime().toString() : null);
         return vo;
+    }
+
+    private ChatSessionVO createCharacterSession(Long userId, ChatSessionCreateRequest request) {
+        CharacterResponse character = characterService.get(userId, request.getCharacterId());
+        if (!"AI".equals(character.getCharacterType())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "普通聊天只能绑定AI Character");
+        }
+        CharacterSnapshot snapshot = CharacterSnapshot.from(character);
+        ChatSession session = new ChatSession();
+        session.setUserId(userId);
+        session.setCharacterId(character.getId());
+        session.setCharacterSnapshot(characterSnapshotJsonMapper.write(snapshot));
+        session.setCharacterSnapshotVersion(snapshot.snapshotVersion());
+        session.setTitle(request.getTitle() != null ? request.getTitle() : character.getName());
+        session.setStatus(1);
+        session.setCreateTime(LocalDateTime.now());
+        session.setUpdateTime(LocalDateTime.now());
+        chatSessionMapper.insert(session);
+        return convertToVO(session);
     }
 
     private Flux<String> replayExistingExchange(ChatMessageExchange exchange, String requestedContent) {

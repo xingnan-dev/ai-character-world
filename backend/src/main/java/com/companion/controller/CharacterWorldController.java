@@ -80,4 +80,11 @@ public class CharacterWorldController {
             @Valid @RequestBody WorldParticipantReplaceRequest request) {
         return Result.success(worldService.replaceParticipants(user.userId(), id, request));
     }
+
+    @PutMapping("/{id}/user-character/{characterId}")
+    public Result<WorldResponse> setUserCharacter(@AuthenticationPrincipal AuthenticatedUser user,
+                                                   @PathVariable Long id,
+                                                   @PathVariable Long characterId) {
+        return Result.success(worldService.setUserCharacter(user.userId(), id, characterId));
+    }
 }

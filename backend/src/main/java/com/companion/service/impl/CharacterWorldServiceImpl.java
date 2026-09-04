@@ -137,6 +137,19 @@ public class CharacterWorldServiceImpl implements CharacterWorldService {
         return get(userId, worldId);
     }
 
+    @Override
+    public WorldResponse setUserCharacter(Long userId, Long worldId, Long characterId) {
+        CharacterWorld world = requireOwnedWorldForUpdate(userId, worldId);
+        CharacterResponse character = characterService.get(userId, characterId);
+        if (!"USER".equals(character.getCharacterType())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR.getCode(), "世界用户身份必须绑定USER Character");
+        }
+        world.setUserCharacterId(characterId);
+        world.setUpdateTime(LocalDateTime.now());
+        worldMapper.updateById(world);
+        return get(userId, worldId);
+    }
+
     private WorldResponse toResponse(CharacterWorld world, List<WorldParticipantResponse> participants) {
         WorldResponse response = new WorldResponse();
         response.setId(world.getId());
@@ -148,6 +161,11 @@ public class CharacterWorldServiceImpl implements CharacterWorldService {
         response.setSourceDescription(world.getSourceDescription());
         response.setStatus(world.getStatus());
         response.setParticipants(participants);
+        response.setUserCharacterId(world.getUserCharacterId());
+        if (world.getUserCharacterId() != null) {
+            CharacterResponse identity = characterService.get(world.getOwnerUserId(), world.getUserCharacterId());
+            response.setUserCharacter(CharacterSnapshot.from(identity));
+        }
         response.setParticipantsLocked(participantsLocked(world.getId()));
         response.setCreateTime(world.getCreateTime());
         response.setUpdateTime(world.getUpdateTime());
