@@ -17,6 +17,18 @@ public class ChatSessionVO {
 
     private Long avatarId;
 
+    private Long characterId;
+
+    private String characterType;
+
+    private String characterName;
+
+    private String imageUrl;
+
+    private String avatarColor;
+
+    private String visualType;
+
     private String title;
 
     private String avatarName;

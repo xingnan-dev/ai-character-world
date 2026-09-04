@@ -23,6 +23,8 @@ public class User {
 
     private String avatarUrl;
 
+    private Long currentUserCharacterId;
+
     private Integer status;
 
     @TableLogic

@@ -14,6 +14,7 @@ public class CharacterWorld {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long ownerUserId;
+    private Long userCharacterId;
     private String name;
     private String background;
     private String rules;

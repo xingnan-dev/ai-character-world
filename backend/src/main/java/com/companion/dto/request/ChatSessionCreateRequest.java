@@ -10,8 +10,14 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ChatSessionCreateRequest {
 
-    @NotNull
+    public ChatSessionCreateRequest(Long avatarId, String title) {
+        this.avatarId = avatarId;
+        this.title = title;
+    }
+
     private Long avatarId;
+
+    private Long characterId;
 
     private String title;
 }
