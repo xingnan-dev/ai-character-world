@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.companion.character.snapshot.CharacterSnapshot;
 import com.companion.character.snapshot.CharacterSnapshotJsonMapper;
 import com.companion.dto.request.WorldRoundCreateRequest;
+import com.companion.dto.request.CharacterCreateRequest;
+import com.companion.dto.response.CharacterResponse;
 import com.companion.entity.CharacterWorld;
 import com.companion.entity.WorldEvent;
 import com.companion.entity.WorldParticipant;
@@ -13,7 +15,13 @@ import com.companion.mapper.CharacterWorldMapper;
 import com.companion.mapper.WorldEventMapper;
 import com.companion.mapper.WorldParticipantMapper;
 import com.companion.mapper.WorldRoundMapper;
+import com.companion.mapper.UserMapper;
 import com.companion.service.WorldRoundService;
+import com.companion.service.CharacterService;
+import com.companion.service.UserService;
+import com.companion.service.CharacterWorldService;
+import com.companion.entity.User;
+import com.companion.entity.enums.UserStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -38,6 +46,10 @@ class WorldRoundExecutionIntegrationTest {
     @Autowired private WorldEventMapper eventMapper;
     @Autowired private CharacterSnapshotJsonMapper snapshotMapper;
     @Autowired private WorldRoundService roundService;
+    @Autowired private UserMapper userMapper;
+    @Autowired private CharacterService characterService;
+    @Autowired private UserService userService;
+    @Autowired private CharacterWorldService characterWorldService;
 
     @Test
     void executesSnapshotOnlyActorsSeriallyInDisplayOrderAndIsIdempotent() {
@@ -123,6 +135,19 @@ class WorldRoundExecutionIntegrationTest {
         world.setBackground("background"); world.setRules("rules"); world.setStatus(1);
         world.setCreateTime(LocalDateTime.now()); world.setUpdateTime(LocalDateTime.now());
         worldMapper.insert(world);
+        User user = userMapper.selectById(700L);
+        if (user == null) {
+            user = new User(); user.setId(700L); user.setUsername("execution-owner");
+            user.setPassword("not-used"); user.setNickname("execution-owner");
+            user.setStatus(UserStatus.ACTIVE.getCode()); user.setCreateTime(LocalDateTime.now());
+            user.setUpdateTime(LocalDateTime.now()); userMapper.insert(user);
+        }
+        CharacterCreateRequest request = new CharacterCreateRequest();
+        request.setCharacterType("USER"); request.setName("execution-user");
+        request.setIdentity("测试用户"); request.setVisualType("INITIAL"); request.setAvatarColor("#667eea");
+        CharacterResponse character = characterService.create(700L, request);
+        userService.setCurrentUserCharacter(700L, character.getId());
+        characterWorldService.setUserCharacter(700L, world.getId(), character.getId());
         return world;
     }
 

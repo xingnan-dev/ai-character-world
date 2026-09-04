@@ -3,6 +3,8 @@ package com.companion.world;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.companion.common.exception.BusinessException;
 import com.companion.dto.request.WorldRoundCreateRequest;
+import com.companion.dto.request.CharacterCreateRequest;
+import com.companion.dto.response.CharacterResponse;
 import com.companion.entity.CharacterWorld;
 import com.companion.entity.User;
 import com.companion.entity.WorldEvent;
@@ -18,6 +20,9 @@ import com.companion.security.JwtProperties;
 import com.companion.security.JwtTokenService;
 import com.companion.security.TokenSessionService;
 import com.companion.service.WorldRoundService;
+import com.companion.service.CharacterService;
+import com.companion.service.UserService;
+import com.companion.service.CharacterWorldService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -59,6 +64,9 @@ class WorldRoundIntegrationTest {
     @Autowired private WorldRoundMapper roundMapper;
     @Autowired private WorldEventMapper eventMapper;
     @Autowired private WorldRoundService roundService;
+    @Autowired private CharacterService characterService;
+    @Autowired private UserService userService;
+    @Autowired private CharacterWorldService characterWorldService;
     @Autowired private JwtTokenService jwtTokenService;
     @Autowired private TokenSessionService tokenSessionService;
     @Autowired private JwtProperties jwtProperties;
@@ -76,6 +84,12 @@ class WorldRoundIntegrationTest {
         ownerToken = tokenFor(owner);
         otherToken = tokenFor(other);
         world = createWorld(owner.getId(), "Round World");
+        CharacterResponse userCharacter = createUserCharacter(owner.getId());
+        userService.setCurrentUserCharacter(owner.getId(), userCharacter.getId());
+        characterWorldService.setUserCharacter(owner.getId(), world.getId(), userCharacter.getId());
+        world = worldMapper.selectById(world.getId());
+        CharacterWorld lockedWorld = worldMapper.selectOwnedForUpdate(owner.getId(), world.getId());
+        assertThat(lockedWorld.getUserCharacterId()).isEqualTo(userCharacter.getId());
     }
 
     @Test
@@ -90,6 +104,11 @@ class WorldRoundIntegrationTest {
 
         long roundId = responseId(result);
         WorldRound stored = roundMapper.selectById(roundId);
+        assertThat(stored.getUserCharacterId()).isEqualTo(world.getUserCharacterId());
+        assertThat(stored.getUserCharacterSnapshot()).isNotBlank();
+        assertThat(stored.getUserCharacterSnapshotVersion()).isNotNull().isEqualTo(1);
+        assertThat(objectMapper.readTree(stored.getUserCharacterSnapshot()).path("characterType").asText())
+                .isEqualTo("USER");
         List<WorldEvent> events = events(roundId);
         assertThat(stored.getRequestId()).isEqualTo("request-1");
         assertThat(events).singleElement().satisfies(event -> {
@@ -449,6 +468,18 @@ class WorldRoundIntegrationTest {
         value.setUpdateTime(LocalDateTime.now());
         worldMapper.insert(value);
         return value;
+    }
+
+    private CharacterResponse createUserCharacter(Long userId) {
+        CharacterCreateRequest request = new CharacterCreateRequest();
+        request.setCharacterType("USER");
+        request.setName("测试用户身份-" + System.nanoTime());
+        request.setIdentity("测试用户");
+        request.setCorePersonality("稳定");
+        request.setCurrentGoal("完成测试");
+        request.setVisualType("INITIAL");
+        request.setAvatarColor("#667eea");
+        return characterService.create(userId, request);
     }
 
     private User createUser(String prefix) {

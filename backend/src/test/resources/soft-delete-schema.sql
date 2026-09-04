@@ -16,10 +16,12 @@ CREATE TABLE t_user (
     password VARCHAR(100) NOT NULL,
     nickname VARCHAR(50),
     avatar_url VARCHAR(500),
+    current_user_character_id BIGINT,
     status TINYINT NOT NULL DEFAULT 1,
     deleted TINYINT NOT NULL DEFAULT 0,
     create_time DATETIME,
-    update_time DATETIME
+    update_time DATETIME,
+    INDEX idx_user_current_character (current_user_character_id)
 );
 
 DROP TABLE IF EXISTS t_avatar;
@@ -72,7 +74,10 @@ DROP TABLE IF EXISTS t_chat_session;
 CREATE TABLE t_chat_session (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,
-    avatar_id BIGINT NOT NULL,
+    avatar_id BIGINT,
+    character_id BIGINT,
+    character_snapshot VARCHAR(10000),
+    character_snapshot_version INT,
     personality_id BIGINT,
     personality_snapshot VARCHAR(4000),
     personality_snapshot_version INT,
@@ -80,7 +85,8 @@ CREATE TABLE t_chat_session (
     status TINYINT NOT NULL DEFAULT 1,
     deleted TINYINT NOT NULL DEFAULT 0,
     create_time DATETIME,
-    update_time DATETIME
+    update_time DATETIME,
+    INDEX idx_chat_session_character (character_id)
 );
 
 DROP TABLE IF EXISTS t_chat_message;
@@ -172,6 +178,7 @@ CREATE TABLE t_character (
 CREATE TABLE t_world (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     owner_user_id BIGINT NOT NULL,
+    user_character_id BIGINT,
     name VARCHAR(100) NOT NULL,
     background VARCHAR(2000),
     rules VARCHAR(2000),
@@ -182,7 +189,8 @@ CREATE TABLE t_world (
     deleted TINYINT NOT NULL DEFAULT 0,
     create_time DATETIME,
     update_time DATETIME,
-    INDEX idx_world_owner_active_created (owner_user_id, status, deleted, create_time)
+    INDEX idx_world_owner_active_created (owner_user_id, status, deleted, create_time),
+    INDEX idx_world_user_character (user_character_id)
 );
 
 CREATE TABLE t_world_participant (
@@ -206,6 +214,9 @@ CREATE TABLE t_world_round (
     world_id BIGINT NOT NULL,
     request_id VARCHAR(64) NOT NULL,
     user_input TEXT NOT NULL,
+    user_character_id BIGINT,
+    user_character_snapshot VARCHAR(10000),
+    user_character_snapshot_version INT,
     status VARCHAR(32) NOT NULL,
     error_code VARCHAR(64),
     started_time DATETIME,
@@ -217,7 +228,8 @@ CREATE TABLE t_world_round (
     CONSTRAINT fk_world_round_world FOREIGN KEY (world_id) REFERENCES t_world(id) ON DELETE CASCADE,
     CONSTRAINT uk_world_round_request UNIQUE (world_id, request_id),
     INDEX idx_world_round_status_created (world_id, status, create_time),
-    INDEX idx_world_round_recovery (status, lease_until)
+    INDEX idx_world_round_recovery (status, lease_until),
+    INDEX idx_world_round_user_character (user_character_id)
 );
 
 CREATE TABLE t_world_event (

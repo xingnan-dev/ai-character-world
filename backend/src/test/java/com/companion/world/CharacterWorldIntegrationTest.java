@@ -16,6 +16,8 @@ import com.companion.security.JwtProperties;
 import com.companion.security.JwtTokenService;
 import com.companion.security.TokenSessionService;
 import com.companion.service.CharacterService;
+import com.companion.service.CharacterWorldService;
+import com.companion.service.UserService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,6 +53,8 @@ class CharacterWorldIntegrationTest {
     @Autowired private ObjectMapper objectMapper;
     @Autowired private UserMapper userMapper;
     @Autowired private CharacterService characterService;
+    @Autowired private CharacterWorldService characterWorldService;
+    @Autowired private UserService userService;
     @Autowired private CharacterWorldMapper worldMapper;
     @Autowired private WorldParticipantMapper participantMapper;
     @Autowired private JwtTokenService jwtTokenService;
@@ -274,8 +278,11 @@ class CharacterWorldIntegrationTest {
     void locksRosterAfterAnyRoundAndHidesForeignWorld() throws Exception {
         CharacterResponse first = createCharacter(userA.getId(), "AI", "锁定一");
         CharacterResponse second = createCharacter(userA.getId(), "AI", "锁定二");
+        CharacterResponse userCharacter = createCharacter(userA.getId(), "USER", "当前用户身份");
         long worldId = createWorld(tokenA, List.of(
                 participant(first.getId(), "AI", 0), participant(second.getId(), "AI", 1)));
+        userService.setCurrentUserCharacter(userA.getId(), userCharacter.getId());
+        characterWorldService.setUserCharacter(userA.getId(), worldId, userCharacter.getId());
         mockMvc.perform(post("/api/worlds/{worldId}/rounds", worldId)
                         .header(authHeader(), bearer(tokenA)).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"requestId\":\"lock-round\",\"userInput\":\"hello\"}"))
