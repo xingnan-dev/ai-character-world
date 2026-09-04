@@ -1,6 +1,7 @@
 package com.companion.character;
 
 import com.companion.ai.LlmClient;
+import com.companion.ai.json.LlmJsonObjectExtractor;
 import com.companion.ai.exception.LlmProviderException;
 import com.companion.ai.model.LlmResponse;
 import com.companion.ai.prompt.PromptTemplateKey;
@@ -89,7 +90,7 @@ public class CharacterParser {
         try {
             ObjectMapper strictMapper = objectMapper.copy()
                     .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
-            JsonNode root = strictMapper.readTree(content);
+            JsonNode root = strictMapper.readTree(LlmJsonObjectExtractor.extract(content));
             if (root == null || !root.isObject()) {
                 throw invalidOutput("根节点必须是JSON对象");
             }

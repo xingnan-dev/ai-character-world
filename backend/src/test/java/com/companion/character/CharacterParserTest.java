@@ -56,6 +56,89 @@ class CharacterParserTest {
     }
 
     @Test
+    void acceptsSupportedLlmJsonEnvelopesAndJsonStringSyntax() {
+        String braces = validJson("AI").replace("长期研究人工智能。", "研究 {模型} 与 } 符号");
+        String quotes = validJson("AI").replace("长期研究人工智能。", "她说：\\\"保持好奇\\\"");
+        String[] accepted = {
+                validJson("AI"),
+                "```json\n" + validJson("AI") + "\n```",
+                "```\n" + validJson("AI") + "\n```",
+                "这是角色草稿：\n" + validJson("AI"),
+                validJson("AI") + "\n以上是角色草稿。",
+                "说明：\n```json\n" + validJson("AI") + "\n```\n请确认。",
+                braces,
+                quotes
+        };
+
+        for (String content : accepted) {
+            assertThat(parser.parseJson(content).getName()).isEqualTo("林澈");
+        }
+        assertThat(parser.parseJson(braces).getBiography()).isEqualTo("研究 {模型} 与 } 符号");
+        assertThat(parser.parseJson(quotes).getBiography()).isEqualTo("她说：\"保持好奇\"");
+    }
+
+    @Test
+    void rejectsUnsafeOrAmbiguousLlmJsonEnvelopesWithoutLeakingContent() {
+        String secret = "MODEL_SECRET_OUTPUT";
+        String[] rejected = {
+                validJson("AI").substring(0, validJson("AI").length() - 1),
+                "不是 JSON " + secret,
+                "[" + validJson("AI") + "]",
+                validJson("AI") + "\n" + validJson("AI")
+        };
+
+        for (String content : rejected) {
+            assertThatThrownBy(() -> parser.parseJson(content))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("JSON格式非法")
+                    .hasMessageNotContaining(secret)
+                    .hasMessageNotContaining(content);
+        }
+    }
+
+    @Test
+    void rejectsValidDtoFenceWhenAnotherObjectExistsOutsideWithoutLeakingContent() {
+        String secret = "CHARACTER_MODEL_SECRET";
+        String fenced = "```json\n" + validJson("AI") + "\n```";
+
+        for (String content : new String[] {
+                "{\"outside\":\"" + secret + "\"}\n" + fenced,
+                fenced + "\n{\"outside\":\"" + secret + "\"}"
+        }) {
+            assertThatThrownBy(() -> parser.parseJson(content))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("JSON格式非法")
+                    .hasMessageNotContaining(secret)
+                    .hasMessageNotContaining(content);
+        }
+    }
+
+    @Test
+    void acceptsOneValidDtoFenceWithOrdinaryExplanationAroundIt() {
+        String content = "这是普通说明。\n```json\n" + validJson("AI") + "\n```\n请确认。";
+
+        assertThat(parser.parseJson(content).getName()).isEqualTo("林澈");
+    }
+
+    @Test
+    void extractedJsonStillUsesExistingRequiredTypeAndLengthValidation() {
+        when(llmClient.complete(anyString(), anyString(), eq(1536))).thenReturn(response(
+                "说明\n" + validJson("AI").replace("\"name\":\"林澈\",", ""), "stop"));
+        assertThatThrownBy(() -> parser.parse(CharacterType.AI, "角色描述"))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("name不能为空");
+
+        when(llmClient.complete(anyString(), anyString(), eq(1536))).thenReturn(response(
+                "说明\n" + validJson("AI").replace("\"age\":28", "\"age\":\"未知\""), "stop"));
+        assertThatThrownBy(() -> parser.parse(CharacterType.AI, "角色描述"))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("JSON格式非法");
+
+        when(llmClient.complete(anyString(), anyString(), eq(1536))).thenReturn(response(
+                "说明\n" + validJson("AI").replace("林澈", "角".repeat(81)), "stop"));
+        assertThatThrownBy(() -> parser.parse(CharacterType.AI, "角色描述"))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("name超过最大长度80");
+    }
+
+    @Test
     void rejectsTruncatedOutput() {
         when(llmClient.complete(anyString(), anyString(), eq(1536)))
                 .thenReturn(response(validJson("AI"), "length"));

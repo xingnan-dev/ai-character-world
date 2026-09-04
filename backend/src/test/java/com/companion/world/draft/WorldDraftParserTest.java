@@ -47,6 +47,78 @@ class WorldDraftParserTest {
     }
 
     @Test
+    void acceptsSupportedLlmJsonEnvelopesAndJsonStringSyntax() {
+        String braces = validJson().replace("永不停歇的雨", "雨幕笼罩 {旧城} 与 } 门");
+        String quotes = validJson().replace("永不停歇的雨", "居民称它为 \\\"不眠城\\\"");
+        String[] accepted = {
+                validJson(),
+                "```json\n" + validJson() + "\n```",
+                "```\n" + validJson() + "\n```",
+                "这是世界草稿：\n" + validJson(),
+                validJson() + "\n以上是世界草稿。",
+                "说明：\n```json\n" + validJson() + "\n```\n请确认。",
+                braces,
+                quotes
+        };
+
+        for (String content : accepted) {
+            assertThat(parser.parseJson(content).getName()).isEqualTo("雨夜城");
+        }
+        assertThat(parser.parseJson(braces).getBackground()).isEqualTo("雨幕笼罩 {旧城} 与 } 门");
+        assertThat(parser.parseJson(quotes).getBackground()).isEqualTo("居民称它为 \"不眠城\"");
+    }
+
+    @Test
+    void rejectsUnsafeOrAmbiguousLlmJsonEnvelopesWithoutLeakingContent() {
+        String secret = "MODEL_SECRET_OUTPUT";
+        String[] rejected = {
+                validJson().substring(0, validJson().length() - 1),
+                "不是 JSON " + secret,
+                "[" + validJson() + "]",
+                validJson() + "\n" + validJson()
+        };
+
+        for (String content : rejected) {
+            assertThatThrownBy(() -> parser.parseJson(content))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage(WorldDraftParser.INVALID_OUTPUT)
+                    .hasMessageNotContaining(secret)
+                    .hasMessageNotContaining(content);
+        }
+    }
+
+    @Test
+    void rejectsValidDtoFenceWhenAnotherObjectExistsOutsideWithoutLeakingContent() {
+        String secret = "WORLD_MODEL_SECRET";
+        String fenced = "```json\n" + validJson() + "\n```";
+
+        for (String content : new String[] {
+                "{\"outside\":\"" + secret + "\"}\n" + fenced,
+                fenced + "\n{\"outside\":\"" + secret + "\"}"
+        }) {
+            assertThatThrownBy(() -> parser.parseJson(content))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage(WorldDraftParser.INVALID_OUTPUT)
+                    .hasMessageNotContaining(secret)
+                    .hasMessageNotContaining(content);
+        }
+    }
+
+    @Test
+    void acceptsOneValidDtoFenceWithOrdinaryExplanationAroundIt() {
+        String content = "这是普通说明。\n```json\n" + validJson() + "\n```\n请确认。";
+
+        assertThat(parser.parseJson(content).getName()).isEqualTo("雨夜城");
+    }
+
+    @Test
+    void extractedJsonStillUsesExistingRequiredTypeAndLengthValidation() {
+        assertInvalid("说明\n" + validJson().replace("\"name\":\"雨夜城\",", ""));
+        assertInvalid("说明\n" + validJson().replace("\"神秘\"", "123"));
+        assertInvalid("说明\n" + validJson().replace("雨夜城", "城".repeat(101)));
+    }
+
+    @Test
     void promptIsWorldSpecificAndDoesNotMentionChatPersonalityOrMemory() {
         org.mockito.ArgumentCaptor<String> system = org.mockito.ArgumentCaptor.forClass(String.class);
         org.mockito.ArgumentCaptor<String> user = org.mockito.ArgumentCaptor.forClass(String.class);

@@ -1,6 +1,7 @@
 package com.companion.world.draft;
 
 import com.companion.ai.LlmClient;
+import com.companion.ai.json.LlmJsonObjectExtractor;
 import com.companion.ai.exception.LlmProviderException;
 import com.companion.ai.model.LlmResponse;
 import com.companion.ai.prompt.PromptTemplateKey;
@@ -18,8 +19,6 @@ import org.springframework.stereotype.Component;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Component
 @RequiredArgsConstructor
@@ -29,9 +28,6 @@ public class WorldDraftParser {
     public static final String INVALID_OUTPUT = "WORLD_DRAFT_INVALID_OUTPUT";
     private static final int MAX_TOKENS = 1200;
     private static final Set<String> FIELDS = Set.of("name", "background", "rules", "atmosphere", "scene");
-    private static final Pattern FENCED_JSON = Pattern.compile(
-            "^\\s*```(?:json)?\\s*([\\s\\S]*?)\\s*```\\s*$", Pattern.CASE_INSENSITIVE);
-
     private final LlmClient llmClient;
     private final PromptTemplateLoader templateLoader;
     private final PromptTemplateRenderer templateRenderer;
@@ -61,11 +57,9 @@ public class WorldDraftParser {
 
     WorldDraft parseJson(String content) {
         if (content == null || content.isBlank()) throw stable(INVALID_OUTPUT);
-        Matcher fenced = FENCED_JSON.matcher(content);
-        String json = fenced.matches() ? fenced.group(1).trim() : content.trim();
         try {
             ObjectMapper strict = objectMapper.copy().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
-            JsonNode root = strict.readTree(json);
+            JsonNode root = strict.readTree(LlmJsonObjectExtractor.extract(content));
             if (root == null || !root.isObject()) throw stable(INVALID_OUTPUT);
             Iterator<String> names = root.fieldNames();
             while (names.hasNext()) {
