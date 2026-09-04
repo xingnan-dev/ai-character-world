@@ -1,7 +1,7 @@
 <template>
   <div class="personality-edit-page">
     <header class="page-header">
-      <button class="back-button" type="button" @click="goBack">← 返回 AI 空间</button>
+      <button class="back-button" type="button" @click="goBack">← 返回</button>
       <div>
         <h1>编辑 AI 人格</h1>
         <p>人格修改只会影响之后创建的聊天会话</p>
@@ -11,11 +11,12 @@
     <main class="edit-layout">
       <section class="form-card" v-loading="loading">
         <div class="card-heading">
-          <div>
+          <SimpleAvatar :name="personality?.name" :image-url="personality?.imageUrl" :avatar-color="personality?.avatarColor" :entity-key="avatarId" type="AI" size="lg" />
+          <div class="identity-summary">
             <span class="eyebrow">PERSONALITY PROFILE</span>
             <h2>{{ personality?.name || '人格设置' }}</h2>
+            <span class="avatar-badge">AI 形象 · #{{ avatarId }}</span>
           </div>
-          <span class="avatar-badge">Avatar #{{ avatarId }}</span>
         </div>
 
         <el-alert
@@ -85,6 +86,7 @@ import {
   buildPersonalityUpdatePayload,
   createPersonalityEditForm
 } from '../utils/personalityForm'
+import SimpleAvatar from '../components/ui/SimpleAvatar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -150,15 +152,7 @@ onMounted(loadPersonality)
 </script>
 
 <style lang="scss" scoped>
-.personality-edit-page {
-  min-height: 100vh;
-  padding: 40px;
-  color: #fff;
-  background:
-    radial-gradient(circle at 20% 10%, rgba(124, 92, 255, 0.2), transparent 30%),
-    radial-gradient(circle at 85% 80%, rgba(0, 229, 192, 0.12), transparent 30%),
-    #060816;
-}
+.personality-edit-page{min-height:100%;padding:clamp(22px,4vw,48px) 24px 56px;color:var(--app-text)}
 
 .page-header {
   width: min(820px, 100%);
@@ -167,16 +161,18 @@ onMounted(loadPersonality)
   align-items: center;
   gap: 24px;
 
-  h1 { margin: 0 0 6px; font-size: 30px; }
-  p { margin: 0; color: rgba(255, 255, 255, 0.58); }
+  h1 { margin: 0 0 6px; font-size: clamp(27px,4vw,34px); }
+  p { margin: 0; color: var(--app-text-secondary); }
 }
 
 .back-button {
   padding: 10px 16px;
-  border: 1px solid rgba(124, 92, 255, 0.4);
-  border-radius: 12px;
-  color: #fff;
-  background: rgba(124, 92, 255, 0.12);
+  min-height:44px;
+  border: 1px solid var(--app-border-strong);
+  border-radius: var(--app-radius-sm);
+  color: var(--app-primary-strong);
+  background: var(--app-surface);
+  box-shadow:var(--app-shadow-sm);
   cursor: pointer;
 }
 
@@ -184,36 +180,38 @@ onMounted(loadPersonality)
 
 .form-card {
   padding: 32px;
-  border: 1px solid rgba(124, 92, 255, 0.25);
-  border-radius: 24px;
-  background: rgba(16, 21, 48, 0.88);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(20px);
+  min-width:0;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow-lg);
 }
 
 .card-heading {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   margin-bottom: 22px;
   h2 { margin: 5px 0 0; }
 }
 
-.eyebrow { color: #00e5c0; font-size: 12px; letter-spacing: 1.5px; }
-.avatar-badge { padding: 7px 12px; border-radius: 20px; background: rgba(124, 92, 255, 0.18); }
+.identity-summary{min-width:0}.eyebrow{color:var(--app-primary-strong);font-size:12px;font-weight:800;letter-spacing:1.5px}
+.avatar-badge{display:inline-block;padding:6px 10px;border-radius:var(--app-radius-pill);color:var(--app-primary-strong);background:var(--app-primary-soft);font-size:12px;font-weight:700}
 .personality-form { margin-top: 24px; }
 .form-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 10px; }
 
-:deep(.el-form-item__label) { color: rgba(255, 255, 255, 0.82); }
+:deep(.el-form-item__label) { color: var(--app-text); }
 :deep(.el-input__wrapper), :deep(.el-textarea__inner) {
-  background: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
-  color: #fff;
+  background: #fff;
+  box-shadow: 0 0 0 1px var(--app-border-strong) inset;
+  color: var(--app-text);
 }
 
 @media (max-width: 640px) {
-  .personality-edit-page { padding: 20px; }
+  .personality-edit-page { padding: 22px 16px 40px; }
   .page-header { align-items: flex-start; flex-direction: column; gap: 14px; }
-  .form-card { padding: 22px; }
+  .form-card { padding: 22px 18px; }
+  .card-heading{align-items:flex-start}
+  .form-actions{flex-direction:column-reverse}.form-actions :deep(.el-button){width:100%;margin-left:0}
 }
 </style>

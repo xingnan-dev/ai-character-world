@@ -1,6 +1,7 @@
 import request from './request'
+import { AI_PARSE_TIMEOUT_MS } from '../utils/aiDraftResponse'
 
-export const parseWorld = (data) => request({ url: '/worlds/parse', method: 'post', data })
+export const parseWorld = (data) => request({ url: '/worlds/parse', method: 'post', data, timeout: AI_PARSE_TIMEOUT_MS })
 export const getWorldList = () => request({ url: '/worlds', method: 'get' })
 export const getWorldById = (id, config = {}) => request({ url: `/worlds/${id}`, method: 'get', ...config })
 export const createWorld = (data) => request({ url: '/worlds', method: 'post', data })

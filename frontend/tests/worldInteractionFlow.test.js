@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { worldInteractionLocation } from '../src/utils/worldNavigation.js'
 
 const source = path => readFileSync(new URL(path, import.meta.url), 'utf8')
 const api = source('../src/api/worldInteraction.js')
@@ -12,7 +13,11 @@ const timeline = source('../src/components/world/WorldTimeline.vue')
 
 test('authenticated interaction route and detail entry are connected', () => {
   assert.match(router, /path:\s*'\/worlds\/:worldId\/interaction'[\s\S]*requiresAuth:\s*true/)
-  assert.match(detail, /router\.push\(`\/worlds\/\$\{id\}\/interaction`\)/)
+  assert.match(detail, /worldInteractionLocation\(route\.params\.worldId\)/)
+  assert.deepEqual(worldInteractionLocation('42'), { name: 'WorldInteraction', params: { worldId: '42' } })
+  assert.equal(worldInteractionLocation('42').params.worldId, '42')
+  assert.notEqual(worldInteractionLocation('42').name, 'Chat')
+  assert.doesNotMatch(detail, /router\.push\(['"`]\/chat/)
 })
 
 test('interaction API covers create, execute, active, round, events and timeline', () => {

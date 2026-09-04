@@ -28,6 +28,7 @@ import { getCharacterList } from '../api/character'
 import { useWorldStore } from '../stores/world'
 import WorldRosterEditor from '../components/world/WorldRosterEditor.vue'
 import { accentForWorld, buildParticipantPayload, buildWorldSemanticPayload, createWorldForm, eligibleAiCharacters, snapshotSummary, visibleWorldParticipants } from '../utils/worldBuilder'
+import { worldInteractionLocation } from '../utils/worldNavigation'
 const route=useRoute();const router=useRouter();const worldStore=useWorldStore();const world=computed(()=>worldStore.currentWorld)
 const editing=ref(false),editingRoster=ref(false),saving=ref(false),savingRoster=ref(false),formRef=ref(null);const form=reactive(createWorldForm());const characters=ref([]),selectedCharacters=ref([]);const rules={name:[{required:true,message:'请输入世界名称',trigger:'blur'}]}
 function worldId(){const id=Number(route.params.worldId);return Number.isSafeInteger(id)&&id>0?id:null}
@@ -36,7 +37,7 @@ function startEditing(){Object.assign(form,createWorldForm(world.value));editing
 async function saveWorld(){const valid=await formRef.value?.validate().catch(()=>false);if(!valid||saving.value)return;saving.value=true;try{await worldStore.update(worldId(),buildWorldSemanticPayload({...form,sourceDescription:world.value.sourceDescription}));editing.value=false;ElMessage.success('世界设定已更新')}catch(error){console.error('Update world failed:',error)}finally{saving.value=false}}
 async function startRosterEdit(){if(world.value.participantsLocked)return;try{const response=await getCharacterList('AI');characters.value=eligibleAiCharacters(response.data||response);const byId=new Map(characters.value.map(item=>[item.id,item]));selectedCharacters.value=world.value.participants.map(item=>byId.get(item.sourceCharacterId)).filter(Boolean);editingRoster.value=true}catch(error){console.error('Load characters failed:',error)}}
 async function saveRoster(){if(savingRoster.value)return;savingRoster.value=true;try{await worldStore.replaceParticipants(worldId(),buildParticipantPayload(selectedCharacters.value));editingRoster.value=false;ElMessage.success('角色阵容已更新')}catch(error){console.error('Replace roster failed:',error)}finally{savingRoster.value=false}}
-function enterWorld(){const id=worldId();if(id)router.push(`/worlds/${id}/interaction`)}
+function enterWorld(){const location=worldInteractionLocation(route.params.worldId);if(location)router.push(location)}
 watch(()=>route.params.worldId,()=>{editing.value=false;editingRoster.value=false;worldStore.error='';load()})
 onMounted(()=>{worldStore.clearTransient();load()});onUnmounted(()=>{worldStore.clearTransient()})
 </script>

@@ -29,13 +29,13 @@ test('World store is independent and clears transient page state', () => {
 test('authenticated World routes and Home navigation exist', () => {
   for (const path of ["'/worlds'", "'/worlds/create'", "'/worlds/:worldId'"]) assert.match(router, new RegExp(path))
   assert.match(router, /WorldDetail\.vue[\s\S]*requiresAuth:\s*true/)
-  assert.match(home, /label:\s*'我的世界'[\s\S]*path:\s*'\/worlds'/)
+  assert.match(home, /title:\s*'我的世界'[\s\S]*path:\s*'\/worlds'/)
   assert.match(nav, /AI Character World/)
   assert.match(nav, /to:'\/characters'/)
 })
 
 test('create flow supports AI fallback, selection, sorting and duplicate-submit guard', () => {
-  assert.match(create, /AI草稿暂时不可用/)
+  assert.match(create, /AI 解析失败，原始描述已保留/)
   assert.match(create, /getCharacterList\('AI'\)/)
   assert.match(create, /buildParticipantPayload/)
   assert.match(create, /submitting\.value/)
@@ -54,6 +54,6 @@ test('detail reloads by route id and enforces locked roster UX', () => {
   assert.match(detail, /worldStore\.loadDetail\(id\)/)
   assert.match(detail, /world\.participantsLocked/)
   assert.match(detail, /角色阵容已冻结/)
-  assert.match(detail, /router\.push\(`\/worlds\/\$\{id\}\/interaction`\)/)
+  assert.match(detail, /worldInteractionLocation\(route\.params\.worldId\)/)
   assert.doesNotMatch(detail, /execute|Timeline|EventSource|v-html/)
 })

@@ -6,7 +6,7 @@
         <div class="step"><b>1</b><div><h2>描述世界</h2><p>AI只生成可编辑的纯文本语义草稿。</p></div></div>
         <el-input v-model="description" type="textarea" :rows="5" maxlength="2000" show-word-limit placeholder="例如：一座永远下雨的赛博朋克城市，角色们在午夜侦探事务所相遇……" />
         <div class="prompt-actions"><el-button type="primary" :loading="parsing" :disabled="!description.trim()" @click="generateDraft">AI生成草稿</el-button><el-button @click="manualStart">跳过AI，手动填写</el-button></div>
-        <el-alert v-if="parseFallback" title="AI草稿暂时不可用，已切换为手动填写；你仍然可以创建世界。" type="warning" :closable="false" show-icon />
+        <el-alert v-if="parseFallback" :title="parseError || 'AI 解析失败，原始描述已保留；请手动填写或稍后重试。'" type="warning" :closable="false" show-icon />
       </section>
 
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="panel semantic-panel">
@@ -36,12 +36,12 @@ import { applyWorldDraft, buildParticipantPayload, buildWorldSemanticPayload, cr
 
 const router=useRouter(); const worldStore=useWorldStore(); const formRef=ref(null)
 const description=ref(''); const form=reactive(createWorldForm()); const characters=ref([]); const selectedCharacters=ref([])
-const parsing=ref(false); const submitting=ref(false); const parseFallback=ref(false); const characterError=ref('')
+const parsing=ref(false); const submitting=ref(false); const parseFallback=ref(false); const parseError=ref(''); const characterError=ref('')
 const rules={name:[{required:true,message:'请输入世界名称',trigger:'blur'}]}
 const canSubmit=computed(()=>form.name.trim()&&selectedCharacters.value.length>=2&&selectedCharacters.value.length<=4&&!submitting.value)
 async function loadCharacters(){characterError.value='';try{const response=await getCharacterList('AI');characters.value=eligibleAiCharacters(response.data||response)}catch(error){characters.value=[];characterError.value=error.message||'角色加载失败'}}
-async function generateDraft(){if(parsing.value||!description.value.trim())return;parsing.value=true;parseFallback.value=false;try{const draft=await worldStore.parse(description.value.trim());applyWorldDraft(form,draft,description.value)}catch(error){parseFallback.value=true;form.sourceDescription=description.value.trim()}finally{parsing.value=false}}
-function manualStart(){parseFallback.value=false;form.sourceDescription=description.value.trim();document.querySelector('.semantic-panel')?.scrollIntoView({behavior:'smooth'})}
+async function generateDraft(){if(parsing.value||!description.value.trim())return;parsing.value=true;parseFallback.value=false;parseError.value='';try{const draft=await worldStore.parse(description.value.trim());applyWorldDraft(form,draft,description.value)}catch(error){parseFallback.value=true;parseError.value=error?.message||'AI 解析失败，原始描述已保留；请手动填写或稍后重试。';form.sourceDescription=description.value.trim()}finally{parsing.value=false}}
+function manualStart(){parseFallback.value=false;parseError.value='';form.sourceDescription=description.value.trim();document.querySelector('.semantic-panel')?.scrollIntoView({behavior:'smooth'})}
 async function submit(){if(!canSubmit.value)return;const valid=await formRef.value?.validate().catch(()=>false);if(!valid)return;submitting.value=true;try{const world=await worldStore.create({...buildWorldSemanticPayload(form),participants:buildParticipantPayload(selectedCharacters.value)});ElMessage.success('世界创建成功');await router.push(`/worlds/${world.id}`)}catch(error){console.error('Create world failed:',error)}finally{submitting.value=false}}
 onMounted(()=>{worldStore.clearTransient();loadCharacters()}); onUnmounted(()=>{worldStore.error='';worldStore.draft=null})
 </script>

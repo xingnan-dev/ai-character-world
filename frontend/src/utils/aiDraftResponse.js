@@ -1,0 +1,1 @@
+export const AI_PARSE_TIMEOUT_MS = 60000

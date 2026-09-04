@@ -28,6 +28,5 @@ test('create flow preserves description on parse failure and navigates after sav
 
 test('Character create page does not load AvatarRenderer or infer a VRM', () => {
   assert.doesNotMatch(createSource, /AvatarRenderer|avatarModels|getModelUrlByName|modelUrl/)
-  assert.match(createSource, /名字首字头像/)
+  assert.match(createSource, /<SimpleAvatar/)
 })
-

@@ -1,9 +1,11 @@
 import request from './request'
+import { AI_PARSE_TIMEOUT_MS } from '../utils/aiDraftResponse'
 
 export const parseCharacter = (data) => request({
   url: '/characters/parse',
   method: 'post',
-  data
+  data,
+  timeout: AI_PARSE_TIMEOUT_MS
 })
 
 export const createCharacter = (data) => request({

@@ -16,12 +16,15 @@ test('App renders each route component once through the meta-controlled shell br
   assert.equal((app.match(/<RouterView/g) || []).length, 1)
 })
 
-test('only all four World routes enable AppShell in UI-1', () => {
+test('World and UI-2 Character routes enable AppShell without changing unrelated routes', () => {
   for (const path of ['/worlds', '/worlds/create', '/worlds/:worldId', '/worlds/:worldId/interaction']) {
     assert.match(router, new RegExp(`path: '${path.replaceAll('/', '\\/')}'[\\s\\S]*?appShell: true[\\s\\S]*?navSection: 'worlds'`))
   }
-  assert.equal((router.match(/appShell:\s*true/g) || []).length, 4)
-  for (const view of ['Login.vue', 'Register.vue', 'Home.vue', 'CharacterList.vue', 'Chat.vue', 'AvatarCreate.vue', 'PersonalityEdit.vue']) {
+  for (const path of ['/characters', '/character/create', '/character/:id', '/personality/edit/:avatarId']) {
+    assert.match(router, new RegExp(`path: '${path.replaceAll('/', '\\/')}'[\\s\\S]*?appShell: true[\\s\\S]*?navSection: 'characters'`))
+  }
+  assert.equal((router.match(/appShell:\s*true/g) || []).length, 8)
+  for (const view of ['Login.vue', 'Register.vue', 'Home.vue', 'Chat.vue', 'AvatarCreate.vue']) {
     assert.doesNotMatch(router, new RegExp(`${view.replace('.', '\\.')}[^\\n]*\\n[^\\n]*appShell: true`))
   }
 })

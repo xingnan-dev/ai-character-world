@@ -12,11 +12,8 @@
       <el-empty v-if="!loading && !character" description="角色不存在" />
       <section v-else-if="character" class="detail-card">
         <div class="profile-heading">
-          <div class="letter-avatar" :style="{ background: character.avatarColor || '#7c5cff' }">
-            {{ character.name?.charAt(0) || '角' }}
-          </div>
+          <SimpleAvatar :name="character.name" :image-url="character.imageUrl" :avatar-color="character.avatarColor" :entity-key="character.id" :type="character.characterType" size="lg" />
           <div>
-            <span class="type-badge">{{ character.characterType }}</span>
             <h1>{{ character.name }}</h1>
             <p>{{ character.identity || '未设置身份' }}</p>
           </div>
@@ -83,6 +80,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { deleteCharacter, getCharacterById, updateCharacter } from '../api/character'
 import { buildCharacterUpdatePayload, createCharacterForm } from '../utils/characterDraft'
+import SimpleAvatar from '../components/ui/SimpleAvatar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -170,22 +168,20 @@ loadCharacter()
 </script>
 
 <style lang="scss" scoped>
-.character-detail-page { min-height: 100vh; padding: 36px; color: #fff; background: radial-gradient(circle at 20% 10%, rgba(124,92,255,.2), transparent 32%), #060816; }
+.character-detail-page{min-height:100%;padding:clamp(22px,4vw,48px) 24px 56px;color:var(--app-text)}
 .page-header, main { width: min(900px, 100%); margin: auto; }
-.page-header { margin-bottom: 24px; display: flex; justify-content: space-between; button { padding: 10px 15px; border: 1px solid rgba(124,92,255,.38); border-radius: 12px; color: #fff; background: rgba(124,92,255,.12); cursor: pointer; } }
+.page-header{margin-bottom:24px;display:flex;justify-content:space-between;gap:12px;button{min-height:44px;padding:10px 15px;border:1px solid var(--app-border-strong);border-radius:var(--app-radius-sm);color:var(--app-primary-strong);background:var(--app-surface);box-shadow:var(--app-shadow-sm)}}
 .header-actions { display: flex; gap: 10px; }
-.detail-card { padding: 36px; border: 1px solid rgba(124,92,255,.25); border-radius: 26px; background: rgba(16,21,48,.9); }
-.profile-heading { display: flex; align-items: center; gap: 20px; h1 { margin: 7px 0 3px; } p { margin: 0; color: #939bb7; } }
-.letter-avatar { width: 90px; height: 90px; display: grid; flex: 0 0 auto; place-items: center; border-radius: 28px; font-size: 36px; font-weight: 700; }
-.type-badge { padding: 4px 10px; border-radius: 999px; color: #a99cff; background: rgba(124,92,255,.14); font-size: 12px; }
-.details { margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; div { padding: 18px; border-radius: 15px; background: rgba(255,255,255,.045); } span, .profile-group > span { color: #7f88a5; font-size: 12px; } p { margin: 7px 0 0; line-height: 1.6; } }
-.profile-section { margin-top: 28px; padding-top: 22px; border-top: 1px solid rgba(255,255,255,.08); }
+.detail-card{min-width:0;padding:36px;border:1px solid var(--app-border);border-radius:var(--app-radius-lg);background:var(--app-surface);box-shadow:var(--app-shadow-lg)}
+.profile-heading{display:flex;align-items:center;gap:20px;h1{margin:7px 0 3px;font-size:clamp(26px,4vw,36px)}p{margin:0;color:var(--app-text-secondary)}}
+.details{margin-top:28px;display:grid;grid-template-columns:1fr 1fr;gap:14px;div{min-width:0;padding:18px;border:1px solid var(--app-border);border-radius:var(--app-radius-md);background:var(--app-surface-subtle)}span,.profile-group>span{color:var(--app-text-muted);font-size:12px}p{margin:7px 0 0;line-height:1.6;overflow-wrap:anywhere}}
+.profile-section{margin-top:28px;padding-top:22px;border-top:1px solid var(--app-border)}
 .profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.profile-group { padding: 16px; border-radius: 14px; background: rgba(255,255,255,.035); p { color: #777f9a; } }
+.profile-group{min-width:0;padding:16px;border-radius:var(--app-radius-md);background:var(--app-peach-soft);p{color:var(--app-text-secondary)}}
 .tags { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
-.edit-form { margin-top: 30px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,.08); }
+.edit-form{margin-top:30px;padding-top:24px;border-top:1px solid var(--app-border)}
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
 .edit-actions { display: flex; justify-content: flex-end; gap: 10px; }
-:deep(.el-form-item__label) { color: #cbd0e3; } :deep(.el-input__wrapper), :deep(.el-textarea__inner) { color: #fff; background: rgba(255,255,255,.055); box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset; }
-@media (max-width: 650px) { .character-detail-page { padding: 20px; } .detail-card { padding: 23px; } .details, .profile-grid, .form-grid { grid-template-columns: 1fr; } .profile-heading { align-items: flex-start; } }
+:deep(.el-form-item__label){color:var(--app-text)}:deep(.el-input__wrapper),:deep(.el-textarea__inner){color:var(--app-text);background:#fff;box-shadow:0 0 0 1px var(--app-border-strong) inset}:deep(.el-tag){border-color:var(--app-mint);color:var(--app-success);background:var(--app-mint-soft)}
+@media(max-width:650px){.character-detail-page{padding:22px 16px 40px}.page-header{align-items:stretch;flex-direction:column}.header-actions{width:100%}.header-actions :deep(.el-button){flex:1;margin-left:0}.detail-card{padding:23px 18px}.details,.profile-grid,.form-grid{grid-template-columns:1fr}.profile-heading{align-items:flex-start}.edit-actions{flex-direction:column-reverse}.edit-actions :deep(.el-button){width:100%;margin-left:0}}
 </style>

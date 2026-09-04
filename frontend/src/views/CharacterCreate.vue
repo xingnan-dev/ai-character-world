@@ -1,7 +1,7 @@
 <template>
   <div class="character-create-page">
     <header class="page-header">
-      <button class="back-button" type="button" @click="router.push('/home')">← 返回首页</button>
+      <button class="back-button" type="button" @click="router.push('/characters')">← 返回角色列表</button>
       <div>
         <span class="eyebrow">CHARACTER STUDIO</span>
         <h1>创建你的角色</h1>
@@ -100,19 +100,18 @@
           <div class="color-editor">
             <el-color-picker v-model="form.avatarColor" />
             <span>{{ form.avatarColor }}</span>
-            <small>本阶段使用名字首字头像，Avatar 与 VRM 均为可选。</small>
+            <small>未选择图片时使用稳定的 2D 首字头像。</small>
           </div>
 
           <div class="form-actions">
-            <el-button size="large" @click="router.push('/home')">取消</el-button>
+            <el-button size="large" @click="router.push('/characters')">取消</el-button>
             <el-button type="primary" size="large" :loading="saving" @click="saveCharacter">保存角色</el-button>
           </div>
         </el-form>
       </section>
 
       <aside class="preview-card">
-        <div class="letter-avatar" :style="{ background: form.avatarColor }">{{ avatarInitial }}</div>
-        <span class="type-badge">{{ form.characterType }}</span>
+        <SimpleAvatar :name="form.name" :avatar-color="form.avatarColor" :entity-key="form.name" :type="form.characterType" size="xl" />
         <h2>{{ form.name || '未命名角色' }}</h2>
         <p>{{ form.identity || '等待填写角色身份' }}</p>
         <div class="preview-divider"></div>
@@ -127,11 +126,12 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { createCharacter, parseCharacter } from '../api/character'
 import { applyCharacterDraft, buildCharacterCreatePayload, createCharacterForm } from '../utils/characterDraft'
+import SimpleAvatar from '../components/ui/SimpleAvatar.vue'
 
 const router = useRouter()
 const mode = ref('ai')
@@ -153,7 +153,6 @@ const profileFields = [
   { key: 'behaviorTendencies', label: '行为倾向', placeholder: '先分析再行动' }
 ]
 
-const avatarInitial = computed(() => form.name.trim().charAt(0) || '角')
 const rules = { name: [{ required: true, message: '请输入角色名称', trigger: 'blur' }] }
 
 async function parseDescription() {
@@ -169,7 +168,7 @@ async function parseDescription() {
     applyCharacterDraft(form, response.data)
     parsed.value = true
   } catch (error) {
-    parseError.value = error?.message || 'AI 解析失败，请检查描述后重试。'
+    parseError.value = error?.message || 'AI 解析失败，原始描述已保留，请手动填写或稍后重试。'
   } finally {
     parsing.value = false
   }
@@ -194,31 +193,28 @@ async function saveCharacter() {
 </script>
 
 <style lang="scss" scoped>
-.character-create-page { min-height: 100vh; padding: 36px; color: #fff; background: radial-gradient(circle at 12% 10%, rgba(124,92,255,.2), transparent 30%), radial-gradient(circle at 88% 80%, rgba(0,229,192,.12), transparent 30%), #060816; }
-.page-header { width: min(1180px, 100%); margin: 0 auto 24px; display: flex; align-items: center; gap: 22px; h1 { margin: 4px 0; font-size: 32px; } p { margin: 0; color: #98a0bd; } }
-.eyebrow { color: #00e5c0; font-size: 12px; letter-spacing: 1.6px; }
-.back-button { padding: 10px 15px; border: 1px solid rgba(124,92,255,.38); border-radius: 12px; color: #fff; background: rgba(124,92,255,.12); cursor: pointer; }
+.character-create-page{min-height:100%;padding:clamp(22px,4vw,48px) 24px 56px;color:var(--app-text)}
+.page-header{width:min(1180px,100%);margin:0 auto 24px;display:flex;align-items:center;gap:22px;h1{margin:4px 0;font-size:clamp(27px,4vw,36px)}p{margin:0;color:var(--app-text-secondary)}}
+.eyebrow{color:var(--app-primary-strong);font-size:12px;font-weight:800;letter-spacing:1.6px}
+.back-button{min-height:44px;padding:10px 15px;border:1px solid var(--app-border-strong);border-radius:var(--app-radius-sm);color:var(--app-primary-strong);background:var(--app-surface);box-shadow:var(--app-shadow-sm)}
 .create-layout { width: min(1180px, 100%); margin: auto; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
-.creator-card, .preview-card { border: 1px solid rgba(124,92,255,.24); border-radius: 24px; background: rgba(16,21,48,.9); box-shadow: 0 24px 70px rgba(0,0,0,.3); backdrop-filter: blur(18px); }
+.creator-card,.preview-card{min-width:0;border:1px solid var(--app-border);border-radius:var(--app-radius-lg);background:var(--app-surface);box-shadow:var(--app-shadow-lg)}
 .creator-card { padding: 28px; }
-.mode-tabs { display: grid; grid-template-columns: 1fr 1fr; padding: 4px; border-radius: 14px; background: rgba(255,255,255,.05); button { padding: 12px; border: 0; border-radius: 11px; color: #9299b3; background: transparent; cursor: pointer; } button.active { color: #fff; background: linear-gradient(135deg, #705cff, #516ee8); } }
-.type-row { margin: 22px 0; display: flex; justify-content: space-between; align-items: center; color: #cbd0e3; }
-.ai-panel { display: grid; gap: 14px; margin-bottom: 26px; padding: 20px; border: 1px solid rgba(0,229,192,.18); border-radius: 18px; background: rgba(0,229,192,.04); }
-.character-form { border-top: 1px solid rgba(255,255,255,.08); padding-top: 22px; }
+.mode-tabs{display:grid;grid-template-columns:1fr 1fr;padding:4px;border:1px solid var(--app-border);border-radius:var(--app-radius-md);background:var(--app-surface-subtle);button{min-height:44px;padding:12px;border-radius:var(--app-radius-sm);color:var(--app-text-secondary)}button.active{color:var(--app-primary-strong);font-weight:750;background:var(--app-primary-soft);box-shadow:inset 0 0 0 1px var(--app-sky)}}
+.type-row{margin:22px 0;display:flex;justify-content:space-between;align-items:center;color:var(--app-text)}
+.ai-panel{display:grid;gap:14px;margin-bottom:26px;padding:20px;border:1px solid var(--app-mint);border-radius:var(--app-radius-md);background:var(--app-mint-soft)}
+.character-form{border-top:1px solid var(--app-border);padding-top:22px}
 .section-title { margin: 8px 0 15px; font-size: 18px; font-weight: 700; }
-.section-help { margin: -8px 0 16px; color: #858da9; font-size: 13px; }
+.section-help{margin:-8px 0 16px;color:var(--app-text-secondary);font-size:13px}
 .form-grid.two-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
-.color-editor { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; color: #aeb5cc; small { margin-left: 8px; } }
+.color-editor{display:flex;align-items:center;gap:12px;margin-bottom:28px;color:var(--app-text-secondary);small{margin-left:8px}}
 .form-actions { display: flex; justify-content: flex-end; gap: 12px; }
-.preview-card { position: sticky; top: 24px; padding: 30px 24px; text-align: center; }
-.letter-avatar { width: 96px; height: 96px; margin: 0 auto 14px; display: grid; place-items: center; border-radius: 30px; color: #fff; font-size: 38px; font-weight: 700; box-shadow: 0 14px 35px rgba(0,0,0,.3); }
-.type-badge { display: inline-block; padding: 4px 10px; border-radius: 999px; color: #a99cff; background: rgba(124,92,255,.14); font-size: 12px; }
-.preview-card h2 { margin: 12px 0 5px; } .preview-card > p { color: #929ab6; }
-.preview-divider { height: 1px; margin: 22px 0; background: rgba(255,255,255,.08); }
-dl { margin: 0; text-align: left; div { margin-bottom: 16px; } dt { margin-bottom: 5px; color: #79819e; font-size: 12px; } dd { margin: 0; color: #dce0ef; line-height: 1.55; } }
-:deep(.el-form-item__label) { color: #cbd0e3; }
-:deep(.el-input__wrapper), :deep(.el-textarea__inner) { color: #fff; background: rgba(255,255,255,.055); box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset; }
-@media (max-width: 860px) { .character-create-page { padding: 20px; } .create-layout { grid-template-columns: 1fr; } .preview-card { position: static; grid-row: 1; } }
-@media (max-width: 600px) { .page-header { align-items: flex-start; flex-direction: column; } .creator-card { padding: 20px; } .form-grid.two-columns { grid-template-columns: 1fr; } .type-row { align-items: flex-start; flex-direction: column; gap: 10px; } }
+.preview-card{position:sticky;top:24px;padding:30px 24px;text-align:center}.preview-card :deep(.simple-avatar){margin:0 auto 18px}
+.preview-card h2{margin:12px 0 5px}.preview-card>p{color:var(--app-text-secondary)}
+.preview-divider{height:1px;margin:22px 0;background:var(--app-border)}
+dl{margin:0;text-align:left;div{margin-bottom:16px;padding:12px;border-radius:var(--app-radius-sm);background:var(--app-peach-soft)}dt{margin-bottom:5px;color:var(--app-text-muted);font-size:12px}dd{margin:0;color:var(--app-text);line-height:1.55}}
+:deep(.el-form-item__label){color:var(--app-text)}
+:deep(.el-input__wrapper),:deep(.el-textarea__inner){color:var(--app-text);background:#fff;box-shadow:0 0 0 1px var(--app-border-strong) inset}
+@media(max-width:860px){.character-create-page{padding:24px 20px 44px}.create-layout{grid-template-columns:1fr}.preview-card{position:static;grid-row:1}}
+@media(max-width:600px){.character-create-page{padding-inline:16px}.page-header{align-items:flex-start;flex-direction:column}.creator-card{padding:20px 16px}.form-grid.two-columns{grid-template-columns:1fr}.type-row{align-items:flex-start;flex-direction:column;gap:10px}.color-editor{align-items:flex-start;flex-wrap:wrap}.color-editor small{width:100%;margin-left:0}.form-actions{flex-direction:column-reverse}.form-actions :deep(.el-button){width:100%;margin-left:0}}
 </style>
-

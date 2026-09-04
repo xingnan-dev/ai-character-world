@@ -34,19 +34,19 @@ const routes = [
     path: '/personality/edit/:avatarId',
     name: 'PersonalityEdit',
     component: () => import('../views/PersonalityEdit.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true, appShell: true, navSection: 'characters' }
   },
   {
     path: '/character/create',
     name: 'CharacterCreate',
     component: () => import('../views/CharacterCreate.vue'),
-    meta: { requiresAuth: true, navSection: 'characters' }
+    meta: { requiresAuth: true, appShell: true, navSection: 'characters' }
   },
   {
     path: '/characters',
     name: 'CharacterList',
     component: () => import('../views/CharacterList.vue'),
-    meta: { requiresAuth: true, navSection: 'characters' }
+    meta: { requiresAuth: true, appShell: true, navSection: 'characters' }
   },
   {
     path: '/worlds',
@@ -76,7 +76,7 @@ const routes = [
     path: '/character/:id',
     name: 'CharacterDetail',
     component: () => import('../views/CharacterDetail.vue'),
-    meta: { requiresAuth: true, navSection: 'characters' }
+    meta: { requiresAuth: true, appShell: true, navSection: 'characters' }
   },
   {
     path: '/chat',

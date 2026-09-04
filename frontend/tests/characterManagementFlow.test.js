@@ -18,7 +18,7 @@ test('Character API supports list filtering, update and delete', () => {
 test('authenticated Character list route and Home navigation entry exist', () => {
   assert.match(routerSource, /path:\s*'\/characters'/)
   assert.match(routerSource, /CharacterList\.vue/)
-  assert.match(homeSource, /label:\s*'角色空间'[\s\S]*path:\s*'\/characters'/)
+  assert.match(homeSource, /title:\s*'角色空间'[\s\S]*path:\s*'\/characters'/)
 })
 
 test('list loads current user Characters and sends AI or USER filters', () => {
@@ -58,9 +58,9 @@ test('delete requires confirmation and returns to Character list', () => {
   assert.match(detailSource, /router\.push\('\/characters'\)/)
 })
 
-test('management pages use letter avatars and never load a VRM renderer', () => {
-  assert.match(listSource, /letter-avatar/)
-  assert.match(detailSource, /letter-avatar/)
+test('management pages use shared SimpleAvatar and never load a VRM renderer', () => {
+  assert.match(listSource, /<SimpleAvatar/)
+  assert.match(detailSource, /<SimpleAvatar/)
   assert.doesNotMatch(listSource, /AvatarRenderer|modelUrl|getModelUrlByName/)
   assert.doesNotMatch(detailSource, /AvatarRenderer|modelUrl|getModelUrlByName/)
 })
