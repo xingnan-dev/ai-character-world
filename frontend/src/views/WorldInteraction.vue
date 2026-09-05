@@ -7,7 +7,7 @@
         <div class="interaction-layout">
           <WorldInteractionCast :world="world" :participants="orderedParticipants" :speaking-participant-id="speakingParticipantId" />
           <div class="conversation-column">
-            <WorldTimeline :items="timelineItems" :participants="orderedParticipants" :has-more="hasMore" :loading-more="loadingMore" @load-more="store.loadOlder" />
+            <WorldTimeline :items="timelineItems" :participants="orderedParticipants" :has-more="hasMore" :loading-more="loadingMore" :history-error="historyError" @load-more="store.loadOlder" />
             <WorldComposer v-model="draftInput" :busy="busy" :sending="sending" :notice="notice" :queue-busy="queueBusy" :can-recover="canRecover" @send="send" @recover="store.recoverExecution" />
           </div>
         </div>
@@ -34,7 +34,7 @@ const userStore = useUserStore()
 const store = useWorldInteractionStore()
 const {
   world, timelineItems, activeRound, draftInput, loadingInitial, loadingMore, sending,
-  queueBusy, notice, error, hasMore, busy, orderedParticipants, speakingParticipantId, canRecover
+  queueBusy, notice, error, hasMore, historyError, busy, orderedParticipants, speakingParticipantId, canRecover
 } = storeToRefs(store)
 
 const routeWorldId = computed(() => {

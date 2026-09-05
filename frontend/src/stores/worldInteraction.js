@@ -57,6 +57,7 @@ export const useWorldInteractionStore = defineStore('worldInteraction', {
     timelineItems: [],
     historyCursor: null,
     hasMore: false,
+    historyError: '',
     activeRound: null,
     activeEvents: [],
     pendingSubmission: null,
@@ -129,6 +130,7 @@ export const useWorldInteractionStore = defineStore('worldInteraction', {
       this.timelineItems = []
       this.activeRound = null
       this.activeEvents = []
+      this.historyError = ''
       this.phase = 'IDLE'
       this.notice = ''
       this.error = ''
@@ -141,6 +143,7 @@ export const useWorldInteractionStore = defineStore('worldInteraction', {
       this.timelineItems = []
       this.historyCursor = null
       this.hasMore = false
+      this.historyError = ''
       this.activeRound = null
       this.activeEvents = []
       this.pendingSubmission = readPendingInteraction(sessionStore(), this.storageKey())
@@ -188,13 +191,14 @@ export const useWorldInteractionStore = defineStore('worldInteraction', {
     async loadOlder() {
       if (this.loadingMore || !this.hasMore || !this.historyCursor) return
       this.loadingMore = true
+      this.historyError = ''
       try {
         const response = await this.tracked(config => getWorldTimeline(
           this.worldId, { beforeRoundId: this.historyCursor, limit: 20 }, config
         ))
         this.applyTimelinePage(dataOf(response), true)
       } catch (error) {
-        if (error?.name !== 'AbortError') this.notice = worldInteractionErrorMessage(error, '更早的互动记录加载失败')
+        if (error?.name !== 'AbortError') this.historyError = worldInteractionErrorMessage(error, '更早的互动记录加载失败')
       } finally {
         this.loadingMore = false
       }

@@ -1,12 +1,13 @@
 <template>
-  <section class="timeline-panel" aria-live="polite">
+  <section ref="panel" class="timeline-panel" aria-live="polite">
     <div class="timeline-heading">
       <div><span>STORY TIMELINE</span><h2>世界里的对话</h2></div>
-      <el-button v-if="hasMore" :loading="loadingMore" @click="$emit('load-more')">加载更早记录</el-button>
+      <el-button v-if="hasMore" :loading="loadingMore" @click="loadOlder">加载更早记录</el-button>
+      <span v-else-if="viewItems.length && historyLoaded" class="history-end">已到最早记录</span>
     </div>
     <el-empty v-if="!viewItems.length" description="还没有互动记录，说点什么开启故事吧" />
     <div v-else class="round-list">
-      <article v-for="item in viewItems" :key="item.round.id" class="round-block">
+      <article v-for="item in viewItems" :key="item.round.id" class="round-block" :data-round-id="item.round.id">
         <div class="round-meta"><time>{{ timeText(item.round.createTime) }}</time><span :class="`round-${item.round.status.toLowerCase()}`">{{ roundText(item.round.status) }}</span></div>
         <div v-for="event in item.events" :key="event.id" class="event" :class="`${event.kind.toLowerCase()}-event`">
           <template v-if="event.kind === 'USER'">
@@ -26,23 +27,64 @@
         <p v-if="item.round.status === 'FAILED'" class="round-warning failed">{{ errorText(item.round.errorCode) }}</p>
       </article>
     </div>
+    <div ref="sentinel" class="timeline-sentinel" aria-hidden="true"></div>
+    <div v-if="newResponses" class="new-responses"><el-button size="small" @click="goLatest">有新回应，回到最新</el-button></div>
+    <div v-if="historyError" class="history-error"><span>{{ historyError }}</span><el-button link type="primary" :loading="loadingMore" @click="loadOlder">重试</el-button></div>
   </section>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { worldInteractionErrorMessage } from '../../utils/worldInteraction'
 import { buildWorldTimelineViewModel } from '../../utils/worldTimelineViewModel'
+import { calculateAnchorAdjustment, classifyTimelineUpdate, isNearBottom } from '../../utils/worldTimelineScroll'
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
   participants: { type: Array, default: () => [] },
   hasMore: Boolean,
-  loadingMore: Boolean
+  loadingMore: Boolean,
+  historyError: { type: String, default: '' }
 })
-defineEmits(['load-more'])
+const emit = defineEmits(['load-more'])
+const panel = ref(null)
+const sentinel = ref(null)
+const nearBottom = ref(true)
+const newResponses = ref(false)
+const historyLoaded = ref(false)
+let previousItems = []
+let historyAnchor = null
+
+function scrollElement() { return document.scrollingElement || document.documentElement }
+function updateBottom() { const el = scrollElement(); nearBottom.value = isNearBottom({ scrollTop: window.scrollY, clientHeight: window.innerHeight, scrollHeight: el.scrollHeight }) }
+function goLatest() { sentinel.value?.scrollIntoView({ behavior: 'smooth', block: 'end' }); newResponses.value = false; nearBottom.value = true }
+function firstVisibleRound() {
+  const nodes = [...(panel.value?.querySelectorAll('[data-round-id]') || [])]
+  return nodes.map(node => ({ id: node.dataset.roundId, top: node.getBoundingClientRect().top })).find(entry => entry.top >= 0) || null
+}
+function loadOlder() { historyAnchor = firstVisibleRound(); emit('load-more') }
 
 const viewItems = computed(() => buildWorldTimelineViewModel(props.items, props.participants))
+watch(() => props.items, async next => {
+  const update = classifyTimelineUpdate(previousItems, next, { historyLoad: Boolean(historyAnchor) })
+  previousItems = Array.isArray(next) ? next.slice() : []
+  await nextTick()
+  if (update === 'INITIAL') { if (viewItems.value.length) goLatest(); return }
+  if (update === 'HISTORY_PREPEND' && historyAnchor) {
+    const node = panel.value?.querySelector(`[data-round-id="${CSS.escape(String(historyAnchor.id))}"]`)
+    const adjustment = calculateAnchorAdjustment(historyAnchor.top, node?.getBoundingClientRect().top)
+    if (node) window.scrollBy(0, adjustment)
+    historyAnchor = null
+  } else if ((update === 'TAIL_APPEND' || update === 'TAIL_UPDATE') && nearBottom.value) goLatest()
+  else if (update !== 'UNCHANGED' && !nearBottom.value) newResponses.value = true
+}, { immediate: true })
+watch(() => props.loadingMore, (loading, wasLoading) => {
+  if (wasLoading && !loading && !props.historyError) historyLoaded.value = true
+})
+watch(() => props.historyError, error => { if (error) historyAnchor = null })
+watch(() => props.items.length, length => { if (!length) { historyLoaded.value = false; newResponses.value = false; historyAnchor = null } })
+onMounted(async () => { updateBottom(); window.addEventListener('scroll', updateBottom, { passive: true }); if (viewItems.value.length) await nextTick(); if (viewItems.value.length && previousItems.length) goLatest() })
+onBeforeUnmount(() => window.removeEventListener('scroll', updateBottom))
 const errorText = code => worldInteractionErrorMessage(code, '该角色暂时未能回应')
 const roundText = status => ({ PENDING: '等待中', RUNNING: '进行中', COMPLETED: '已完成', PARTIAL_FAILED: '部分完成', FAILED: '未完成' })[status] || status
 const timeText = value => value ? new Date(value).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''
