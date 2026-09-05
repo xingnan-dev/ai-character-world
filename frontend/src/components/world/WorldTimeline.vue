@@ -4,17 +4,21 @@
       <div><span>STORY TIMELINE</span><h2>世界里的对话</h2></div>
       <el-button v-if="hasMore" :loading="loadingMore" @click="$emit('load-more')">加载更早记录</el-button>
     </div>
-    <el-empty v-if="!items.length" description="还没有互动记录，说点什么开启故事吧" />
+    <el-empty v-if="!viewItems.length" description="还没有互动记录，说点什么开启故事吧" />
     <div v-else class="round-list">
-      <article v-for="item in items" :key="item.round.id" class="round-block">
+      <article v-for="item in viewItems" :key="item.round.id" class="round-block">
         <div class="round-meta"><time>{{ timeText(item.round.createTime) }}</time><span :class="`round-${item.round.status.toLowerCase()}`">{{ roundText(item.round.status) }}</span></div>
-        <div v-for="event in item.events" :key="event.id" class="event" :class="event.eventType === 'USER_MESSAGE' ? 'user-event' : 'ai-event'">
-          <template v-if="event.eventType === 'USER_MESSAGE'">
-            <div class="event-body"><b>你</b><p>{{ event.content }}</p></div><span class="avatar user-avatar">我</span>
+        <div v-for="event in item.events" :key="event.id" class="event" :class="`${event.kind.toLowerCase()}-event`">
+          <template v-if="event.kind === 'USER'">
+            <div class="event-body"><b>{{ event.actor.name }}</b><p>{{ event.content }}</p></div><span class="avatar user-avatar" :style="{ background: event.actor.avatarColor }">{{ event.actor.initial }}</span>
+          </template>
+          <template v-else-if="event.kind === 'AI'">
+            <span class="avatar" :style="{ background: event.actor.avatarColor }">{{ event.actor.initial }}</span>
+            <div class="event-body"><b>{{ event.actor.name }}</b><p v-if="event.status === 'COMPLETED'">{{ event.content }}</p><p v-else class="failed">{{ errorText(event.errorCode) }}</p></div>
           </template>
           <template v-else>
-            <span class="avatar" :style="{ background: participant(event)?.character?.avatarColor || '#83cdf3' }">{{ participant(event)?.character?.name?.charAt(0) || '角' }}</span>
-            <div class="event-body"><b>{{ participant(event)?.character?.name || '未知角色' }}</b><p v-if="event.status === 'COMPLETED'">{{ event.content }}</p><p v-else class="failed">{{ errorText(event.errorCode) }}</p></div>
+            <span class="avatar unknown-avatar" :style="{ background: event.actor.avatarColor }">{{ event.actor.initial }}</span>
+            <div class="event-body"><b>{{ event.actor.name }}</b><p v-if="event.status === 'COMPLETED'">{{ event.content }}</p><p v-else class="failed">{{ errorText(event.errorCode) }}</p></div>
           </template>
         </div>
         <div v-if="['PENDING','RUNNING'].includes(item.round.status)" class="waiting"><i></i><i></i><i></i><span>角色正在依次回应</span></div>
@@ -26,7 +30,9 @@
 </template>
 
 <script setup>
-import { participantForEvent, worldInteractionErrorMessage } from '../../utils/worldInteraction'
+import { computed } from 'vue'
+import { worldInteractionErrorMessage } from '../../utils/worldInteraction'
+import { buildWorldTimelineViewModel } from '../../utils/worldTimelineViewModel'
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
@@ -36,7 +42,7 @@ const props = defineProps({
 })
 defineEmits(['load-more'])
 
-const participant = event => participantForEvent(props.participants, event)
+const viewItems = computed(() => buildWorldTimelineViewModel(props.items, props.participants))
 const errorText = code => worldInteractionErrorMessage(code, '该角色暂时未能回应')
 const roundText = status => ({ PENDING: '等待中', RUNNING: '进行中', COMPLETED: '已完成', PARTIAL_FAILED: '部分完成', FAILED: '未完成' })[status] || status
 const timeText = value => value ? new Date(value).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''

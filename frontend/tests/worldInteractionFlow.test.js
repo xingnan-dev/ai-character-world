@@ -65,8 +65,10 @@ test('interaction page cleans up visibility listener, timers and requests', () =
   assert.match(store, /clearTimeout\(run\.timer\)/)
 })
 
-test('timeline uses participant mapping and no remote images or raw HTML', () => {
-  assert.match(timeline, /participantForEvent\(props\.participants, event\)/)
+test('timeline uses the snapshot view model and no remote images or raw HTML', () => {
+  assert.match(timeline, /buildWorldTimelineViewModel\(props\.items, props\.participants\)/)
+  assert.match(timeline, /event\.kind === 'USER'/)
+  assert.match(timeline, /event\.kind === 'AI'/)
   assert.doesNotMatch(page + timeline, /v-html|<img|AvatarRenderer|\.vrm/)
 })
 

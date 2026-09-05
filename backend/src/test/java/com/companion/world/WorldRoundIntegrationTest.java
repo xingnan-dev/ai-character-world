@@ -76,6 +76,7 @@ class WorldRoundIntegrationTest {
     private String ownerToken;
     private String otherToken;
     private CharacterWorld world;
+    private CharacterResponse userCharacter;
 
     @BeforeEach
     void setUp() {
@@ -84,7 +85,7 @@ class WorldRoundIntegrationTest {
         ownerToken = tokenFor(owner);
         otherToken = tokenFor(other);
         world = createWorld(owner.getId(), "Round World");
-        CharacterResponse userCharacter = createUserCharacter(owner.getId());
+        userCharacter = createUserCharacter(owner.getId());
         userService.setCurrentUserCharacter(owner.getId(), userCharacter.getId());
         characterWorldService.setUserCharacter(owner.getId(), world.getId(), userCharacter.getId());
         world = worldMapper.selectById(world.getId());
@@ -99,6 +100,11 @@ class WorldRoundIntegrationTest {
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.status").value("PENDING"))
                 .andExpect(jsonPath("$.data.userInput").value("讨论新的计划"))
+                .andExpect(jsonPath("$.data.userCharacter").isMap())
+                .andExpect(jsonPath("$.data.userCharacter.name").value(userCharacter.getName()))
+                .andExpect(jsonPath("$.data.userCharacter.characterType").value("USER"))
+                .andExpect(jsonPath("$.data.userCharacter.sourceCharacterId").value(userCharacter.getId()))
+                .andExpect(jsonPath("$.data.userCharacterSnapshot").doesNotExist())
                 .andExpect(jsonPath("$.data.ownerUserId").doesNotExist())
                 .andReturn();
 
@@ -216,6 +222,13 @@ class WorldRoundIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.items[0].round.id").value(third))
                 .andExpect(jsonPath("$.data.items[1].round.id").value(second))
+                .andExpect(jsonPath("$.data.items[0].round.userCharacter").isMap())
+                .andExpect(jsonPath("$.data.items[0].round.userCharacter.name").value(userCharacter.getName()))
+                .andExpect(jsonPath("$.data.items[0].round.userCharacter.characterType").value("USER"))
+                .andExpect(jsonPath("$.data.items[0].round.userCharacter.sourceCharacterId").value(userCharacter.getId()))
+                .andExpect(jsonPath("$.data.items[0].round.userCharacterSnapshot").doesNotExist())
+                .andExpect(jsonPath("$.data.items[0].events[0].character").doesNotExist())
+                .andExpect(jsonPath("$.data.items[0].events[0].characterSnapshot").doesNotExist())
                 .andExpect(jsonPath("$.data.hasMore").value(true))
                 .andExpect(jsonPath("$.data.nextBeforeRoundId").value(second))
                 .andExpect(jsonPath("$.data.items[0].round.executionVersion").doesNotExist())
@@ -387,6 +400,11 @@ class WorldRoundIntegrationTest {
                         .header(authHeader(), bearer(ownerToken)))
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.worldId").value(world.getId()))
+                .andExpect(jsonPath("$.data.userCharacter").isMap())
+                .andExpect(jsonPath("$.data.userCharacter.name").value(userCharacter.getName()))
+                .andExpect(jsonPath("$.data.userCharacter.characterType").value("USER"))
+                .andExpect(jsonPath("$.data.userCharacter.sourceCharacterId").value(userCharacter.getId()))
+                .andExpect(jsonPath("$.data.userCharacterSnapshot").doesNotExist())
                 .andExpect(jsonPath("$.data.status").value("PENDING"));
         mockMvc.perform(get("/api/worlds/{worldId}/rounds/{roundId}/events", world.getId(), roundId)
                         .header(authHeader(), bearer(ownerToken)))
@@ -394,6 +412,8 @@ class WorldRoundIntegrationTest {
                 .andExpect(jsonPath("$.data[0].sequenceNo").value(1))
                 .andExpect(jsonPath("$.data[1].sequenceNo").value(2))
                 .andExpect(jsonPath("$.data[2].sequenceNo").value(3))
+                .andExpect(jsonPath("$.data[0].character").doesNotExist())
+                .andExpect(jsonPath("$.data[0].characterSnapshot").doesNotExist())
                 .andExpect(jsonPath("$.data[0].worldId").doesNotExist());
     }
 
