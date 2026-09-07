@@ -66,6 +66,7 @@ function handleVisibility() {
 watch(() => route.params.worldId, initialize)
 onMounted(() => {
   document.addEventListener('visibilitychange', handleVisibility)
+  handleVisibility()
   initialize()
 })
 onUnmounted(() => {
