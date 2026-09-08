@@ -6,7 +6,12 @@ import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import path from 'path'
 
 export default defineConfig(({ mode }) => {
-  const backend = mode === 'acceptance' ? 'http://127.0.0.1:18080' : 'http://localhost:8080'
+  const backend = mode === 'acceptance'
+    ? (process.env.VITE_ACCEPTANCE_API_TARGET || 'http://127.0.0.1:18080')
+    : 'http://localhost:8080'
+  const imageBackend = mode === 'acceptance'
+    ? (process.env.VITE_ACCEPTANCE_IMAGE_TARGET || backend)
+    : backend
   return {
   plugins: [
     vue(),
@@ -32,7 +37,7 @@ export default defineConfig(({ mode }) => {
         changeOrigin: true
       },
       '/generated-images': {
-        target: backend,
+        target: imageBackend,
         changeOrigin: true
       }
     }

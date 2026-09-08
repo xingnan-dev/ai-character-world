@@ -2,6 +2,7 @@ package com.companion.config;
 
 import com.companion.image.ImageDownloadTransport;
 import com.companion.image.ImageGenerationClient;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -19,6 +20,7 @@ import javax.imageio.ImageIO;
 /** Test-only image boundary. It is active only with the acceptance profile. */
 @Configuration
 @Profile("acceptance")
+@ConditionalOnProperty(name = "acceptance.image.fake.enabled", havingValue = "true", matchIfMissing = true)
 public class AcceptanceImageFakeConfig {
     private static byte[] fakePng(String seed) {
         BufferedImage image = new BufferedImage(256, 256, BufferedImage.TYPE_INT_RGB);

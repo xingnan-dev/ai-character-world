@@ -12,7 +12,7 @@ spring:
       schema-locations: classpath:soft-delete-schema.sql
       data-locations: classpath:acceptance-data.sql
 image-generation:
-  api-key: ''
+  api-key: ${ZHIPU_IMAGE_API_KEY:}
   storage-directory: ${IMAGE_STORAGE_DIRECTORY:./.acceptance-run/images}
   public-path: /generated-images/
   daily-limit: 100
