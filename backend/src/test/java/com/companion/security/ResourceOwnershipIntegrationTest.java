@@ -2,6 +2,7 @@ package com.companion.security;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.companion.ai.AiService;
+import com.companion.chat.ChatMessageRecoveryRunner;
 import com.companion.entity.Avatar;
 import com.companion.entity.ChatSession;
 import com.companion.mapper.AvatarMapper;
@@ -18,6 +19,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.util.Map;
 
@@ -36,6 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "ai.mock.enabled=true",
         "jwt.secret=resource-ownership-test-jwt-secret-at-least-32-bytes"
 })
+@ActiveProfiles("soft-delete-test")
 @AutoConfigureMockMvc
 class ResourceOwnershipIntegrationTest {
 
@@ -64,6 +67,10 @@ class ResourceOwnershipIntegrationTest {
 
     @MockBean
     private AiService aiService;
+
+    /** Resource ownership tests do not exercise startup recovery; keep that concern isolated. */
+    @MockBean
+    private ChatMessageRecoveryRunner chatMessageRecoveryRunner;
 
     @MockBean
     private AuthSessionMapper authSessionMapper;

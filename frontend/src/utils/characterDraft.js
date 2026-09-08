@@ -21,6 +21,7 @@ export function createCharacterForm(draft = {}) {
     relationshipToUser: draft.relationshipToUser || '',
     speakingStyle: draft.speakingStyle || '',
     avatarColor: draft.avatarColor || '#7c5cff',
+    imageUrl: draft.imageUrl || '',
     profile: Object.fromEntries(PROFILE_FIELDS.map(field => [
       field,
       Array.isArray(profile[field]) ? profile[field].join('\n') : ''

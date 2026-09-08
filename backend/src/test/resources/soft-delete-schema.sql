@@ -249,3 +249,19 @@ CREATE TABLE t_world_event (
     INDEX idx_world_event_round_sequence (round_id, sequence_no),
     INDEX idx_world_event_participant (participant_id)
 );
+
+CREATE TABLE IF NOT EXISTS t_character_image_generation (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    character_id BIGINT,
+    request_id VARCHAR(100) NOT NULL,
+    request_hash CHAR(64) NOT NULL,
+    prompt VARCHAR(2000) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    image_path VARCHAR(500),
+    image_url VARCHAR(500),
+    confirmed_at DATETIME,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (user_id, request_id)
+);

@@ -35,3 +35,6 @@ export const deleteCharacter = (id) => request({
   url: `/characters/${id}`,
   method: 'delete'
 })
+
+export const generateCharacterImage = (data) => request({ method: 'post', url: '/character-images/generations', data, skipGlobalError: true })
+export const confirmCharacterImage = (data) => request({ method: 'post', url: '/character-images/confirm', data })
