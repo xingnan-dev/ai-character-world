@@ -58,7 +58,7 @@ public class AcceptanceImageFakeConfig {
     @Bean
     @Primary
     ImageDownloadTransport acceptanceImageDownloadTransport() {
-        return uri -> {
+        return (uri, resolvedAddresses) -> {
             byte[] png = fakePng(uri.toString());
             return new ImageDownloadTransport.DownloadResponse(200, png.length, null, new ByteArrayInputStream(png));
         };

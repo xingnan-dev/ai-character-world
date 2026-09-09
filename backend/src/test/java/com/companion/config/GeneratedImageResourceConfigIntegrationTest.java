@@ -23,6 +23,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("acceptance")
 class GeneratedImageResourceConfigIntegrationTest {
+    private static final String ORIGINAL_DATASOURCE_URL = System.getProperty("spring.datasource.url");
+    private static final String ORIGINAL_FLYWAY_ENABLED = System.getProperty("spring.flyway.enabled");
+    private static final String ORIGINAL_STORAGE_DIRECTORY = System.getProperty("image-generation.storage-directory");
+    private static final String ORIGINAL_ACCEPTANCE_FAKE = System.getProperty("acceptance.image.fake.enabled");
     private static Path storage;
     private static Path outside;
 
@@ -56,14 +60,22 @@ class GeneratedImageResourceConfigIntegrationTest {
 
     @AfterAll
     static void tearDown() throws IOException {
-        System.clearProperty("spring.datasource.url");
-        System.clearProperty("spring.flyway.enabled");
-        System.clearProperty("image-generation.storage-directory");
-        System.clearProperty("acceptance.image.fake.enabled");
+        restoreProperty("spring.datasource.url", ORIGINAL_DATASOURCE_URL);
+        restoreProperty("spring.flyway.enabled", ORIGINAL_FLYWAY_ENABLED);
+        restoreProperty("image-generation.storage-directory", ORIGINAL_STORAGE_DIRECTORY);
+        restoreProperty("acceptance.image.fake.enabled", ORIGINAL_ACCEPTANCE_FAKE);
         if (storage != null && storage.getParent() != null) {
             Files.walk(storage.getParent()).sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
                 try { Files.deleteIfExists(path); } catch (IOException ignored) { }
             });
+        }
+    }
+
+    private static void restoreProperty(String name, String value) {
+        if (value == null) {
+            System.clearProperty(name);
+        } else {
+            System.setProperty(name, value);
         }
     }
 

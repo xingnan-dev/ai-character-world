@@ -9,17 +9,24 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.UUID;
+import java.util.List;
 
 public class GeneratedImageStorage {
     private static final int MAX_REDIRECTS = 3;
     private final ImageDownloadTransport transport;
     private final Path directory;
     private final long maxBytes;
+    private final HostResolver resolver;
 
     public GeneratedImageStorage(ImageDownloadTransport transport, Path directory, long maxBytes) {
+        this(transport, directory, maxBytes, host -> List.of(InetAddress.getAllByName(host)));
+    }
+
+    GeneratedImageStorage(ImageDownloadTransport transport, Path directory, long maxBytes, HostResolver resolver) {
         this.transport = transport;
         this.directory = directory.toAbsolutePath().normalize();
         this.maxBytes = maxBytes;
+        this.resolver = resolver;
     }
 
     public Path download(String value) throws IOException {
@@ -31,8 +38,8 @@ public class GeneratedImageStorage {
         }
         Files.createDirectories(directory);
         for (int redirects = 0; ; redirects++) {
-            validatePublicHttps(uri);
-            try (ImageDownloadTransport.DownloadResponse response = transport.download(uri)) {
+            var resolvedAddresses = validatePublicHttps(uri);
+            try (ImageDownloadTransport.DownloadResponse response = transport.download(uri, resolvedAddresses)) {
                 if (response.status() >= 300 && response.status() < 400) {
                     if (redirects >= MAX_REDIRECTS || response.location() == null) throw new IOException("图片重定向无效");
                     uri = uri.resolve(response.location());
@@ -85,11 +92,33 @@ public class GeneratedImageStorage {
         throw new IOException("返回内容不是有效图片");
     }
 
-    private void validatePublicHttps(URI uri) throws IOException {
+    private java.util.List<InetAddress> validatePublicHttps(URI uri) throws IOException {
         if (!"https".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null || uri.getUserInfo() != null) throw new IOException("图片地址不安全");
-        for (InetAddress address : InetAddress.getAllByName(uri.getHost())) {
+        var addresses = List.copyOf(resolver.resolve(uri.getHost()));
+        if (addresses.isEmpty()) throw new IOException("图片地址无解析结果");
+        for (InetAddress address : addresses) {
             if (address.isAnyLocalAddress() || address.isLoopbackAddress() || address.isLinkLocalAddress()
-                    || address.isSiteLocalAddress() || address.isMulticastAddress()) throw new IOException("图片地址不安全");
+                    || address.isSiteLocalAddress() || address.isMulticastAddress()
+                    || isIpv4MappedPrivate(address)) throw new IOException("图片地址不安全");
         }
+        return addresses;
+    }
+
+    private boolean isIpv4MappedPrivate(InetAddress address) {
+        byte[] bytes = address.getAddress();
+        if (bytes.length != 16) return false;
+        boolean mapped = true;
+        for (int i = 0; i < 10; i++) mapped &= bytes[i] == 0;
+        mapped &= bytes[10] == (byte) 0xff && bytes[11] == (byte) 0xff;
+        if (!mapped) return false;
+        int first = bytes[12] & 255, second = bytes[13] & 255;
+        return first == 10 || first == 127 || (first == 169 && second == 254)
+                || (first == 172 && second >= 16 && second <= 31)
+                || (first == 192 && second == 168) || first == 0 || first >= 224;
+    }
+
+    @FunctionalInterface
+    interface HostResolver {
+        List<InetAddress> resolve(String host) throws IOException;
     }
 }

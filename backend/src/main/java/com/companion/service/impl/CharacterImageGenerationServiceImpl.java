@@ -94,7 +94,7 @@ public class CharacterImageGenerationServiceImpl implements CharacterImageGenera
     @Transactional
     public void confirm(Long userId, CharacterImageConfirmRequest request) {
         CharacterImageGeneration generation = generations.selectOne(new QueryWrapper<CharacterImageGeneration>()
-                .eq("id", request.getGenerationId()).eq("user_id", userId));
+                .eq("id", request.getGenerationId()).eq("user_id", userId).last("FOR UPDATE"));
         if (generation == null || !"SUCCEEDED".equals(generation.getStatus()) || generation.getImageUrl() == null) {
             throw new BusinessException(400, "图片生成记录不可确认");
         }

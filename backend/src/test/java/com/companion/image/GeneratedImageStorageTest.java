@@ -78,6 +78,6 @@ class GeneratedImageStorageTest {
         final Queue<DownloadResponse> responses = new ArrayDeque<>();
         final java.util.ArrayList<String> seen = new java.util.ArrayList<>();
         FakeTransport(DownloadResponse... responses) { this.responses.addAll(List.of(responses)); }
-        public DownloadResponse download(URI uri) throws IOException { seen.add(uri.toString()); if (responses.isEmpty()) throw new IOException("no response"); return responses.remove(); }
+        public DownloadResponse download(URI uri, List<java.net.InetAddress> resolvedAddresses) throws IOException { seen.add(uri.toString()); if (responses.isEmpty()) throw new IOException("no response"); return responses.remove(); }
     }
 }

@@ -6,6 +6,8 @@ import okhttp3.Response;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.InetAddress;
+import java.util.List;
 
 public class OkHttpImageDownloadTransport implements ImageDownloadTransport {
     private final OkHttpClient http;
@@ -15,8 +17,12 @@ public class OkHttpImageDownloadTransport implements ImageDownloadTransport {
     }
 
     @Override
-    public DownloadResponse download(URI uri) throws IOException {
-        Response response = http.newCall(new Request.Builder().url(uri.toString()).get().build()).execute();
+    public DownloadResponse download(URI uri, List<InetAddress> resolvedAddresses) throws IOException {
+        if (resolvedAddresses.isEmpty()) throw new IOException("图片地址无解析结果");
+        OkHttpClient requestClient = http.newBuilder()
+                .dns(hostname -> resolvedAddresses)
+                .build();
+        Response response = requestClient.newCall(new Request.Builder().url(uri.toString()).get().build()).execute();
         if (response.body() == null) {
             response.close();
             return new DownloadResponse(response.code(), 0, response.header("Location"), null);
