@@ -8,6 +8,8 @@ import java.util.List;
 @Data
 public class WorldResponse {
     private Long id;
+    private Long userCharacterId;
+    private com.companion.character.snapshot.CharacterSnapshot userCharacter;
     private String name;
     private String background;
     private String rules;

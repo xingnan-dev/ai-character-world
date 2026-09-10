@@ -10,6 +10,8 @@ public class WorldRoundResponse {
     private Long worldId;
     private String requestId;
     private String userInput;
+    private Long userCharacterId;
+    private com.companion.character.snapshot.CharacterSnapshot userCharacter;
     private String status;
     private String errorCode;
     private boolean executionRecoverable;

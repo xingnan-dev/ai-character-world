@@ -97,6 +97,13 @@
           </div>
 
           <div class="section-title">视觉标识</div>
+          <div class="image-generator">
+            <el-input v-model="appearanceDescription" maxlength="1000" placeholder="简短外貌描述，例如：银发、蓝眼、白色外套的年轻研究员" />
+            <el-button :loading="generatingImage" :disabled="!appearanceDescription.trim()" @click="generateImage">生成一张角色图片</el-button>
+            <el-alert v-if="imageError" :title="imageError" type="error" show-icon :closable="false" />
+            <img v-if="candidateImageUrl" class="generated-preview" :src="candidateImageUrl" alt="生成的角色图片" />
+            <small>生成后可预览；保存角色时才会确认绑定，重新生成不会覆盖旧图片。</small>
+          </div>
           <div class="color-editor">
             <el-color-picker v-model="form.avatarColor" />
             <span>{{ form.avatarColor }}</span>
@@ -111,7 +118,7 @@
       </section>
 
       <aside class="preview-card">
-        <SimpleAvatar :name="form.name" :avatar-color="form.avatarColor" :entity-key="form.name" :type="form.characterType" size="xl" />
+        <SimpleAvatar :name="form.name" :image-url="form.imageUrl" :avatar-color="form.avatarColor" :entity-key="form.name" :type="form.characterType" size="xl" />
         <h2>{{ form.name || '未命名角色' }}</h2>
         <p>{{ form.identity || '等待填写角色身份' }}</p>
         <div class="preview-divider"></div>
@@ -127,13 +134,15 @@
 
 <script setup>
 import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { createCharacter, parseCharacter } from '../api/character'
+import { confirmCharacterImage, createCharacter, generateCharacterImage, parseCharacter } from '../api/character'
 import { applyCharacterDraft, buildCharacterCreatePayload, createCharacterForm } from '../utils/characterDraft'
+import { createCharacterImageFlow } from '../utils/characterImageFlow'
 import SimpleAvatar from '../components/ui/SimpleAvatar.vue'
 
 const router = useRouter()
+const route = useRoute()
 const mode = ref('ai')
 const description = ref('')
 const parsing = ref(false)
@@ -142,6 +151,17 @@ const parsed = ref(false)
 const parseError = ref('')
 const formRef = ref(null)
 const form = reactive(createCharacterForm())
+const appearanceDescription = ref('')
+const generatingImage = ref(false)
+const imageError = ref('')
+const candidateImageUrl = ref('')
+const imageFlow = createCharacterImageFlow({
+  generateImage: generateCharacterImage,
+  confirmImage: confirmCharacterImage,
+  createCharacter,
+  createRequestId: () => crypto.randomUUID()
+})
+if (route.query.type === 'USER') form.characterType = 'USER'
 
 const profileFields = [
   { key: 'values', label: '价值观', placeholder: '诚实\n成长' },
@@ -181,14 +201,23 @@ async function saveCharacter() {
   saving.value = true
   try {
     const payload = buildCharacterCreatePayload(form, description.value)
-    const response = await createCharacter(payload)
+    // The image is confirmed only after the Character exists; this keeps generation separate from draft persistence.
+    payload.visualType = 'INITIAL'
+    payload.imageUrl = undefined
+    const characterId = await imageFlow.createAndConfirm(payload)
     ElMessage.success('角色创建成功')
-    await router.push(`/character/${response.data.id}`)
+    await router.push(`/character/${characterId}`)
   } catch (error) {
     console.error('Create character failed:', error)
   } finally {
     saving.value = false
   }
+}
+
+async function generateImage() {
+  if (generatingImage.value || !appearanceDescription.value.trim()) return
+  generatingImage.value = true; imageError.value = ''
+  try { const data = await imageFlow.generate(appearanceDescription.value); if (data) candidateImageUrl.value = data.imageUrl } catch (error) { imageError.value = error.message || '图片生成失败，请稍后重试' } finally { generatingImage.value = false }
 }
 </script>
 

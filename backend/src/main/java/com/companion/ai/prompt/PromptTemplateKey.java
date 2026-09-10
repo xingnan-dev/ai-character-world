@@ -25,7 +25,7 @@ public enum PromptTemplateKey {
             "prompts/world/system-v1.md",
             "1",
             Set.of("worldName", "worldBackground", "worldRules", "participantRoster",
-                    "actorName", "actorSnapshot")
+                    "userIdentity", "actorName", "actorSnapshot")
     ),
     WORLD_TURN(
             "prompts/world/turn-v1.md",

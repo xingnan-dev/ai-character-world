@@ -41,6 +41,14 @@
             </el-form-item>
           </div>
           <el-form-item label="头像颜色"><el-color-picker v-model="form.avatarColor" /></el-form-item>
+          <el-form-item label="生成二维形象">
+            <el-input v-model="imagePrompt" placeholder="简短外貌描述" />
+            <el-button :loading="generatingImage" :disabled="!imagePrompt.trim()" @click="generateImage">生成并预览</el-button>
+            <div class="image-preview-grid">
+              <div v-if="character.imageUrl" class="image-preview-card"><span>当前已保存</span><img class="generated-preview" :src="character.imageUrl" alt="当前已保存的角色图片" /></div>
+              <div v-if="pendingImageUrl" class="image-preview-card"><span>待确认候选</span><img class="generated-preview" :src="pendingImageUrl" alt="待确认的生成角色图片" /></div>
+            </div>
+          </el-form-item>
           <div class="edit-actions">
             <el-button @click="cancelEditing">取消</el-button>
             <el-button type="primary" :loading="saving" @click="saveChanges">保存修改</el-button>
@@ -78,7 +86,7 @@
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { deleteCharacter, getCharacterById, updateCharacter } from '../api/character'
+import { confirmCharacterImage, deleteCharacter, generateCharacterImage, getCharacterById, updateCharacter } from '../api/character'
 import { buildCharacterUpdatePayload, createCharacterForm } from '../utils/characterDraft'
 import SimpleAvatar from '../components/ui/SimpleAvatar.vue'
 
@@ -91,6 +99,7 @@ const editing = ref(false)
 const character = ref(null)
 const formRef = ref(null)
 const form = reactive(createCharacterForm())
+const imagePrompt = ref(''); const pendingImageUrl = ref(''); const pendingImageId = ref(null); const generatingImage = ref(false)
 const profileFields = [
   { key: 'values', label: '价值观' }, { key: 'likes', label: '喜欢' },
   { key: 'dislikes', label: '不喜欢' }, { key: 'interests', label: '兴趣' },
@@ -135,6 +144,7 @@ async function saveChanges() {
   saving.value = true
   try {
     await updateCharacter(characterId(), buildCharacterUpdatePayload(form))
+    if (pendingImageId.value) await confirmCharacterImage({ generationId: pendingImageId.value, characterId: characterId() })
     await loadCharacter()
     editing.value = false
     ElMessage.success('角色资料已更新')
@@ -144,6 +154,8 @@ async function saveChanges() {
     saving.value = false
   }
 }
+
+async function generateImage() { if (generatingImage.value) return; generatingImage.value = true; try { const response = await generateCharacterImage({ requestId: crypto.randomUUID(), characterId: characterId(), prompt: imagePrompt.value.trim() }); const data = response.data || response; if (data.status !== 'SUCCEEDED') throw new Error(data.error || '图片生成失败'); pendingImageUrl.value = data.imageUrl; pendingImageId.value = data.id } catch (error) { ElMessage.error(error.message || '图片生成失败，请稍后重试') } finally { generatingImage.value = false } }
 
 async function removeCharacter() {
   if (deleting.value) return
@@ -182,6 +194,7 @@ loadCharacter()
 .edit-form{margin-top:30px;padding-top:24px;border-top:1px solid var(--app-border)}
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
 .edit-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.image-preview-grid{display:flex;flex-wrap:wrap;gap:16px;margin-top:12px}.image-preview-card{display:flex;flex-direction:column;gap:7px;color:var(--app-text-muted);font-size:12px}.generated-preview{display:block;width:160px;height:160px;object-fit:cover;border-radius:var(--app-radius-md);border:1px solid var(--app-border-strong);background:var(--app-surface-subtle)}
 :deep(.el-form-item__label){color:var(--app-text)}:deep(.el-input__wrapper),:deep(.el-textarea__inner){color:var(--app-text);background:#fff;box-shadow:0 0 0 1px var(--app-border-strong) inset}:deep(.el-tag){border-color:var(--app-mint);color:var(--app-success);background:var(--app-mint-soft)}
 @media(max-width:650px){.character-detail-page{padding:22px 16px 40px}.page-header{align-items:stretch;flex-direction:column}.header-actions{width:100%}.header-actions :deep(.el-button){flex:1;margin-left:0}.detail-card{padding:23px 18px}.details,.profile-grid,.form-grid{grid-template-columns:1fr}.profile-heading{align-items:flex-start}.edit-actions{flex-direction:column-reverse}.edit-actions :deep(.el-button){width:100%;margin-left:0}}
 </style>

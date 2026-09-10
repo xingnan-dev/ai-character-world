@@ -8,7 +8,7 @@
     <main>
       <section class="welcome-card">
         <div class="welcome-copy"><span class="eyebrow">YOUR STORY SPACE</span><h1>欢迎回来，{{ userStore.nickname || '创造者' }}</h1><p>和你的角色继续聊天，或带他们进入一个全新的世界。</p><div class="welcome-actions"><el-button type="primary" size="large" @click="router.push('/chat')">开始聊天</el-button><el-button size="large" @click="router.push('/worlds/create')">创建世界</el-button></div></div>
-        <div class="avatar-stage"><SimpleAvatar :name="homeAvatar.name" :image-url="homeAvatar.imageUrl" :avatar-color="homeAvatar.avatarColor" :entity-key="homeAvatar.key" :type="homeAvatar.type" status="online" :size="160" shape="rounded" /><strong>{{ homeAvatar.name }}</strong><span>{{ homeAvatar.caption }}</span></div>
+        <div class="avatar-stage"><SimpleAvatar :name="homeAvatar.name" :image-url="homeAvatar.imageUrl" :avatar-color="homeAvatar.avatarColor" :entity-key="homeAvatar.key" type="USER" status="online" :size="160" shape="rounded" /><strong>{{ homeAvatar.name }}</strong><span>{{ homeAvatar.caption }}</span><el-button v-if="!currentUserCharacter" link type="primary" @click="router.push('/character/create?type=USER')">创建用户身份</el-button></div>
       </section>
       <section class="quick-section">
         <div class="section-heading"><div><span class="eyebrow">QUICK START</span><h2>从这里开始</h2></div><span>选择一个空间，继续你的故事</span></div>
@@ -23,18 +23,17 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getCharacterList } from '../api/character'
-import { useAvatarStore } from '../stores/avatar'
 import { useUserStore } from '../stores/user'
 import SimpleAvatar from '../components/ui/SimpleAvatar.vue'
-const router=useRouter(),userStore=useUserStore(),avatarStore=useAvatarStore();const characters=ref([])
+const router=useRouter(),userStore=useUserStore();const characters=ref([])
 const quickActions=[{title:'创建角色',description:'用描述生成可编辑的人物设定',icon:'✦',accent:'mint',path:'/character/create'},{title:'角色空间',description:'查看和管理你创建的角色',icon:'☺',accent:'sky',path:'/characters'},{title:'我的世界',description:'创建世界并安排互动阵容',icon:'◎',accent:'peach',path:'/worlds'},{title:'普通聊天',description:'与当前 AI 伙伴单独对话',icon:'◇',accent:'lavender',path:'/chat'}]
-const avatarItems=computed(()=>avatarStore.avatarList.map(item=>({...item,kind:'avatar',type:'AI',imageUrl:item.imageUrl||item.thumbnailUrl||'',avatarColor:item.avatarColor||''})))
 const characterItems=computed(()=>characters.value.map(item=>({...item,kind:'character',type:item.characterType})))
-const createdPeople=computed(()=>[...avatarItems.value,...characterItems.value]);const previewCharacters=computed(()=>createdPeople.value.slice(0,5))
-const homeAvatar=computed(()=>{const selected=avatarItems.value[avatarStore.currentAvatarIndex]||characterItems.value[0];if(selected)return{...selected,key:`${selected.kind}-${selected.id}`,caption:selected.identity||'你的专属人物'};return{key:`default-${userStore.userInfo.id||'user'}`,name:userStore.nickname||'我的人物',imageUrl:userStore.avatarUrl||'',avatarColor:'',type:'USER',caption:'创建角色后，这里会展示你的专属形象'}})
-const collectionText=computed(()=>createdPeople.value.length?`你已经创建了 ${createdPeople.value.length} 个人物。`:'你的角色与 Avatar 会出现在这里。')
+const currentUserCharacter=computed(()=>userStore.userInfo.currentUserCharacter||null)
+const previewCharacters=computed(()=>characterItems.value.filter(item=>item.characterType==='AI').slice(0,5))
+const homeAvatar=computed(()=>{const selected=currentUserCharacter.value;if(selected)return{...selected,key:`user-character-${selected.id}`,caption:selected.identity||'当前用户身份'};return{key:`default-${userStore.userInfo.id||'user'}`,name:'尚未设置用户身份',imageUrl:'',avatarColor:'',caption:'创建并选择一个 USER Character'}})
+const collectionText=computed(()=>previewCharacters.value.length?`你已经创建了 ${characterItems.value.filter(item=>item.characterType==='AI').length} 个 AI Character。`:'还没有 AI Character。')
 async function logout(){await userStore.logout();await router.push('/login')}
-onMounted(async()=>{const results=await Promise.allSettled([avatarStore.fetchAvatarList(),getCharacterList()]);if(results[1].status==='fulfilled')characters.value=results[1].value?.data||results[1].value||[]})
+onMounted(async()=>{const results=await Promise.allSettled([userStore.getUserInfoAction(),getCharacterList()]);if(results[1].status==='fulfilled')characters.value=results[1].value?.data||results[1].value||[]})
 </script>
 
 <style lang="scss" scoped>

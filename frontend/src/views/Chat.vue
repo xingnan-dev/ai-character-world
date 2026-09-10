@@ -253,7 +253,7 @@
           <div class="no-session-content">
             <el-icon :size="80" color="rgba(102,126,234,0.6)"><ChatDotRound /></el-icon>
             <h2>开始一段新对话</h2>
-            <p>选择一个AI形象，开启你的虚拟陪伴之旅</p>
+            <p>选择一个 AI Character，开启一对一对话</p>
             <el-button type="primary" size="large" @click="showAvatarDialog = true">
               <el-icon style="margin-right: 8px"><Plus /></el-icon>
               新建对话
@@ -265,14 +265,14 @@
 
     <el-dialog
       v-model="showAvatarDialog"
-      title="选择AI形象"
+      title="选择 AI Character"
       width="560px"
       :close-on-click-modal="true"
       class="avatar-dialog"
     >
       <div class="avatar-grid">
         <div
-          v-for="avatar in avatarList"
+          v-for="avatar in aiCharacters"
           :key="avatar.id"
           class="avatar-card"
           :class="{ selected: tempAvatarId === avatar.id }"
@@ -283,15 +283,15 @@
           </div>
           <div class="avatar-card-info">
             <h4>{{ avatar.name }}</h4>
-            <p class="avatar-slogan">{{ avatar.slogan || '暂无个性签名' }}</p>
-            <span class="avatar-type">{{ getTypeLabel(avatar.type) }}</span>
+            <p class="avatar-slogan">{{ avatar.identity || avatar.corePersonality || '暂无角色简介' }}</p>
+            <span class="avatar-type">AI Character</span>
           </div>
         </div>
 
-        <div v-if="avatarList.length === 0" class="no-avatars">
+        <div v-if="aiCharacters.length === 0" class="no-avatars">
           <el-icon :size="48" color="rgba(0,0,0,0.2)"><User /></el-icon>
-          <p>你还没有创建任何AI形象</p>
-          <el-button type="primary" @click="goToCreateAvatar">去创建</el-button>
+          <p>你还没有创建 AI Character</p>
+          <el-button type="primary" @click="goToCreateCharacter">去创建</el-button>
         </div>
       </div>
 
@@ -335,6 +335,7 @@ import { useAvatarStore } from '../stores/avatar'
 import { useUserStore } from '../stores/user'
 import AvatarRenderer from '../components/AvatarRenderer.vue'
 import { getAvatarById } from '../api/avatar'
+import { getCharacterList } from '../api/character'
 import { resolveChatAvatarBehaviorState } from '../avatar/chatAvatarBehaviorState'
 import { mapReplyToReaction } from '../avatar/AvatarEmotionMapper'
 import {
@@ -352,6 +353,7 @@ const messagesRef = ref(null)
 const inputMessage = ref('')
 const showAvatarDialog = ref(false)
 const tempAvatarId = ref(null)
+const aiCharacters = ref([])
 const sessionAvatar = ref(null)
 const sessionAvatarLoading = ref(false)
 const sessionAvatarError = ref('')
@@ -366,7 +368,7 @@ const avatarList = computed(() => avatarStore.avatarList)
 const currentSessionAvatarName = computed(() => {
   if (!chatStore.currentSession) return ''
   const session = chatStore.currentSession
-  return session.avatarName || session.title || 'AI'
+  return session.characterName || session.avatarName || session.title || 'AI'
 })
 
 const currentAvatarModelUrl = computed(() => {
@@ -514,9 +516,8 @@ watch(
 )
 
 onMounted(async () => {
-  if (avatarStore.avatarList.length === 0) {
-    await avatarStore.fetchAvatarList()
-  }
+  const characterResponse = await getCharacterList('AI')
+  aiCharacters.value = characterResponse.data || characterResponse || []
   await chatStore.fetchSessions()
 })
 
@@ -535,6 +536,7 @@ const goToCreateAvatar = () => {
   showAvatarDialog.value = false
   router.push('/avatar/create')
 }
+const goToCreateCharacter = () => { showAvatarDialog.value = false; router.push('/character/create?type=AI') }
 
 const handleSelectSession = async (session) => {
   if (session.id === chatStore.currentSessionId) return
@@ -571,7 +573,7 @@ const handleDeleteCurrentSession = async () => {
 const handleCreateSession = async () => {
   if (!tempAvatarId.value) return
   try {
-    const avatar = avatarStore.avatarList.find((a) => a.id === tempAvatarId.value)
+    const avatar = aiCharacters.value.find((a) => a.id === tempAvatarId.value)
     const session = await chatStore.createSession(
       tempAvatarId.value,
       avatar ? avatar.name : '新对话'

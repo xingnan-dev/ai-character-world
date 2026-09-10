@@ -23,7 +23,7 @@ test('create flow preserves description on parse failure and navigates after sav
   assert.match(createSource, /parseError\.value\s*=\s*error\?\.message/)
   assert.doesNotMatch(createSource, /description\.value\s*=\s*''/)
   assert.match(createSource, /buildCharacterCreatePayload\(form, description\.value\)/)
-  assert.match(createSource, /router\.push\(`\/character\/\$\{response\.data\.id}`\)/)
+  assert.match(createSource, /router\.push\(`\/character\/\$\{characterId}`\)/)
 })
 
 test('Character create page does not load AvatarRenderer or infer a VRM', () => {

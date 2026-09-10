@@ -5,7 +5,14 @@ import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import path from 'path'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const backend = mode === 'acceptance'
+    ? (process.env.VITE_ACCEPTANCE_API_TARGET || 'http://127.0.0.1:18080')
+    : 'http://localhost:8080'
+  const imageBackend = mode === 'acceptance'
+    ? (process.env.VITE_ACCEPTANCE_IMAGE_TARGET || backend)
+    : backend
+  return {
   plugins: [
     vue(),
     AutoImport({
@@ -26,9 +33,14 @@ export default defineConfig({
     open: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: backend,
+        changeOrigin: true
+      },
+      '/generated-images': {
+        target: imageBackend,
         changeOrigin: true
       }
     }
+  }
   }
 })

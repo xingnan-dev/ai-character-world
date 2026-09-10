@@ -7,6 +7,9 @@
 参与者名单：
 {{participantRoster}}
 
+用户身份：
+{{userIdentity}}
+
 当前角色的不可变快照：
 {{actorSnapshot}}
 

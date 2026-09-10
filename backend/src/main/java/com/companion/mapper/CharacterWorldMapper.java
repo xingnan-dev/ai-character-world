@@ -9,7 +9,7 @@ import org.apache.ibatis.annotations.Select;
 @Mapper
 public interface CharacterWorldMapper extends BaseMapper<CharacterWorld> {
     @Select("""
-            SELECT id, owner_user_id, name, background, rules, atmosphere, scene,
+            SELECT id, owner_user_id, user_character_id, name, background, rules, atmosphere, scene,
                    source_description, status, deleted, create_time, update_time
             FROM t_world
             WHERE id = #{worldId} AND owner_user_id = #{userId} AND status = 1 AND deleted = 0

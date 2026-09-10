@@ -15,6 +15,9 @@ public class WorldRound {
     private Long worldId;
     private String requestId;
     private String userInput;
+    private Long userCharacterId;
+    private String userCharacterSnapshot;
+    private Integer userCharacterSnapshotVersion;
     private String status;
     private String errorCode;
     private LocalDateTime startedTime;

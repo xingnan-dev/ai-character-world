@@ -114,3 +114,12 @@ chat:
 avatar:
   asset:
     minimum-score: ${AVATAR_ASSET_MINIMUM_SCORE:10}
+
+image-generation:
+  api-key: ${ZHIPU_IMAGE_API_KEY:}
+  api-url: ${ZHIPU_IMAGE_API_URL:https://open.bigmodel.cn/api/paas/v4/images/generations}
+  model: ${ZHIPU_IMAGE_MODEL:cogview-3-flash}
+  storage-directory: ${IMAGE_STORAGE_DIRECTORY:./generated-images}
+  public-path: ${IMAGE_PUBLIC_PATH:/generated-images/}
+  daily-limit: ${IMAGE_DAILY_LIMIT:20}
+  per-user-concurrency: ${IMAGE_PER_USER_CONCURRENCY:1}

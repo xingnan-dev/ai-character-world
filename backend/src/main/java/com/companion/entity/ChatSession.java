@@ -19,6 +19,9 @@ public class ChatSession {
     private Long userId;
 
     private Long avatarId;
+    private Long characterId;
+    private String characterSnapshot;
+    private Integer characterSnapshotVersion;
 
     private Long personalityId;
 

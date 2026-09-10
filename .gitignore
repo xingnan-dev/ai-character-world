@@ -127,3 +127,6 @@ Desktop.ini
 *.h2.db
 *.mv.db
 *.trace.db
+
+# Acceptance runtime output (never submit generated images or local logs)
+.acceptance-run/

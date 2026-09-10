@@ -4,6 +4,7 @@ import com.companion.ai.model.LlmMessage;
 import com.companion.ai.model.LlmRole;
 import com.companion.entity.ChatMessage;
 import com.companion.entity.Personality;
+import com.companion.character.snapshot.CharacterSnapshot;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -66,6 +67,48 @@ public class ChatPromptComposer {
             metadata.put("memoryPromptVersion", PromptTemplateKey.CHAT_MEMORY.version());
         }
 
+        return new ComposedChatPrompt(messages, metadata);
+    }
+
+    public ComposedChatPrompt composeCharacter(Long userId, Long sessionId,
+                                                CharacterSnapshot character,
+                                                String memoryContext,
+                                                List<ChatMessage> history,
+                                                String userMessage) {
+        if (character == null || !"AI".equals(character.characterType())) {
+            throw new PromptTemplateException("AI Character is required to compose a chat prompt");
+        }
+        if (userMessage == null || userMessage.isBlank()) {
+            throw new PromptTemplateException("User message is required to compose a chat prompt");
+        }
+        Map<String, Object> variables = new LinkedHashMap<>();
+        variables.put("name", character.name());
+        variables.put("corePersonality", valueOrDefault(character.corePersonality(), "友善、尊重用户"));
+        variables.put("identity", valueOrDefault(character.identity(), "AI虚拟伴侣"));
+        variables.put("languageStyle", valueOrDefault(character.speakingStyle(), "自然、清晰"));
+        variables.put("hobbies", character.profile().interests().isEmpty()
+                ? "与用户交流" : String.join("、", character.profile().interests()));
+        variables.put("relationship", valueOrDefault(character.relationshipToUser(), "虚拟伙伴"));
+
+        List<LlmMessage> messages = new ArrayList<>();
+        messages.add(systemMessage(PromptTemplateKey.CHAT_SAFETY, Map.of()));
+        messages.add(systemMessage(PromptTemplateKey.CHAT_PERSONALITY, variables));
+        if (memoryContext != null && !memoryContext.isBlank()) {
+            messages.add(systemMessage(PromptTemplateKey.CHAT_MEMORY,
+                    Map.of("memoryContext", memoryContext.trim())));
+        }
+        normalizedHistory(history).stream().map(this::toLlmMessage)
+                .filter(message -> message.content() != null && !message.content().isBlank())
+                .forEach(messages::add);
+        messages.add(new LlmMessage(LlmRole.USER, userMessage));
+
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        putIfPresent(metadata, "userId", userId);
+        putIfPresent(metadata, "sessionId", sessionId);
+        putIfPresent(metadata, "characterId", character.sourceCharacterId());
+        metadata.put("characterSnapshotVersion", character.snapshotVersion());
+        metadata.put("safetyPromptVersion", PromptTemplateKey.CHAT_SAFETY.version());
+        metadata.put("personalityPromptVersion", PromptTemplateKey.CHAT_PERSONALITY.version());
         return new ComposedChatPrompt(messages, metadata);
     }
 

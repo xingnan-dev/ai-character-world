@@ -14,4 +14,5 @@ public interface CharacterWorldService {
     WorldResponse update(Long userId, Long worldId, WorldUpdateRequest request);
     void delete(Long userId, Long worldId);
     WorldResponse replaceParticipants(Long userId, Long worldId, WorldParticipantReplaceRequest request);
+    WorldResponse setUserCharacter(Long userId, Long worldId, Long characterId);
 }

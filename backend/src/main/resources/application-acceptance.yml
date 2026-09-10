@@ -1,0 +1,23 @@
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:image_acceptance;MODE=MySQL;DATABASE_TO_LOWER=TRUE;NON_KEYWORDS=VALUE;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+  flyway:
+    enabled: false
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:soft-delete-schema.sql
+      data-locations: classpath:acceptance-data.sql
+image-generation:
+  api-key: ${ZHIPU_IMAGE_API_KEY:}
+  storage-directory: ${IMAGE_STORAGE_DIRECTORY:./.acceptance-run/images}
+  public-path: /generated-images/
+  daily-limit: 100
+ai:
+  mock:
+    enabled: true
+jwt:
+  secret: acceptance-only-jwt-secret-key-at-least-32-bytes

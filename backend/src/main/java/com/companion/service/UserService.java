@@ -19,4 +19,6 @@ public interface UserService {
     UserVO getUserInfo(Long userId);
 
     UserVO updateUserInfo(Long userId, String nickname, String avatarUrl);
+
+    UserVO setCurrentUserCharacter(Long userId, Long characterId);
 }

@@ -4,12 +4,14 @@ import { readFileSync } from 'node:fs'
 
 const home = readFileSync(new URL('../src/views/Home.vue', import.meta.url), 'utf8')
 
-test('Home uses created Avatar and Character data with a safe SimpleAvatar fallback', () => {
-  assert.match(home, /avatarStore\.fetchAvatarList\(\)/)
+test('Home uses the bound USER Character and lists AI Characters with a safe fallback', () => {
+  assert.doesNotMatch(home, /avatarStore|fetchAvatarList/)
   assert.match(home, /getCharacterList\(\)/)
   assert.match(home, /<SimpleAvatar/)
   assert.match(home, /default-\$\{userStore\.userInfo\.id\|\|'user'\}/)
-  assert.match(home, /userStore\.avatarUrl\|\|''/)
+  assert.match(home, /currentUserCharacter/)
+  assert.match(home, /characterType==='AI'/)
+  assert.match(home, /尚未设置用户身份/)
 })
 
 test('Home stops loading the Three VRM presentation without deleting its dependencies', () => {

@@ -3,6 +3,8 @@ package com.companion.world;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.companion.common.exception.BusinessException;
 import com.companion.dto.request.WorldRoundCreateRequest;
+import com.companion.dto.request.CharacterCreateRequest;
+import com.companion.dto.response.CharacterResponse;
 import com.companion.entity.CharacterWorld;
 import com.companion.entity.User;
 import com.companion.entity.WorldEvent;
@@ -18,6 +20,9 @@ import com.companion.security.JwtProperties;
 import com.companion.security.JwtTokenService;
 import com.companion.security.TokenSessionService;
 import com.companion.service.WorldRoundService;
+import com.companion.service.CharacterService;
+import com.companion.service.UserService;
+import com.companion.service.CharacterWorldService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -59,6 +64,9 @@ class WorldRoundIntegrationTest {
     @Autowired private WorldRoundMapper roundMapper;
     @Autowired private WorldEventMapper eventMapper;
     @Autowired private WorldRoundService roundService;
+    @Autowired private CharacterService characterService;
+    @Autowired private UserService userService;
+    @Autowired private CharacterWorldService characterWorldService;
     @Autowired private JwtTokenService jwtTokenService;
     @Autowired private TokenSessionService tokenSessionService;
     @Autowired private JwtProperties jwtProperties;
@@ -68,6 +76,7 @@ class WorldRoundIntegrationTest {
     private String ownerToken;
     private String otherToken;
     private CharacterWorld world;
+    private CharacterResponse userCharacter;
 
     @BeforeEach
     void setUp() {
@@ -76,6 +85,12 @@ class WorldRoundIntegrationTest {
         ownerToken = tokenFor(owner);
         otherToken = tokenFor(other);
         world = createWorld(owner.getId(), "Round World");
+        userCharacter = createUserCharacter(owner.getId());
+        userService.setCurrentUserCharacter(owner.getId(), userCharacter.getId());
+        characterWorldService.setUserCharacter(owner.getId(), world.getId(), userCharacter.getId());
+        world = worldMapper.selectById(world.getId());
+        CharacterWorld lockedWorld = worldMapper.selectOwnedForUpdate(owner.getId(), world.getId());
+        assertThat(lockedWorld.getUserCharacterId()).isEqualTo(userCharacter.getId());
     }
 
     @Test
@@ -85,11 +100,21 @@ class WorldRoundIntegrationTest {
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.status").value("PENDING"))
                 .andExpect(jsonPath("$.data.userInput").value("讨论新的计划"))
+                .andExpect(jsonPath("$.data.userCharacter").isMap())
+                .andExpect(jsonPath("$.data.userCharacter.name").value(userCharacter.getName()))
+                .andExpect(jsonPath("$.data.userCharacter.characterType").value("USER"))
+                .andExpect(jsonPath("$.data.userCharacter.sourceCharacterId").value(userCharacter.getId()))
+                .andExpect(jsonPath("$.data.userCharacterSnapshot").doesNotExist())
                 .andExpect(jsonPath("$.data.ownerUserId").doesNotExist())
                 .andReturn();
 
         long roundId = responseId(result);
         WorldRound stored = roundMapper.selectById(roundId);
+        assertThat(stored.getUserCharacterId()).isEqualTo(world.getUserCharacterId());
+        assertThat(stored.getUserCharacterSnapshot()).isNotBlank();
+        assertThat(stored.getUserCharacterSnapshotVersion()).isNotNull().isEqualTo(1);
+        assertThat(objectMapper.readTree(stored.getUserCharacterSnapshot()).path("characterType").asText())
+                .isEqualTo("USER");
         List<WorldEvent> events = events(roundId);
         assertThat(stored.getRequestId()).isEqualTo("request-1");
         assertThat(events).singleElement().satisfies(event -> {
@@ -197,6 +222,13 @@ class WorldRoundIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.items[0].round.id").value(third))
                 .andExpect(jsonPath("$.data.items[1].round.id").value(second))
+                .andExpect(jsonPath("$.data.items[0].round.userCharacter").isMap())
+                .andExpect(jsonPath("$.data.items[0].round.userCharacter.name").value(userCharacter.getName()))
+                .andExpect(jsonPath("$.data.items[0].round.userCharacter.characterType").value("USER"))
+                .andExpect(jsonPath("$.data.items[0].round.userCharacter.sourceCharacterId").value(userCharacter.getId()))
+                .andExpect(jsonPath("$.data.items[0].round.userCharacterSnapshot").doesNotExist())
+                .andExpect(jsonPath("$.data.items[0].events[0].character").doesNotExist())
+                .andExpect(jsonPath("$.data.items[0].events[0].characterSnapshot").doesNotExist())
                 .andExpect(jsonPath("$.data.hasMore").value(true))
                 .andExpect(jsonPath("$.data.nextBeforeRoundId").value(second))
                 .andExpect(jsonPath("$.data.items[0].round.executionVersion").doesNotExist())
@@ -368,6 +400,11 @@ class WorldRoundIntegrationTest {
                         .header(authHeader(), bearer(ownerToken)))
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.worldId").value(world.getId()))
+                .andExpect(jsonPath("$.data.userCharacter").isMap())
+                .andExpect(jsonPath("$.data.userCharacter.name").value(userCharacter.getName()))
+                .andExpect(jsonPath("$.data.userCharacter.characterType").value("USER"))
+                .andExpect(jsonPath("$.data.userCharacter.sourceCharacterId").value(userCharacter.getId()))
+                .andExpect(jsonPath("$.data.userCharacterSnapshot").doesNotExist())
                 .andExpect(jsonPath("$.data.status").value("PENDING"));
         mockMvc.perform(get("/api/worlds/{worldId}/rounds/{roundId}/events", world.getId(), roundId)
                         .header(authHeader(), bearer(ownerToken)))
@@ -375,6 +412,8 @@ class WorldRoundIntegrationTest {
                 .andExpect(jsonPath("$.data[0].sequenceNo").value(1))
                 .andExpect(jsonPath("$.data[1].sequenceNo").value(2))
                 .andExpect(jsonPath("$.data[2].sequenceNo").value(3))
+                .andExpect(jsonPath("$.data[0].character").doesNotExist())
+                .andExpect(jsonPath("$.data[0].characterSnapshot").doesNotExist())
                 .andExpect(jsonPath("$.data[0].worldId").doesNotExist());
     }
 
@@ -449,6 +488,18 @@ class WorldRoundIntegrationTest {
         value.setUpdateTime(LocalDateTime.now());
         worldMapper.insert(value);
         return value;
+    }
+
+    private CharacterResponse createUserCharacter(Long userId) {
+        CharacterCreateRequest request = new CharacterCreateRequest();
+        request.setCharacterType("USER");
+        request.setName("测试用户身份-" + System.nanoTime());
+        request.setIdentity("测试用户");
+        request.setCorePersonality("稳定");
+        request.setCurrentGoal("完成测试");
+        request.setVisualType("INITIAL");
+        request.setAvatarColor("#667eea");
+        return characterService.create(userId, request);
     }
 
     private User createUser(String prefix) {

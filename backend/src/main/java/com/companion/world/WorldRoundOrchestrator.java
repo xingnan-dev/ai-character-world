@@ -6,6 +6,8 @@ import com.companion.ai.exception.LlmProviderException;
 import com.companion.ai.model.LlmResponse;
 import com.companion.ai.prompt.WorldPromptComposer;
 import com.companion.ai.prompt.WorldPromptComposer.WorldSpeech;
+import com.companion.character.snapshot.CharacterSnapshotJsonMapper;
+import com.companion.character.snapshot.CharacterSnapshot;
 import com.companion.entity.CharacterWorld;
 import com.companion.entity.WorldEvent;
 import com.companion.entity.WorldRound;
@@ -19,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 
 @Component
-@RequiredArgsConstructor
 public class WorldRoundOrchestrator {
 
     private static final int MAX_EVENT_CONTENT_LENGTH = 60_000;
@@ -28,6 +29,20 @@ public class WorldRoundOrchestrator {
     private final WorldPromptComposer promptComposer;
     private final LlmClient llmClient;
     private final WorldRoundLifecycleService lifecycle;
+    private final CharacterSnapshotJsonMapper snapshotJsonMapper;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public WorldRoundOrchestrator(WorldParticipantResolver resolver, WorldPromptComposer composer,
+                                  LlmClient llm, WorldRoundLifecycleService lifecycle,
+                                  CharacterSnapshotJsonMapper mapper) {
+        this.participantResolver=resolver; this.promptComposer=composer; this.llmClient=llm;
+        this.lifecycle=lifecycle; this.snapshotJsonMapper=mapper;
+    }
+
+    public WorldRoundOrchestrator(WorldParticipantResolver resolver, WorldPromptComposer composer,
+                                  LlmClient llm, WorldRoundLifecycleService lifecycle) {
+        this(resolver, composer, llm, lifecycle, new CharacterSnapshotJsonMapper(new com.fasterxml.jackson.databind.ObjectMapper()));
+    }
 
     public void execute(Long userId, CharacterWorld world, WorldRound round) {
         WorldExecutionClaim claim = lifecycle.claim(world.getId(), round.getId());
@@ -63,8 +78,13 @@ public class WorldRoundOrchestrator {
                                WorldActorContext actor, List<WorldActorContext> actors,
                                Map<Long, WorldEvent> existing) {
         try {
+            CharacterSnapshot userSnapshot = round.getUserCharacterSnapshot() == null
+                    ? new CharacterSnapshot(CharacterSnapshot.CURRENT_VERSION, 1L, "USER", "用户", null,
+                    null, null, null, null, null, null, CharacterSnapshot.Profile.empty(), "INITIAL", null, null, null)
+                    : snapshotJsonMapper.read(round.getUserCharacterSnapshot());
             LlmResponse response = llmClient.complete(promptComposer.compose(
-                    userId, world, round.getId(), actor, actors, round.getUserInput(),
+                    userId, world, round.getId(), actor, actors,
+                    userSnapshot, round.getUserInput(),
                     successfulSpeeches(actors, existing)), null);
             String content = response == null ? null : response.content();
             if (content == null || content.isBlank()) {

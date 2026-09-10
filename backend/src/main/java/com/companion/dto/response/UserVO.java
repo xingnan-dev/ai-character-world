@@ -17,5 +17,9 @@ public class UserVO {
 
     private String avatarUrl;
 
+    private Long currentUserCharacterId;
+
+    private CharacterResponse currentUserCharacter;
+
     private String createTime;
 }

@@ -48,4 +48,15 @@ public class UserController {
         userService.changePassword(user.userId(), request);
         return Result.success();
     }
+
+    @PutMapping("/current-character/{characterId}")
+    public Result<UserVO> setCurrentCharacter(@AuthenticationPrincipal AuthenticatedUser user,
+                                               @PathVariable Long characterId) {
+        return Result.success(userService.setCurrentUserCharacter(user.userId(), characterId));
+    }
+
+    @DeleteMapping("/current-character")
+    public Result<UserVO> clearCurrentCharacter(@AuthenticationPrincipal AuthenticatedUser user) {
+        return Result.success(userService.setCurrentUserCharacter(user.userId(), null));
+    }
 }

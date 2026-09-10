@@ -15,6 +15,15 @@ import java.util.stream.Collectors;
 @Component
 public class WorldPromptComposer {
 
+    public ComposedChatPrompt compose(Long userId, CharacterWorld world, Long roundId,
+                                      WorldActorContext actor, List<WorldActorContext> roster,
+                                      String userInput, List<WorldSpeech> previousSpeeches) {
+        CharacterSnapshot fallback = new CharacterSnapshot(CharacterSnapshot.CURRENT_VERSION, 1L, "USER",
+                "用户", null, null, null, null, null, null, null,
+                CharacterSnapshot.Profile.empty(), "INITIAL", null, null, null);
+        return compose(userId, world, roundId, actor, roster, fallback, userInput, previousSpeeches);
+    }
+
     private final PromptTemplateLoader templateLoader;
     private final PromptTemplateRenderer templateRenderer;
 
@@ -25,7 +34,8 @@ public class WorldPromptComposer {
 
     public ComposedChatPrompt compose(Long userId, CharacterWorld world, Long roundId,
                                       WorldActorContext actor, List<WorldActorContext> roster,
-                                      String userInput, List<WorldSpeech> previousSpeeches) {
+                                      CharacterSnapshot userCharacter, String userInput,
+                                      List<WorldSpeech> previousSpeeches) {
         if (world == null || actor == null || !actor.isValid()) {
             throw new PromptTemplateException("A valid world actor is required");
         }
@@ -38,8 +48,9 @@ public class WorldPromptComposer {
                 .collect(Collectors.joining("\n")));
         systemValues.put("actorName", actor.displayName());
         systemValues.put("actorSnapshot", describe(actor.snapshot()));
+        systemValues.put("userIdentity", describeUser(userCharacter));
 
-        String transcript = "用户：" + value(userInput, "");
+        String transcript = userCharacter.name() + "：" + value(userInput, "");
         if (previousSpeeches != null && !previousSpeeches.isEmpty()) {
             transcript += "\n" + previousSpeeches.stream()
                     .map(speech -> speech.speakerName() + "：" + speech.content())
@@ -61,6 +72,16 @@ public class WorldPromptComposer {
                 message(LlmRole.SYSTEM, PromptTemplateKey.WORLD_SYSTEM, systemValues),
                 message(LlmRole.USER, PromptTemplateKey.WORLD_TURN, turnValues)
         ), metadata);
+    }
+
+    private String describeUser(CharacterSnapshot snapshot) {
+        if (snapshot == null || !"USER".equals(snapshot.characterType())) {
+            throw new PromptTemplateException("A USER character snapshot is required");
+        }
+        return "姓名=" + snapshot.name()
+                + "\n身份=" + value(snapshot.identity(), "未设置")
+                + "\n核心性格=" + value(snapshot.corePersonality(), "未设置")
+                + "\n背景=" + value(snapshot.biography(), "未设置");
     }
 
     private LlmMessage message(LlmRole role, PromptTemplateKey key, Map<String, ?> values) {

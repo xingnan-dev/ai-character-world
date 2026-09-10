@@ -51,11 +51,11 @@ export const useChatStore = defineStore('chat', {
         this.loading = false
       }
     },
-    async createSession(avatarId, title) {
+    async createSession(characterId, title) {
       this.loading = true
       this.error = null
       try {
-        const res = await createSessionApi({ avatarId, title })
+        const res = await createSessionApi({ characterId, title })
         const session = res.data || res
         this.sessions.unshift(session)
         this.currentSessionId = session.id
