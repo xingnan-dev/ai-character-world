@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.test.context.ActiveProfiles;
@@ -23,7 +24,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
@@ -32,6 +32,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.reset;
 
 @SpringBootTest
 @ActiveProfiles("soft-delete-test")
@@ -41,7 +44,7 @@ class CharacterImageConfirmationConcurrencyIntegrationTest {
 
     @Autowired private CharacterImageGenerationService service;
     @Autowired private CharacterImageGenerationMapper generations;
-    @Autowired private CharacterMapper characters;
+    @SpyBean private CharacterMapper characters;
     @Autowired private PlatformTransactionManager transactionManager;
     @Autowired private DataSource dataSource;
     @Autowired private JdbcTemplate jdbc;
@@ -57,6 +60,7 @@ class CharacterImageConfirmationConcurrencyIntegrationTest {
 
     @AfterEach
     void tearDown() throws Exception {
+        reset(characters);
         jdbc.execute("ALTER TABLE t_character DROP CONSTRAINT IF EXISTS ck_confirmation_character_update");
         executor.shutdownNow();
         assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
@@ -114,6 +118,28 @@ class CharacterImageConfirmationConcurrencyIntegrationTest {
         AiCharacter unchangedCharacter = characters.selectById(character.getId());
         assertEquals(0, unchangedCharacter.getVisualType());
         assertNull(unchangedCharacter.getImageUrl());
+    }
+
+    @Test
+    void zeroRowCharacterUpdateRollsBackGenerationConfirmation() {
+        AiCharacter character = insertCharacter("missing-target");
+        AiCharacter untouched = insertCharacter("untouched-target");
+        CharacterImageGeneration generation = insertGeneration("/generated-images/zero-row.png");
+        doReturn(0).when(characters).updateById(any(AiCharacter.class));
+
+        BusinessException error = assertThrows(BusinessException.class,
+                () -> service.confirm(USER_ID, confirmation(generation.getId(), character.getId())));
+
+        assertEquals("角色图片更新失败，请重试", error.getMessage());
+        CharacterImageGeneration unchangedGeneration = generations.selectById(generation.getId());
+        assertNull(unchangedGeneration.getCharacterId());
+        assertNull(unchangedGeneration.getConfirmedAt());
+        AiCharacter unchangedTarget = characters.selectById(character.getId());
+        assertEquals(0, unchangedTarget.getVisualType());
+        assertNull(unchangedTarget.getImageUrl());
+        AiCharacter unchangedOther = characters.selectById(untouched.getId());
+        assertEquals(0, unchangedOther.getVisualType());
+        assertNull(unchangedOther.getImageUrl());
     }
 
     private List<Attempt> confirmConcurrently(long generationId, long firstCharacterId, long secondCharacterId)

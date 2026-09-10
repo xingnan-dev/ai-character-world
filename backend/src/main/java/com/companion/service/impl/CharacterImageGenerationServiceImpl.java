@@ -108,11 +108,17 @@ public class CharacterImageGenerationServiceImpl implements CharacterImageGenera
         character.setVisualType(CharacterVisualType.IMAGE.getCode());
         character.setImageUrl(generation.getImageUrl());
         character.setUpdateTime(LocalDateTime.now());
-        characters.updateById(character);
+        int characterUpdates = characters.updateById(character);
+        if (characterUpdates != 1) {
+            throw new BusinessException(409, "角色图片更新失败，请重试");
+        }
         generation.setCharacterId(character.getId());
         generation.setConfirmedAt(LocalDateTime.now());
         generation.setUpdatedAt(LocalDateTime.now());
-        generations.updateById(generation);
+        int generationUpdates = generations.updateById(generation);
+        if (generationUpdates != 1) {
+            throw new BusinessException(409, "图片确认状态更新失败，请重试");
+        }
     }
 
     private CharacterImageGeneration findByRequest(Long userId, String requestId) {

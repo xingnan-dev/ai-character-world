@@ -51,7 +51,7 @@ public class AcceptanceImageFakeConfig {
     ImageGenerationClient acceptanceImageGenerationClient() {
         return prompt -> {
             if (prompt != null && prompt.contains("FAIL")) throw new IOException("fake image generation failure");
-            return "https://203.0.113.10/fake-image.png?seed=" + Math.abs(prompt == null ? 0 : prompt.hashCode());
+            return "https://8.8.8.8/fake-image.png?seed=" + Math.abs(prompt == null ? 0 : prompt.hashCode());
         };
     }
 

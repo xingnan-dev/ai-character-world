@@ -45,6 +45,8 @@ class CharacterImageGenerationServiceTest {
         storage = mock(GeneratedImageStorage.class);
         when(generations.selectCount(any())).thenReturn(0L);
         when(generations.insert(any())).thenAnswer(invocation -> { ((CharacterImageGeneration) invocation.getArgument(0)).setId(9L); return 1; });
+        when(generations.updateById(any())).thenReturn(1);
+        when(characters.updateById(any())).thenReturn(1);
         doReturn("https://203.0.113.10/image").when(client).generate(any());
         when(storage.download(any())).thenReturn(temp.resolve("saved.png"));
     }
@@ -125,6 +127,39 @@ class CharacterImageGenerationServiceTest {
         when(generations.selectOne(any())).thenReturn(generation);
         assertThrows(BusinessException.class, () -> service().confirm(1L, confirm(9L, 11L)));
         verifyNoInteractions(characters);
+    }
+
+    @Test void characterUpdateMoreThanOneRowRejectsConfirmation() {
+        stubConfirmableGenerationAndCharacter();
+        when(characters.updateById(any())).thenReturn(2);
+
+        assertThrows(BusinessException.class, () -> service().confirm(1L, confirm(9L, 10L)));
+
+        verify(generations, never()).updateById(any());
+    }
+
+    @Test void generationUpdateZeroRowsRejectsConfirmation() {
+        stubConfirmableGenerationAndCharacter();
+        when(generations.updateById(any())).thenReturn(0);
+
+        assertThrows(BusinessException.class, () -> service().confirm(1L, confirm(9L, 10L)));
+    }
+
+    @Test void generationUpdateMoreThanOneRowRejectsConfirmation() {
+        stubConfirmableGenerationAndCharacter();
+        when(generations.updateById(any())).thenReturn(2);
+
+        assertThrows(BusinessException.class, () -> service().confirm(1L, confirm(9L, 10L)));
+    }
+
+    private void stubConfirmableGenerationAndCharacter() {
+        CharacterImageGeneration generation = record(9L, "r", "p", "SUCCEEDED", "/generated-images/x.png");
+        AiCharacter character = new AiCharacter();
+        character.setId(10L);
+        character.setUserId(1L);
+        character.setStatus(1);
+        when(generations.selectOne(any())).thenReturn(generation);
+        when(characters.selectOne(any())).thenReturn(character);
     }
 
     private CharacterImageGenerationServiceImpl service() { return new CharacterImageGenerationServiceImpl(generations, characters, properties, client, storage); }

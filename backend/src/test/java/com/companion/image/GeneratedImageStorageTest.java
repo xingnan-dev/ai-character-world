@@ -23,8 +23,8 @@ class GeneratedImageStorageTest {
         Files.write(old, PNG);
         FakeTransport transport = new FakeTransport(ok(PNG), ok(PNG));
         GeneratedImageStorage storage = new GeneratedImageStorage(transport, temp, 100);
-        Path first = storage.download("https://203.0.113.10/a");
-        Path second = storage.download("https://203.0.113.10/a");
+        Path first = storage.download("https://8.8.8.8/a");
+        Path second = storage.download("https://8.8.8.8/a");
         assertEquals(temp.toAbsolutePath(), first.getParent());
         assertNotEquals(first, second);
         assertTrue(first.toString().endsWith(".png"));
@@ -32,38 +32,38 @@ class GeneratedImageStorageTest {
     }
 
     @Test void followsOnlyValidatedRedirectTargets() throws Exception {
-        FakeTransport transport = new FakeTransport(response(302, 0, "https://203.0.113.11/final", null), ok(PNG));
-        Path saved = new GeneratedImageStorage(transport, temp, 100).download("https://203.0.113.10/start");
+        FakeTransport transport = new FakeTransport(response(302, 0, "https://1.1.1.1/final", null), ok(PNG));
+        Path saved = new GeneratedImageStorage(transport, temp, 100).download("https://8.8.8.8/start");
         assertTrue(Files.exists(saved));
-        assertEquals(List.of("https://203.0.113.10/start", "https://203.0.113.11/final"), transport.seen);
+        assertEquals(List.of("https://8.8.8.8/start", "https://1.1.1.1/final"), transport.seen);
         FakeTransport blocked = new FakeTransport(response(302, 0, "https://127.0.0.1/private", null));
-        assertThrows(IOException.class, () -> new GeneratedImageStorage(blocked, temp, 100).download("https://203.0.113.10/start"));
+        assertThrows(IOException.class, () -> new GeneratedImageStorage(blocked, temp, 100).download("https://8.8.8.8/start"));
         assertEquals(1, blocked.seen.size());
     }
 
     @Test void rejectsHttpAndPrivateAddressesBeforeTransport() {
         FakeTransport transport = new FakeTransport();
         GeneratedImageStorage storage = new GeneratedImageStorage(transport, temp, 100);
-        assertThrows(IOException.class, () -> storage.download("http://203.0.113.10/a"));
+        assertThrows(IOException.class, () -> storage.download("http://8.8.8.8/a"));
         assertThrows(IOException.class, () -> storage.download("https://127.0.0.1/a"));
         assertTrue(transport.seen.isEmpty());
     }
 
     @Test void enforcesDeclaredAndStreamingSizeAndCleansPartialFiles() {
-        assertThrows(IOException.class, () -> new GeneratedImageStorage(new FakeTransport(response(200, 101, null, PNG)), temp, 100).download("https://203.0.113.10/a"));
+        assertThrows(IOException.class, () -> new GeneratedImageStorage(new FakeTransport(response(200, 101, null, PNG)), temp, 100).download("https://8.8.8.8/a"));
         byte[] oversized = new byte[101];
         System.arraycopy(PNG, 0, oversized, 0, PNG.length);
-        assertThrows(IOException.class, () -> new GeneratedImageStorage(new FakeTransport(response(200, -1, null, oversized)), temp, 100).download("https://203.0.113.10/a"));
+        assertThrows(IOException.class, () -> new GeneratedImageStorage(new FakeTransport(response(200, -1, null, oversized)), temp, 100).download("https://8.8.8.8/a"));
         assertNoPartFiles();
     }
 
     @Test void detectsActualFormatInsteadOfTrustingMetadataAndCleansPartialFiles() {
-        assertThrows(IOException.class, () -> new GeneratedImageStorage(new FakeTransport(ok("not-image-data".getBytes())), temp, 100).download("https://203.0.113.10/a"));
+        assertThrows(IOException.class, () -> new GeneratedImageStorage(new FakeTransport(ok("not-image-data".getBytes())), temp, 100).download("https://8.8.8.8/a"));
         assertNoPartFiles();
     }
 
     @Test void downloadFailuresLeaveNoFiles() {
-        assertThrows(IOException.class, () -> new GeneratedImageStorage(new FakeTransport(response(503, 0, null, null)), temp, 100).download("https://203.0.113.10/a"));
+        assertThrows(IOException.class, () -> new GeneratedImageStorage(new FakeTransport(response(503, 0, null, null)), temp, 100).download("https://8.8.8.8/a"));
         assertNoPartFiles();
     }
 

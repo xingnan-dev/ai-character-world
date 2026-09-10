@@ -97,24 +97,51 @@ public class GeneratedImageStorage {
         var addresses = List.copyOf(resolver.resolve(uri.getHost()));
         if (addresses.isEmpty()) throw new IOException("图片地址无解析结果");
         for (InetAddress address : addresses) {
-            if (address.isAnyLocalAddress() || address.isLoopbackAddress() || address.isLinkLocalAddress()
-                    || address.isSiteLocalAddress() || address.isMulticastAddress()
-                    || isIpv4MappedPrivate(address)) throw new IOException("图片地址不安全");
+            if (!isPubliclyRoutable(address.getAddress())) throw new IOException("图片地址不安全");
         }
         return addresses;
     }
 
-    private boolean isIpv4MappedPrivate(InetAddress address) {
-        byte[] bytes = address.getAddress();
-        if (bytes.length != 16) return false;
-        boolean mapped = true;
-        for (int i = 0; i < 10; i++) mapped &= bytes[i] == 0;
-        mapped &= bytes[10] == (byte) 0xff && bytes[11] == (byte) 0xff;
-        if (!mapped) return false;
-        int first = bytes[12] & 255, second = bytes[13] & 255;
-        return first == 10 || first == 127 || (first == 169 && second == 254)
-                || (first == 172 && second >= 16 && second <= 31)
-                || (first == 192 && second == 168) || first == 0 || first >= 224;
+    private boolean isPubliclyRoutable(byte[] address) {
+        if (address.length == 4) return isPublicIpv4(address, 0);
+        if (address.length != 16) return false;
+        if (isIpv4Mapped(address)) return isPublicIpv4(address, 12);
+
+        int first = address[0] & 255;
+        int second = address[1] & 255;
+        if ((first & 0xfe) == 0xfc) return false; // fc00::/7 unique local
+        if (first == 0xfe && (second & 0xc0) == 0x80) return false; // fe80::/10 link local
+        if (first == 0xff) return false; // ff00::/8 multicast
+        if (first == 0x20 && second == 0x01
+                && (address[2] & 255) == 0x0d && (address[3] & 255) == 0xb8) return false; // documentation
+
+        boolean unspecifiedOrLoopback = true;
+        for (int index = 0; index < 15; index++) unspecifiedOrLoopback &= address[index] == 0;
+        if (unspecifiedOrLoopback && ((address[15] & 255) == 0 || (address[15] & 255) == 1)) return false;
+        return true;
+    }
+
+    private boolean isIpv4Mapped(byte[] address) {
+        for (int index = 0; index < 10; index++) {
+            if (address[index] != 0) return false;
+        }
+        return address[10] == (byte) 0xff && address[11] == (byte) 0xff;
+    }
+
+    private boolean isPublicIpv4(byte[] address, int offset) {
+        int first = address[offset] & 255;
+        int second = address[offset + 1] & 255;
+        int third = address[offset + 2] & 255;
+        if (first == 0 || first == 10 || first == 127 || first >= 224) return false;
+        if (first == 100 && second >= 64 && second <= 127) return false;
+        if (first == 169 && second == 254) return false;
+        if (first == 172 && second >= 16 && second <= 31) return false;
+        if (first == 192 && second == 0 && third == 0) return false;
+        if (first == 192 && second == 0 && third == 2) return false;
+        if (first == 192 && second == 168) return false;
+        if (first == 198 && (second == 18 || second == 19)) return false;
+        if (first == 198 && second == 51 && third == 100) return false;
+        return !(first == 203 && second == 0 && third == 113);
     }
 
     @FunctionalInterface

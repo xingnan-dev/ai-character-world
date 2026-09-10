@@ -29,8 +29,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class GeneratedImageStorageSsrfTest {
     private static final byte[] PNG = {(byte) 0x89, 'P', 'N', 'G', 13, 10, 26, 10, 0, 0, 0, 0};
-    private static final InetAddress PUBLIC = address("93.184.216.34");
-    private static final InetAddress SECOND_PUBLIC = address("93.184.216.35");
+    private static final InetAddress PUBLIC = address("8.8.8.8");
+    private static final InetAddress SECOND_PUBLIC = address("1.1.1.1");
     private static final InetAddress PRIVATE = address("10.0.0.1");
 
     @TempDir Path temp;
@@ -50,8 +50,9 @@ class GeneratedImageStorageSsrfTest {
     }
 
     @Test
-    void rejectsIpv4MappedIpv6PrivateRangesBeforeTransport() throws Exception {
-        for (String ipv4 : List.of("127.0.0.1", "10.0.0.1", "169.254.1.1")) {
+    void rejectsIpv4MappedIpv6NonPublicRangesBeforeTransport() throws Exception {
+        for (String ipv4 : List.of("127.0.0.1", "10.0.0.1", "169.254.1.1",
+                "100.64.0.1", "100.127.255.254", "192.0.2.1", "198.51.100.1", "203.0.113.1")) {
             ScriptedResolver resolver = new ScriptedResolver();
             resolver.answer("images.example", List.of(mapped(ipv4)));
             RecordingTransport transport = new RecordingTransport();
@@ -60,6 +61,43 @@ class GeneratedImageStorageSsrfTest {
                     () -> storage(transport, resolver).download("https://images.example/picture.png"), ipv4);
             assertTrue(transport.calls.isEmpty(), ipv4);
         }
+    }
+
+    @Test
+    void rejectsSpecialUseIpv4AndIpv6RangesBeforeTransport() {
+        List<String> forbidden = List.of(
+                "0.0.0.1", "10.0.0.1", "100.64.0.1", "100.127.255.254", "127.0.0.1",
+                "169.254.1.1", "172.16.0.1", "192.0.0.1", "192.0.2.1", "192.168.0.1",
+                "198.18.0.1", "198.19.255.254", "198.51.100.1", "203.0.113.1",
+                "224.0.0.1", "240.0.0.1", "::", "::1", "fc00::1", "fd12:3456:789a::1",
+                "fe80::1", "ff00::1", "2001:db8::1");
+        for (String literal : forbidden) {
+            ScriptedResolver resolver = new ScriptedResolver();
+            resolver.answer("images.example", List.of(address(literal)));
+            RecordingTransport transport = new RecordingTransport();
+
+            assertThrows(IOException.class,
+                    () -> storage(transport, resolver).download("https://images.example/picture.png"), literal);
+            assertTrue(transport.calls.isEmpty(), literal);
+        }
+    }
+
+    @Test
+    void allowsPublicIpv4AndIpv6WithoutChangingOriginalHostnames() throws Exception {
+        InetAddress publicIpv6 = address("2606:4700:4700::1111");
+        ScriptedResolver resolver = new ScriptedResolver();
+        resolver.answer("ipv4.example", List.of(PUBLIC));
+        resolver.answer("ipv6.example", List.of(publicIpv6));
+        RecordingTransport transport = new RecordingTransport(
+                redirect("https://ipv6.example/final"), ok(PNG));
+
+        Path saved = storage(transport, resolver).download("https://ipv4.example/start");
+
+        assertArrayEquals(PNG, Files.readAllBytes(saved));
+        assertEquals(List.of(PUBLIC), transport.calls.get(0).addresses());
+        assertEquals(List.of(publicIpv6), transport.calls.get(1).addresses());
+        assertEquals("ipv4.example", transport.calls.get(0).uri().getHost());
+        assertEquals("ipv6.example", transport.calls.get(1).uri().getHost());
     }
 
     @Test
