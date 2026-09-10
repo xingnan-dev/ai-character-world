@@ -68,7 +68,7 @@ class TestEndpointSecurityIntegrationTest {
     }
 
     @Test
-    void authenticatedRequestsCannotAccessRemovedEndpoints() throws Exception {
+    void authenticatedRequestsReceiveNotFoundWithoutInternalDetails() throws Exception {
         User user = new User();
         user.setUsername("removed-test-endpoint-user");
         user.setPassword("not-used");
@@ -81,21 +81,31 @@ class TestEndpointSecurityIntegrationTest {
         IssuedAccessToken token = jwtTokenService.issueAccessToken(user.getId(), user.getUsername());
         tokenSessionService.register(user.getId(), token);
 
-        for (String path : List.of("/api/test/db", "/api/test/user", "/api/test/raw")) {
+        for (String path : List.of("/api/test/raw", "/api/missing-resource-verification")) {
             mockMvc.perform(get(path)
                             .header(jwtTokenService.getHeaderName(),
                                     jwtTokenService.getTokenPrefix() + token.value()))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.code").value(500))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value(404))
+                    .andExpect(jsonPath("$.msg").value("资源不存在"))
                     .andExpect(jsonPath("$.data").doesNotExist())
                     .andExpect(content().string(org.hamcrest.Matchers.not(
                             org.hamcrest.Matchers.anyOf(
-                                    org.hamcrest.Matchers.containsString("users"),
-                                    org.hamcrest.Matchers.containsString("username"),
-                                    org.hamcrest.Matchers.containsString("userCount"),
-                                    org.hamcrest.Matchers.containsString("mybatisPlusTest"),
-                                    org.hamcrest.Matchers.containsString("jdbcTest")
+                                    org.hamcrest.Matchers.containsString(user.getUsername()),
+                                    org.hamcrest.Matchers.containsString("database"),
+                                    org.hamcrest.Matchers.containsString("jdbc"),
+                                    org.hamcrest.Matchers.containsString("NoResourceFoundException"),
+                                    org.hamcrest.Matchers.containsString("java."),
+                                    org.hamcrest.Matchers.containsString(path),
+                                    org.hamcrest.Matchers.containsString("at com.companion")
                             ))));
         }
+
+        mockMvc.perform(get("/api/user/info")
+                        .header(jwtTokenService.getHeaderName(),
+                                jwtTokenService.getTokenPrefix() + token.value()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.username").value(user.getUsername()));
     }
 }

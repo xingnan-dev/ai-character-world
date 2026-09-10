@@ -3,10 +3,13 @@ package com.companion.common.exception;
 import com.companion.common.result.Result;
 import com.companion.common.result.ResultCode;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.stream.Collectors;
 
@@ -27,6 +30,13 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining("; "));
         log.warn("参数校验失败: {}", msg);
         return Result.error(ResultCode.PARAM_ERROR.getCode(), msg);
+    }
+
+    @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
+    public ResponseEntity<Result<Void>> handleNotFound(Exception e) {
+        log.warn("请求资源不存在");
+        return ResponseEntity.status(ResultCode.NOT_FOUND.getCode())
+                .body(Result.error(ResultCode.NOT_FOUND));
     }
 
     @ExceptionHandler(Exception.class)
