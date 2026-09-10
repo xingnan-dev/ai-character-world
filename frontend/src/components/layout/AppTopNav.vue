@@ -1,8 +1,8 @@
 <template>
   <header class="app-top-nav">
     <div class="app-top-nav__inner">
-      <RouterLink class="app-top-nav__brand" to="/home" aria-label="AI Character World 首页">
-        <span class="app-top-nav__brand-mark" aria-hidden="true">◉</span><span>AI Character World</span>
+      <RouterLink class="app-top-nav__brand" to="/home" aria-label="AIworld 首页">
+        <span class="app-top-nav__brand-mark" aria-hidden="true">◉</span><span>AIworld</span>
       </RouterLink>
       <nav class="app-top-nav__links" aria-label="主导航">
         <RouterLink v-for="item in navigationItems" :key="item.section" :to="item.to" class="app-top-nav__link" :class="{ 'is-active': activeSection === item.section }" :aria-current="activeSection === item.section ? 'page' : undefined">{{ item.label }}</RouterLink>

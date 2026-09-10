@@ -3,7 +3,7 @@
     <div class="menu-header">
       <div class="logo">
         <span class="logo-icon">🌌</span>
-        <span class="logo-text">AI Space</span>
+        <span class="logo-text">AIworld</span>
         <span class="logo-glow"></span>
       </div>
     </div>
@@ -69,14 +69,10 @@ const props = defineProps({
   items: {
     type: Array,
     default: () => [
-      { key: 'space', label: 'AI空间', icon: '🌌', path: '/home' },
-      { key: 'create', label: '创造生命', icon: '✨', path: '/avatar/create' },
-      { key: 'characters', label: '角色空间', icon: '🎭', path: '/characters' },
-      { key: 'worlds', label: '我的世界', icon: '🌍', path: '/worlds' },
-      { key: 'chat', label: '与TA聊天', icon: '💬', path: '/chat', badge: 'New' },
-      { key: 'memory', label: '记忆空间', icon: '🧠', path: '/memory' },
-      { key: 'warehouse', label: '形象仓库', icon: '🎨', path: '/avatars' },
-      { key: 'settings', label: '设置', icon: '⚙', path: '/settings' }
+      { key: 'home', label: '首页', icon: '🌌', path: '/home' },
+      { key: 'characters', label: '角色', icon: '🎭', path: '/characters' },
+      { key: 'worlds', label: '世界', icon: '🌍', path: '/worlds' },
+      { key: 'chat', label: '聊天', icon: '💬', path: '/chat' }
     ]
   }
 })
@@ -92,7 +88,7 @@ let rippleId = 0
 const currentKey = computed(() => {
   const currentPath = route.path
   const item = props.items.find(i => currentPath.startsWith(i.path))
-  return item?.key || 'space'
+  return item?.key || 'home'
 })
 
 const handleClick = (item, e) => {

@@ -4,7 +4,7 @@
       <div class="sidebar-header">
         <div class="logo">
           <el-icon :size="24" color="#fff"><MagicStick /></el-icon>
-          <span>AI Companion</span>
+          <span>AIworld</span>
         </div>
       </div>
 

@@ -1,7 +1,7 @@
 <template>
   <div class="home-page">
     <header class="home-nav">
-      <RouterLink class="brand" to="/home"><span aria-hidden="true">◉</span> AI Character World</RouterLink>
+      <RouterLink class="brand" to="/home"><span aria-hidden="true">◉</span> AIworld</RouterLink>
       <nav aria-label="首页快捷导航"><RouterLink to="/characters">角色</RouterLink><RouterLink to="/worlds">世界</RouterLink><RouterLink to="/chat">聊天</RouterLink></nav>
       <button type="button" @click="logout">退出登录</button>
     </header>

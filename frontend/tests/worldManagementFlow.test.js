@@ -30,7 +30,7 @@ test('authenticated World routes and Home navigation exist', () => {
   for (const path of ["'/worlds'", "'/worlds/create'", "'/worlds/:worldId'"]) assert.match(router, new RegExp(path))
   assert.match(router, /WorldDetail\.vue[\s\S]*requiresAuth:\s*true/)
   assert.match(home, /title:\s*'我的世界'[\s\S]*path:\s*'\/worlds'/)
-  assert.match(nav, /AI Character World/)
+  assert.match(nav, /AIworld/)
   assert.match(nav, /to:'\/characters'/)
 })
 

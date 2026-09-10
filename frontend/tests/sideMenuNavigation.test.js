@@ -17,8 +17,12 @@ test('navigation does not depend on a DOM event while ripple animation remains g
   assert.doesNotMatch(source, /e\.currentTarget\.getBoundingClientRect/)
 })
 
-test('the complete default menu keeps the worlds route and every route-backed item', () => {
-  const paths = ['/home', '/avatar/create', '/characters', '/worlds', '/chat', '/memory', '/avatars', '/settings']
+test('the default menu exposes only the four route-backed product destinations', () => {
+  const paths = ['/home', '/characters', '/worlds', '/chat']
   for (const path of paths) assert.match(source, new RegExp(`path: '${path}'`))
-  assert.match(source, /label: '我的世界', icon: '🌍', path: '\/worlds'/)
+  for (const path of ['/avatar/create', '/memory', '/avatars', '/settings']) {
+    assert.doesNotMatch(source, new RegExp(`path: '${path}'`))
+  }
+  assert.equal((source.match(/path: '\//g) || []).length, paths.length)
+  assert.match(source, /label: '世界', icon: '🌍', path: '\/worlds'/)
 })
