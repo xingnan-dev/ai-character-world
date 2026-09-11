@@ -18,6 +18,9 @@ import com.companion.mapper.AvatarMapper;
 import com.companion.mapper.ChatMessageMapper;
 import com.companion.mapper.ChatSessionMapper;
 import com.companion.mapper.PersonalityMapper;
+import com.companion.character.snapshot.CharacterSnapshotJsonMapper;
+import com.companion.mapper.UserMapper;
+import com.companion.service.CharacterService;
 import com.companion.service.impl.ChatServiceImpl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -181,7 +184,8 @@ class AvatarGenerationCoordinatorTest {
         );
         ChatServiceImpl chatService = new ChatServiceImpl(
                 chatSessionMapper, mock(ChatMessageMapper.class), avatarMapper, resolver,
-                mock(ChatMessageLifecycleService.class), mock(AiService.class)
+                mock(ChatMessageLifecycleService.class), mock(AiService.class),
+                mock(CharacterService.class), mock(CharacterSnapshotJsonMapper.class), mock(UserMapper.class)
         );
 
         chatService.createSession(7L, new ChatSessionCreateRequest(101L, null));

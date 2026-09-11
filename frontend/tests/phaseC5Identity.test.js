@@ -13,11 +13,11 @@ test('Home separates the bound USER identity from AI Characters', () => {
   assert.doesNotMatch(home, /useAvatarStore|fetchAvatarList/)
 })
 
-test('new ordinary chats select AI Characters while legacy avatar rendering remains', () => {
+test('ordinary chats select AI Characters while legacy sessions no longer require VRM rendering', () => {
   assert.match(chat, /getCharacterList\('AI'\)/)
   assert.match(chat, /aiCharacters/)
-  assert.match(chat, /<AvatarRenderer/)
-  assert.match(chat, /currentSession\?\.avatarId/)
+  assert.match(chat, /<ChatSessionAvatar/)
+  assert.doesNotMatch(chat, /AvatarRenderer|getAvatarById|useAvatarStore/)
 })
 
 test('World entry binds the current USER Character and keeps interaction routing', () => {

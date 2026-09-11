@@ -1,29 +1,60 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import {
+  imageAfterFailure,
+  resolveAssistantPresentation,
+  resolveMessagePresentation,
+  resolveUserPresentation
+} from '../src/utils/chatSessionPresentation.js'
 
-const chatSource = readFileSync(new URL('../src/views/Chat.vue', import.meta.url), 'utf8')
+const oldSession = { id: 1, characterId: 10, characterName: '星澜', imageUrl: '/old.png', avatarColor: '#123456' }
+const newSession = { id: 2, characterId: 10, characterName: '星澜', imageUrl: '/new.png', avatarColor: '#654321' }
 
-test('chat resolves the real avatar from current ChatSession avatarId', () => {
-  assert.match(chatSource, /chatStore\.currentSession\?\.avatarId/)
-  assert.match(chatSource, /getAvatarById\(avatarId\)/)
+test('character session and assistant messages use the frozen snapshot name and image', () => {
+  assert.deepEqual(resolveAssistantPresentation(oldSession), {
+    name: '星澜', imageUrl: '/old.png', avatarColor: '#123456', type: 'AI', entityKey: 'character-session-1'
+  })
+  assert.equal(resolveMessagePresentation(oldSession, 'assistant', {}).imageUrl, '/old.png')
 })
 
-test('chat model URL comes only from the Avatar API response', () => {
-  assert.match(chatSource, /sessionAvatar\.value\?\.modelUrl\?\.trim\(\)\s*\|\|\s*''/)
-  assert.match(chatSource, /:model-url="currentAvatarModelUrl"/)
-  assert.doesNotMatch(chatSource, /getModelUrlByName|avatarModels|DEFAULT_MODEL|nova\.vrm/i)
+test('old and new sessions keep their own image snapshots after a character image change', () => {
+  assert.equal(resolveAssistantPresentation(oldSession).imageUrl, '/old.png')
+  assert.equal(resolveAssistantPresentation(newSession).imageUrl, '/new.png')
+  assert.equal(resolveAssistantPresentation(oldSession).imageUrl, '/old.png')
 })
 
-test('chat does not render AvatarRenderer without a real model URL', () => {
-  assert.match(chatSource, /v-if="currentAvatarModelUrl"/)
-  assert.match(chatSource, /当前会话没有可加载的3D模型/)
-  assert.match(chatSource, /会话3D形象加载失败/)
+test('user messages use a frozen USER snapshot when present and otherwise fall back to the nickname', () => {
+  const frozen = resolveUserPresentation({ userCharacter: {
+    characterType: 'USER', sourceCharacterId: 20, name: '旅人', imageUrl: '/user-old.png', avatarColor: '#abcdef'
+  } }, { id: 7, nickname: '当前用户' })
+  assert.equal(frozen.imageUrl, '/user-old.png')
+  assert.equal(frozen.name, '旅人')
+  assert.equal(frozen.avatarColor, '#abcdef')
+  assert.equal(frozen.entityKey, 20)
+
+  const fallback = resolveUserPresentation(oldSession, { id: 7, nickname: '当前用户' })
+  assert.equal(fallback.imageUrl, '')
+  assert.equal(fallback.name, '当前用户')
+  assert.equal(fallback.type, 'USER')
 })
 
-test('avatar binding caches identical avatarIds and rejects stale responses', () => {
-  assert.match(chatSource, /sessionAvatarCache = new Map\(\)/)
-  assert.match(chatSource, /sessionAvatarCache\.get\(cacheKey\)/)
-  assert.match(chatSource, /requestVersion !== sessionAvatarRequestVersion/)
-  assert.match(chatSource, /String\(chatStore\.currentSession\?\.avatarId/)
+test('a non-USER userCharacter snapshot is ignored and falls back to the nickname', () => {
+  const result = resolveUserPresentation({ userCharacter: {
+    characterType: 'AI', sourceCharacterId: 99, name: 'AI角色', imageUrl: '/ai.png', avatarColor: '#000000'
+  } }, { id: 7, nickname: '当前用户' })
+  assert.equal(result.name, '当前用户')
+  assert.equal(result.imageUrl, '')
+  assert.equal(result.avatarColor, '')
+})
+
+test('failed images are removed so the avatar component renders its name-and-color fallback', () => {
+  assert.equal(imageAfterFailure('/old.png'), '/old.png')
+  assert.equal(imageAfterFailure('/old.png', '/old.png'), '')
+})
+
+test('legacy Avatar sessions degrade to their frozen name without requiring an image', () => {
+  const legacy = resolveAssistantPresentation({ id: 9, avatarId: 3, avatarName: '旧人格', title: '历史会话' })
+  assert.equal(legacy.name, '旧人格')
+  assert.equal(legacy.imageUrl, '')
+  assert.equal(legacy.entityKey, 'avatar-session-9')
 })

@@ -42,13 +42,11 @@
             @click="handleSelectSession(session)"
           >
             <div class="chat-avatar">
-              <el-avatar :size="40" :style="{ background: getAvatarColor(session.avatarName) }">
-                {{ (session.avatarName || '?').charAt(0) }}
-              </el-avatar>
+              <ChatSessionAvatar :session="session" :user="userStore.userInfo" :size="40" />
             </div>
             <div class="chat-info">
-              <span class="chat-name">{{ session.title || session.avatarName }}</span>
-              <span class="chat-preview">{{ session.avatarName ? '与 ' + session.avatarName + ' 的对话' : '对话' }}</span>
+              <span class="chat-name">{{ session.title || assistantFor(session).name }}</span>
+              <span class="chat-preview">与 {{ assistantFor(session).name }} 的对话</span>
             </div>
             <el-icon
               class="delete-icon"
@@ -76,12 +74,7 @@
       <template v-if="chatStore.currentSession">
         <header class="chat-header">
           <div class="chat-header-left">
-            <el-avatar
-              :size="44"
-              :style="{ background: getAvatarColor(currentSessionAvatarName) }"
-            >
-              {{ (currentSessionAvatarName || '?').charAt(0) }}
-            </el-avatar>
+            <ChatSessionAvatar :session="chatStore.currentSession" :user="userStore.userInfo" :size="44" />
             <div class="chat-header-info">
               <h3>{{ chatStore.currentSession.title || currentSessionAvatarName }}</h3>
               <span class="status-online">
@@ -110,20 +103,12 @@
             :class="msg.role"
           >
             <div class="message-avatar">
-              <el-avatar
-                v-if="msg.role === 'assistant'"
+              <ChatSessionAvatar
+                :session="chatStore.currentSession"
+                :role="msg.role"
+                :user="userStore.userInfo"
                 :size="36"
-                :style="{ background: getAvatarColor(currentSessionAvatarName) }"
-              >
-                {{ (currentSessionAvatarName || '?').charAt(0) }}
-              </el-avatar>
-              <el-avatar
-                v-else
-                :size="36"
-                style="background: linear-gradient(135deg, #667eea, #764ba2)"
-              >
-                {{ userStore.nickname.charAt(0).toUpperCase() }}
-              </el-avatar>
+              />
             </div>
             <div class="message-content">
               <div class="message-bubble" :class="{ streaming: msg.streaming }">
@@ -208,43 +193,11 @@
             </div>
           </section>
 
-          <aside class="chat-avatar-area">
-            <div class="avatar-stage-header">
-              <div>
-                <span class="avatar-stage-eyebrow">DIGITAL COMPANION</span>
-                <h4>{{ currentSessionAvatarName }}</h4>
-              </div>
-              <span class="avatar-behavior-label">{{ avatarBehaviorState }}</span>
-            </div>
-            <div class="avatar-stage">
-              <AvatarRenderer
-                ref="avatarRendererRef"
-                v-if="currentAvatarModelUrl"
-                :key="`${sessionAvatar.id}:${currentAvatarModelUrl}`"
-                :model-url="currentAvatarModelUrl"
-                presentation="chat"
-                :behavior-state="avatarBehaviorState"
-                @loaded="onAvatarLoaded"
-                @error="onAvatarError"
-              />
-              <div v-else-if="sessionAvatarLoading" class="avatar-model-state">
-                <el-icon class="is-loading" :size="24"><Loading /></el-icon>
-                <span>正在加载会话形象...</span>
-              </div>
-              <div v-else-if="sessionAvatarError" class="avatar-model-state avatar-model-error">
-                <el-icon :size="24"><Warning /></el-icon>
-                <span>{{ sessionAvatarError }}</span>
-              </div>
-              <div v-else class="avatar-model-state">
-                <el-icon :size="24"><Warning /></el-icon>
-                <span>当前会话没有可加载的3D模型</span>
-              </div>
-            </div>
-            <div class="avatar-stage-footer">
-              <span class="status-dot"></span>
-              {{ chatStore.streaming ? '正在与你交流' : '陪伴在线' }}
-            </div>
-          </aside>
+          <ChatCharacterPanel
+            :session="chatStore.currentSession"
+            :user="userStore.userInfo"
+            :streaming="chatStore.streaming"
+          />
         </div>
       </template>
 
@@ -278,9 +231,7 @@
           :class="{ selected: tempAvatarId === avatar.id }"
           @click="tempAvatarId = avatar.id"
         >
-          <div class="avatar-card-preview" :style="{ background: getAvatarColor(avatar.name) }">
-            {{ avatar.name.charAt(0) }}
-          </div>
+          <SimpleAvatar :name="avatar.name" :image-url="avatar.imageUrl" :avatar-color="avatar.avatarColor" :entity-key="avatar.id" type="AI" :size="56" shape="circle" />
           <div class="avatar-card-info">
             <h4>{{ avatar.name }}</h4>
             <p class="avatar-slogan">{{ avatar.identity || avatar.corePersonality || '暂无角色简介' }}</p>
@@ -331,13 +282,12 @@ import {
   VideoPause
 } from '@element-plus/icons-vue'
 import { useChatStore } from '../stores/chat'
-import { useAvatarStore } from '../stores/avatar'
 import { useUserStore } from '../stores/user'
-import AvatarRenderer from '../components/AvatarRenderer.vue'
-import { getAvatarById } from '../api/avatar'
+import ChatSessionAvatar from '../components/chat/ChatSessionAvatar.vue'
+import ChatCharacterPanel from '../components/chat/ChatCharacterPanel.vue'
+import SimpleAvatar from '../components/ui/SimpleAvatar.vue'
 import { getCharacterList } from '../api/character'
-import { resolveChatAvatarBehaviorState } from '../avatar/chatAvatarBehaviorState'
-import { mapReplyToReaction } from '../avatar/AvatarEmotionMapper'
+import { resolveAssistantPresentation } from '../utils/chatSessionPresentation'
 import {
   CHAT_MESSAGE_STATUS,
   isMessageRetryable,
@@ -346,7 +296,6 @@ import {
 
 const router = useRouter()
 const chatStore = useChatStore()
-const avatarStore = useAvatarStore()
 const userStore = useUserStore()
 
 const messagesRef = ref(null)
@@ -354,117 +303,14 @@ const inputMessage = ref('')
 const showAvatarDialog = ref(false)
 const tempAvatarId = ref(null)
 const aiCharacters = ref([])
-const sessionAvatar = ref(null)
-const sessionAvatarLoading = ref(false)
-const sessionAvatarError = ref('')
-const avatarRendererRef = ref(null)
-const sessionAvatarCache = new Map()
-const previousAssistantStatuses = new Map()
-const reactedMessageIds = new Set()
-let sessionAvatarRequestVersion = 0
 
-const avatarList = computed(() => avatarStore.avatarList)
+const assistantFor = (session) => resolveAssistantPresentation(session)
 
 const currentSessionAvatarName = computed(() => {
   if (!chatStore.currentSession) return ''
   const session = chatStore.currentSession
   return session.characterName || session.avatarName || session.title || 'AI'
 })
-
-const currentAvatarModelUrl = computed(() => {
-  return sessionAvatar.value?.modelUrl?.trim() || ''
-})
-
-const avatarBehaviorState = computed(() => {
-  return resolveChatAvatarBehaviorState(chatStore.messages)
-})
-
-const playCompletedAssistantReaction = (message) => {
-  if (message?.role !== 'assistant' || message.status !== CHAT_MESSAGE_STATUS.COMPLETED) return false
-  const key = message.requestId ?? message.id
-  if (key == null) return false
-  const stableKey = String(key)
-  if (reactedMessageIds.has(stableKey)) return false
-
-  reactedMessageIds.add(stableKey)
-  const reaction = mapReplyToReaction(message.content)
-  if (!reaction) return false
-
-  const sessionId = chatStore.currentSessionId
-  nextTick(() => {
-    if (sessionId === chatStore.currentSessionId) {
-      avatarRendererRef.value?.playReaction(reaction)
-    }
-  })
-  return true
-}
-
-const loadSessionAvatar = async (avatarId) => {
-  const requestVersion = ++sessionAvatarRequestVersion
-  sessionAvatarError.value = ''
-
-  if (!avatarId) {
-    sessionAvatar.value = null
-    sessionAvatarLoading.value = false
-    return
-  }
-
-  const cacheKey = String(avatarId)
-  const cachedAvatar = sessionAvatarCache.get(cacheKey)
-  if (cachedAvatar) {
-    sessionAvatar.value = cachedAvatar
-    sessionAvatarLoading.value = false
-    return
-  }
-
-  sessionAvatar.value = null
-  sessionAvatarLoading.value = true
-  try {
-    const res = await getAvatarById(avatarId)
-    const avatar = res.data || res
-    if (
-      requestVersion !== sessionAvatarRequestVersion
-      || String(chatStore.currentSession?.avatarId ?? '') !== cacheKey
-    ) return
-
-    sessionAvatarCache.set(cacheKey, avatar)
-    sessionAvatar.value = avatar
-  } catch (err) {
-    if (requestVersion !== sessionAvatarRequestVersion) return
-    sessionAvatar.value = null
-    sessionAvatarError.value = err.message || '会话3D形象加载失败'
-  } finally {
-    if (requestVersion === sessionAvatarRequestVersion) {
-      sessionAvatarLoading.value = false
-    }
-  }
-}
-
-const colorPalette = [
-  'linear-gradient(135deg, #f093fb, #f5576c)',
-  'linear-gradient(135deg, #4facfe, #43e97b)',
-  'linear-gradient(135deg, #fa709a, #fee140)',
-  'linear-gradient(135deg, #667eea, #764ba2)',
-  'linear-gradient(135deg, #a8edea, #fed6e3)',
-  'linear-gradient(135deg, #ff9a9e, #fecfef)',
-  'linear-gradient(135deg, #5ee7df, #b490ca)',
-  'linear-gradient(135deg, #c471f5, #fa71cd)'
-]
-
-const getAvatarColor = (name) => {
-  if (!name) return colorPalette[0]
-  let hash = 0
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash)
-  }
-  const index = Math.abs(hash) % colorPalette.length
-  return colorPalette[index]
-}
-
-const getTypeLabel = (type) => {
-  const map = { 1: '人类', 2: '动物', 3: '幻想', 4: '其他' }
-  return map[type] || '未知'
-}
 
 const scrollToBottom = () => {
   nextTick(() => {
@@ -479,42 +325,6 @@ watch(
   () => scrollToBottom()
 )
 
-watch(
-  () => chatStore.messages,
-  (messages) => {
-    scrollToBottom()
-    for (const message of messages) {
-      if (message?.role !== 'assistant') continue
-      const key = message.requestId ?? message.id
-      if (key == null) continue
-      const stableKey = String(key)
-      const previousStatus = previousAssistantStatuses.get(stableKey)
-      previousAssistantStatuses.set(stableKey, message.status)
-
-      const justCompleted = message.status === CHAT_MESSAGE_STATUS.COMPLETED
-        && [CHAT_MESSAGE_STATUS.PENDING, CHAT_MESSAGE_STATUS.STREAMING].includes(previousStatus)
-      if (!justCompleted || reactedMessageIds.has(stableKey)) continue
-
-      playCompletedAssistantReaction(message)
-    }
-  },
-  { deep: true }
-)
-
-watch(
-  () => chatStore.currentSessionId,
-  () => {
-    previousAssistantStatuses.clear()
-    reactedMessageIds.clear()
-  }
-)
-
-watch(
-  () => chatStore.currentSession?.avatarId ?? null,
-  (avatarId) => loadSessionAvatar(avatarId),
-  { immediate: true }
-)
-
 onMounted(async () => {
   const characterResponse = await getCharacterList('AI')
   aiCharacters.value = characterResponse.data || characterResponse || []
@@ -522,20 +332,13 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
-  sessionAvatarRequestVersion += 1
   chatStore.stopGeneration()
-  previousAssistantStatuses.clear()
-  reactedMessageIds.clear()
 })
 
 const goHome = () => {
   router.push('/home')
 }
 
-const goToCreateAvatar = () => {
-  showAvatarDialog.value = false
-  router.push('/avatar/create')
-}
 const goToCreateCharacter = () => { showAvatarDialog.value = false; router.push('/character/create?type=AI') }
 
 const handleSelectSession = async (session) => {
@@ -597,10 +400,6 @@ const handleSend = async () => {
 
   inputMessage.value = ''
   await chatStore.sendMessage(text)
-  const completedAssistant = [...chatStore.messages].reverse().find((message) =>
-    message.role === 'assistant' && message.status === CHAT_MESSAGE_STATUS.COMPLETED
-  )
-  playCompletedAssistantReaction(completedAssistant)
 }
 
 const handleStop = () => {
@@ -609,10 +408,6 @@ const handleStop = () => {
 
 const handleRetry = async (message) => {
   await chatStore.retryMessage(message)
-  const completedAssistant = [...chatStore.messages].reverse().find((item) =>
-    item.role === 'assistant' && item.status === CHAT_MESSAGE_STATUS.COMPLETED
-  )
-  playCompletedAssistantReaction(completedAssistant)
 }
 
 const emptyMessageText = (message) => {
@@ -624,13 +419,6 @@ const emptyMessageText = (message) => {
   return ''
 }
 
-const onAvatarLoaded = () => {
-  // 3D avatar loaded successfully
-}
-
-const onAvatarError = (err) => {
-  console.warn('3D avatar load error:', err)
-}
 </script>
 
 <style lang="scss" scoped>

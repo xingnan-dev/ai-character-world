@@ -9,9 +9,12 @@ import com.companion.dto.request.ChatSendRequest;
 import com.companion.entity.Avatar;
 import com.companion.entity.ChatSession;
 import com.companion.entity.Personality;
+import com.companion.character.snapshot.CharacterSnapshotJsonMapper;
 import com.companion.mapper.AvatarMapper;
 import com.companion.mapper.ChatMessageMapper;
 import com.companion.mapper.ChatSessionMapper;
+import com.companion.mapper.UserMapper;
+import com.companion.service.CharacterService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +42,9 @@ class ChatServicePersonalityIsolationTest {
     @Mock private SessionPersonalityResolver sessionPersonalityResolver;
     @Mock private ChatMessageLifecycleService chatMessageLifecycleService;
     @Mock private AiService aiService;
+    @Mock private CharacterService characterService;
+    @Mock private CharacterSnapshotJsonMapper characterSnapshotJsonMapper;
+    @Mock private UserMapper userMapper;
 
     private ChatServiceImpl chatService;
 
@@ -46,7 +52,7 @@ class ChatServicePersonalityIsolationTest {
     void setUp() {
         chatService = new ChatServiceImpl(
                 chatSessionMapper, chatMessageMapper, avatarMapper, sessionPersonalityResolver,
-                chatMessageLifecycleService, aiService
+                chatMessageLifecycleService, aiService, characterService, characterSnapshotJsonMapper, userMapper
         );
     }
 

@@ -23,6 +23,10 @@ public class ChatSession {
     private String characterSnapshot;
     private Integer characterSnapshotVersion;
 
+    private Long userCharacterId;
+    private String userCharacterSnapshot;
+    private Integer userCharacterSnapshotVersion;
+
     private Long personalityId;
 
     @TableField("personality_snapshot")

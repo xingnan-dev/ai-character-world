@@ -15,6 +15,7 @@ import {
   mapChatMessage
 } from '../utils/chatMessageState'
 import { createChatSendGuard } from '../utils/chatSendGuard'
+import { cancelActiveAssistant, consumeChatStream } from '../utils/chatStreamState'
 
 const sendGuard = createChatSendGuard()
 
@@ -153,65 +154,10 @@ export const useChatStore = defineStore('chat', {
       return true
     },
     async consumeStream(reader, message) {
-      const decoder = new TextDecoder()
-      let buffer = ''
-      let currentEvent = 'message'
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) {
-          if (message.status !== CHAT_MESSAGE_STATUS.FAILED) {
-            message.status = CHAT_MESSAGE_STATUS.COMPLETED
-          }
-          return
-        }
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          const trimmedLine = line.trim()
-          if (!trimmedLine) continue
-          if (trimmedLine.startsWith('event:')) {
-            currentEvent = trimmedLine.substring(6).trim()
-            continue
-          }
-          if (!trimmedLine.startsWith('data:')) continue
-
-          const data = trimmedLine.substring(5).trim()
-          if (currentEvent === 'error') {
-            this.error = data
-            message.status = CHAT_MESSAGE_STATUS.FAILED
-            message.errorMessage = data
-            return
-          }
-          if (data === '[DONE]') {
-            message.status = CHAT_MESSAGE_STATUS.COMPLETED
-            return
-          }
-
-          message.status = CHAT_MESSAGE_STATUS.STREAMING
-          message.streaming = true
-          message.content += data
-          currentEvent = 'message'
-        }
-      }
+      await consumeChatStream(reader, message, (error) => { this.error = error })
     },
     stopGeneration() {
-      if (!this.activeAbortController) return false
-      this.activeAbortController.abort()
-      const activeMessage = [...this.messages].reverse().find((message) =>
-        message.role === 'assistant' && [
-          CHAT_MESSAGE_STATUS.PENDING,
-          CHAT_MESSAGE_STATUS.STREAMING
-        ].includes(message.status)
-      )
-      if (activeMessage) {
-        activeMessage.status = CHAT_MESSAGE_STATUS.CANCELLED
-        activeMessage.streaming = false
-      }
-      return true
+      return cancelActiveAssistant(this.messages, this.activeAbortController)
     },
     async retryMessage(message) {
       if (this.streaming) return

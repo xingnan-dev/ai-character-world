@@ -1,5 +1,6 @@
 package com.companion.dto.response;
 
+import com.companion.character.snapshot.CharacterSnapshot;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -28,6 +29,22 @@ public class ChatSessionVO {
     private String avatarColor;
 
     private String visualType;
+
+    private String identity;
+
+    private String corePersonality;
+
+    private String currentGoal;
+
+    private String biography;
+
+    private String relationshipToUser;
+
+    private String speakingStyle;
+
+    private CharacterSnapshot.Profile profile;
+
+    private CharacterSnapshot userCharacter;
 
     private String title;
 

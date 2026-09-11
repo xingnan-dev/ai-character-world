@@ -119,10 +119,14 @@ class CharacterImageSnapshotCompatibilityIntegrationTest {
         Personality resolvedLegacyAfter = personalityResolver.resolveFromSession(legacyAfter);
 
         assertEquals(OLD_URL, queriedOldChat.getImageUrl());
+        assertEquals("snapshot identity", queriedOldChat.getIdentity());
+        assertEquals("stable", queriedOldChat.getCorePersonality());
         assertEquals(OLD_URL, participant(queriedOldWorld, aiCharacter.getId()).character().imageUrl());
         assertEquals(OLD_URL, queriedOldRound.getUserCharacter().imageUrl());
         assertEquals(legacySession.getAvatarId(), queriedLegacy.getAvatarId());
         assertEquals(legacySession.getTitle(), queriedLegacy.getTitle());
+        assertEquals("legacy-personality", queriedLegacy.getAvatarName());
+        assertEquals("unchanged personality", queriedLegacy.getCorePersonality());
         assertEquals(legacyPersonalitySnapshot, legacyAfter.getPersonalitySnapshot());
         assertEquals(legacyPersonality.getName(), resolvedLegacyAfter.getName());
         assertEquals(legacyPersonality.getCorePersonality(), resolvedLegacyAfter.getCorePersonality());
@@ -152,6 +156,62 @@ class CharacterImageSnapshotCompatibilityIntegrationTest {
         assertSnapshotUrl(participantMapper.selectById(
                 participant(newWorld, aiCharacter.getId()).id()).getCharacterSnapshot(), NEW_URL);
         assertSnapshotUrl(roundMapper.selectById(newRound.getId()).getUserCharacterSnapshot(), NEW_URL);
+    }
+
+    @Test
+    void chatSessionFreezesCurrentUserCharacterSnapshot() {
+        CharacterResponse ai = createCharacter("AI", "snapshot-ai-user", OLD_URL);
+        CharacterResponse user = createCharacter("USER", "snapshot-me", OLD_URL);
+        bindCurrentUserCharacter(user.getId());
+
+        ChatSessionVO created = chatService.createSession(
+                USER_ID, new ChatSessionCreateRequest(null, ai.getId(), "chat-user-snapshot"));
+
+        CharacterSnapshot frozen = created.getUserCharacter();
+        assertNotNull(frozen);
+        assertEquals(user.getId(), frozen.sourceCharacterId());
+        assertEquals("USER", frozen.characterType());
+        assertEquals("snapshot-me", frozen.name());
+        assertEquals(OLD_URL, frozen.imageUrl());
+        assertEquals("#667eea", frozen.avatarColor());
+
+        confirmNewImage(user.getId(), "user-snapshot-confirmation");
+
+        ChatSessionVO queried = session(created.getId());
+        assertNotNull(queried.getUserCharacter());
+        assertEquals(OLD_URL, queried.getUserCharacter().imageUrl());
+        assertEquals("snapshot-me", queried.getUserCharacter().name());
+    }
+
+    @Test
+    void chatSessionWithoutBoundUserCharacterHasNullUserSnapshot() {
+        CharacterResponse ai = createCharacter("AI", "snapshot-ai-no-user", OLD_URL);
+
+        ChatSessionVO created = chatService.createSession(
+                USER_ID, new ChatSessionCreateRequest(null, ai.getId(), "chat-no-user"));
+
+        assertNull(created.getUserCharacter());
+    }
+
+    @Test
+    void chatSessionCreationSurvivesDeletedBoundUserCharacter() {
+        CharacterResponse ai = createCharacter("AI", "snapshot-ai-deleted-user", OLD_URL);
+        CharacterResponse user = createCharacter("USER", "snapshot-me-deleted", OLD_URL);
+        bindCurrentUserCharacter(user.getId());
+        characterService.delete(USER_ID, user.getId());
+
+        ChatSessionVO created = chatService.createSession(
+                USER_ID, new ChatSessionCreateRequest(null, ai.getId(), "chat-after-user-deleted"));
+
+        assertNotNull(created);
+        assertNull(created.getUserCharacter());
+    }
+
+    private void bindCurrentUserCharacter(long characterId) {
+        jdbc.update(
+                "INSERT INTO t_user (id, username, password, nickname, current_user_character_id, status, deleted, create_time, update_time) VALUES (?, ?, ?, ?, ?, 1, 0, NOW(), NOW())",
+                USER_ID, "snapshot-user", "pwd", "当前用户", characterId
+        );
     }
 
     private CharacterResponse createCharacter(String type, String name, String imageUrl) {

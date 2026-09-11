@@ -16,6 +16,9 @@ import com.companion.mapper.AvatarMapper;
 import com.companion.mapper.ChatMessageMapper;
 import com.companion.mapper.ChatSessionMapper;
 import com.companion.mapper.PersonalityMapper;
+import com.companion.mapper.UserMapper;
+import com.companion.character.snapshot.CharacterSnapshotJsonMapper;
+import com.companion.service.CharacterService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,6 +43,9 @@ class AvatarPersonalityConsistencyTest {
     @Mock private ChatMessageMapper chatMessageMapper;
     @Mock private ChatMessageLifecycleService chatMessageLifecycleService;
     @Mock private AiService aiService;
+    @Mock private CharacterService characterService;
+    @Mock private CharacterSnapshotJsonMapper characterSnapshotJsonMapper;
+    @Mock private UserMapper userMapper;
 
     private AvatarServiceImpl avatarService;
 
@@ -94,7 +100,7 @@ class AvatarPersonalityConsistencyTest {
         );
         ChatServiceImpl chatService = new ChatServiceImpl(
                 chatSessionMapper, chatMessageMapper, avatarMapper, resolver,
-                chatMessageLifecycleService, aiService
+                chatMessageLifecycleService, aiService, characterService, characterSnapshotJsonMapper, userMapper
         );
 
         chatService.createSession(3L, new ChatSessionCreateRequest(53L, null));

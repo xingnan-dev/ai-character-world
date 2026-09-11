@@ -78,6 +78,9 @@ CREATE TABLE t_chat_session (
     character_id BIGINT,
     character_snapshot VARCHAR(10000),
     character_snapshot_version INT,
+    user_character_id BIGINT,
+    user_character_snapshot VARCHAR(10000),
+    user_character_snapshot_version INT,
     personality_id BIGINT,
     personality_snapshot VARCHAR(4000),
     personality_snapshot_version INT,
@@ -86,7 +89,8 @@ CREATE TABLE t_chat_session (
     deleted TINYINT NOT NULL DEFAULT 0,
     create_time DATETIME,
     update_time DATETIME,
-    INDEX idx_chat_session_character (character_id)
+    INDEX idx_chat_session_character (character_id),
+    INDEX idx_chat_session_user_character (user_character_id)
 );
 
 DROP TABLE IF EXISTS t_chat_message;
