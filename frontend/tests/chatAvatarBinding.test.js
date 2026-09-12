@@ -4,7 +4,8 @@ import {
   imageAfterFailure,
   resolveAssistantPresentation,
   resolveMessagePresentation,
-  resolveUserPresentation
+  resolveUserPresentation,
+  resolveCharacterDetails
 } from '../src/utils/chatSessionPresentation.js'
 
 const oldSession = { id: 1, characterId: 10, characterName: '星澜', imageUrl: '/old.png', avatarColor: '#123456' }
@@ -57,4 +58,12 @@ test('legacy Avatar sessions degrade to their frozen name without requiring an i
   assert.equal(legacy.name, '旧人格')
   assert.equal(legacy.imageUrl, '')
   assert.equal(legacy.entityKey, 'avatar-session-9')
+})
+
+test('character details keep only non-empty snapshot fields', () => {
+  assert.deepEqual(resolveCharacterDetails({ identity: '侦探', corePersonality: '冷静', currentGoal: null, speakingStyle: '', relationshipToUser: '伙伴' }), [
+    ['身份', '侦探'], ['性格', '冷静'], ['与你的关系', '伙伴']
+  ])
+  assert.deepEqual(resolveCharacterDetails({ identity: null, corePersonality: '', currentGoal: '  ', speakingStyle: undefined, relationshipToUser: null }), [])
+  assert.deepEqual(resolveCharacterDetails(null), [])
 })

@@ -53,6 +53,7 @@ export const useChatStore = defineStore('chat', {
       }
     },
     async createSession(characterId, title) {
+      this.stopGeneration()
       this.loading = true
       this.error = null
       try {

@@ -1,5 +1,16 @@
 import { CHAT_MESSAGE_STATUS } from './chatMessageState.js'
 
+export function parseSseErrorPayload(data) {
+  const raw = typeof data === 'string' ? data : String(data ?? '')
+  try {
+    const parsed = JSON.parse(raw)
+    if (parsed && typeof parsed.message === 'string' && parsed.message.trim()) return parsed.message.trim()
+  } catch {
+    // Keep non-JSON SSE errors as-is.
+  }
+  return raw
+}
+
 export async function consumeChatStream(reader, message, onError = () => {}) {
   const decoder = new TextDecoder()
   let buffer = ''
@@ -24,9 +35,10 @@ export async function consumeChatStream(reader, message, onError = () => {}) {
       if (!trimmedLine.startsWith('data:')) continue
       const data = trimmedLine.substring(5).trim()
       if (currentEvent === 'error') {
-        onError(data)
+        const messageText = parseSseErrorPayload(data)
+        onError(messageText)
         message.status = CHAT_MESSAGE_STATUS.FAILED
-        message.errorMessage = data
+        message.errorMessage = messageText
         return
       }
       if (data === '[DONE]') {

@@ -2,6 +2,7 @@ package com.companion.image;
 
 import com.companion.character.snapshot.CharacterSnapshot;
 import com.companion.character.snapshot.CharacterSnapshotJsonMapper;
+import com.companion.common.exception.BusinessException;
 import com.companion.chat.SessionPersonalityResolver;
 import com.companion.dto.request.CharacterCreateRequest;
 import com.companion.dto.request.CharacterImageConfirmRequest;
@@ -191,6 +192,30 @@ class CharacterImageSnapshotCompatibilityIntegrationTest {
                 USER_ID, new ChatSessionCreateRequest(null, ai.getId(), "chat-no-user"));
 
         assertNull(created.getUserCharacter());
+    }
+
+    @Test
+    void bindingAnAiCharacterAsCurrentUserCharacterIsRejected() {
+        CharacterResponse ai = createCharacter("AI", "snapshot-ai-invalid-user", OLD_URL);
+        bindCurrentUserCharacter(ai.getId());
+
+        BusinessException exception = assertThrows(BusinessException.class, () -> chatService.createSession(
+                USER_ID, new ChatSessionCreateRequest(null, ai.getId(), "chat-invalid-user-snapshot")));
+
+        assertEquals("当前用户身份必须是USER Character", exception.getMessage());
+    }
+
+    @Test
+    void legacyAvatarSessionIncludesBoundUserCharacterSnapshot() {
+        CharacterResponse user = createCharacter("USER", "snapshot-legacy-user", OLD_URL);
+        bindCurrentUserCharacter(user.getId());
+
+        ChatSessionVO created = createLegacyAvatarPersonalitySession();
+
+        assertNotNull(created.getUserCharacter());
+        assertEquals(user.getId(), created.getUserCharacter().sourceCharacterId());
+        assertEquals(OLD_URL, created.getUserCharacter().imageUrl());
+        assertEquals("snapshot-legacy-user", created.getUserCharacter().name());
     }
 
     @Test
