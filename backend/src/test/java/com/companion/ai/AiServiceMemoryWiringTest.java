@@ -6,6 +6,7 @@ import com.companion.chat.ChatMessageLifecycleService;
 import com.companion.chat.model.ChatMessageExchange;
 import com.companion.character.snapshot.CharacterSnapshot;
 import com.companion.entity.Personality;
+import com.companion.service.CharacterRelationshipService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import reactor.core.publisher.Flux;
@@ -19,19 +20,39 @@ class AiServiceMemoryWiringTest {
     @Test void characterChatPassesCharacterIdToMemoryExtraction() {
         LlmClient llm = mock(LlmClient.class); ChatContextAssembler assembler = mock(ChatContextAssembler.class);
         MemoryEngine memory = mock(MemoryEngine.class); ChatMessageLifecycleService lifecycle = mock(ChatMessageLifecycleService.class);
+        CharacterRelationshipService relationships = mock(CharacterRelationshipService.class);
         when(assembler.assembleCharacter(anyLong(), anyLong(), anyString(), any(), any())).thenReturn(new ComposedChatPrompt(java.util.List.of(), java.util.Map.of()));
         when(llm.streamChat(any(ComposedChatPrompt.class))).thenReturn(Flux.just("ok")); when(lifecycle.markStreaming(anyLong())).thenReturn(true); when(lifecycle.complete(anyLong(), anyString())).thenReturn(true);
         CharacterSnapshot character = mock(CharacterSnapshot.class); when(character.sourceCharacterId()).thenReturn(123L);
-        new AiServiceImpl(llm, assembler, memory, lifecycle).chatStream(1L, 2L, "hi", character, new ChatMessageExchange(3L, 4L, "r", true), 123L).blockLast();
+        new AiServiceImpl(llm, assembler, memory, lifecycle, relationships).chatStream(1L, 2L, "hi", character, new ChatMessageExchange(3L, 4L, "r", true), 123L).blockLast();
         verify(memory).extractMemory("hi", "ok", 1L, 123L);
+        verify(relationships).evaluateAndUpdate(1L, 123L, "hi", "ok");
     }
 
     @Test void legacyAvatarChatPassesNullCharacterId() {
         LlmClient llm = mock(LlmClient.class); ChatContextAssembler assembler = mock(ChatContextAssembler.class);
         MemoryEngine memory = mock(MemoryEngine.class); ChatMessageLifecycleService lifecycle = mock(ChatMessageLifecycleService.class);
+        CharacterRelationshipService relationships = mock(CharacterRelationshipService.class);
         when(assembler.assemble(anyLong(), anyLong(), anyString(), any(), any())).thenReturn(new ComposedChatPrompt(java.util.List.of(), java.util.Map.of()));
         when(llm.streamChat(any(ComposedChatPrompt.class))).thenReturn(Flux.just("ok")); when(lifecycle.markStreaming(anyLong())).thenReturn(true); when(lifecycle.complete(anyLong(), anyString())).thenReturn(true);
-        new AiServiceImpl(llm, assembler, memory, lifecycle).chatStream(1L, 2L, "hi", new Personality(), new ChatMessageExchange(3L, 4L, "r", true)).blockLast();
+        new AiServiceImpl(llm, assembler, memory, lifecycle, relationships).chatStream(1L, 2L, "hi", new Personality(), new ChatMessageExchange(3L, 4L, "r", true)).blockLast();
         verify(memory).extractMemory("hi", "ok", 1L, null);
+        verifyNoInteractions(relationships);
+    }
+
+    @Test void relationshipFailureDoesNotBlockCharacterChatOrMemory() {
+        LlmClient llm = mock(LlmClient.class); ChatContextAssembler assembler = mock(ChatContextAssembler.class);
+        MemoryEngine memory = mock(MemoryEngine.class); ChatMessageLifecycleService lifecycle = mock(ChatMessageLifecycleService.class);
+        CharacterRelationshipService relationships = mock(CharacterRelationshipService.class);
+        when(assembler.assembleCharacter(anyLong(), anyLong(), anyString(), any(), any())).thenReturn(new ComposedChatPrompt(java.util.List.of(), java.util.Map.of()));
+        when(llm.streamChat(any(ComposedChatPrompt.class))).thenReturn(Flux.just("ok")); when(lifecycle.markStreaming(anyLong())).thenReturn(true); when(lifecycle.complete(anyLong(), anyString())).thenReturn(true);
+        when(relationships.evaluateAndUpdate(anyLong(), anyLong(), anyString(), anyString())).thenThrow(new RuntimeException("down"));
+        CharacterSnapshot character = mock(CharacterSnapshot.class); when(character.sourceCharacterId()).thenReturn(123L);
+
+        assertEquals("ok", new AiServiceImpl(llm, assembler, memory, lifecycle, relationships)
+                .chatStream(1L, 2L, "meaningful", character, new ChatMessageExchange(3L, 4L, "r", true), 123L)
+                .blockLast());
+        verify(memory).extractMemory("meaningful", "ok", 1L, 123L);
+        verify(lifecycle).complete(4L, "ok");
     }
 }

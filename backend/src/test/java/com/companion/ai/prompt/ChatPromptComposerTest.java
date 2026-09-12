@@ -4,6 +4,8 @@ import com.companion.ai.model.LlmMessage;
 import com.companion.ai.model.LlmRole;
 import com.companion.entity.ChatMessage;
 import com.companion.entity.Personality;
+import com.companion.entity.CharacterRelationship;
+import com.companion.character.snapshot.CharacterSnapshot;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.DefaultResourceLoader;
@@ -99,6 +101,34 @@ class ChatPromptComposerTest {
         assertThatThrownBy(() -> composer.compose(10L, 20L, 21L, personality, null, List.of(), " "))
                 .isInstanceOf(PromptTemplateException.class)
                 .hasMessageContaining("User message");
+    }
+
+    @Test
+    void characterPromptContainsOnlyTheProvidedCharactersRelationshipState() {
+        CharacterRelationship relationship = new CharacterRelationship();
+        relationship.setCharacterId(71L);
+        relationship.setStage("TRUSTED");
+        relationship.setSummary("They communicate with earned trust.");
+        relationship.setInteractionStyle("Warm and candid");
+        relationship.setRecentChange("The user shared a difficult concern.");
+
+        ComposedChatPrompt result = composer.composeCharacter(
+                10L, 20L, character(71L), relationship, null, List.of(), "Can we talk?"
+        );
+
+        assertThat(result.messages()).extracting(LlmMessage::content)
+                .anySatisfy(content -> assertThat(content).contains(
+                        "Relationship State", "TRUSTED", "earned trust", "Warm and candid",
+                        "must come from Memory or Chat History"));
+        assertThat(result.metadata()).containsEntry("characterId", 71L)
+                .containsEntry("relationshipPromptVersion", "1");
+        assertThat(result.messages()).extracting(LlmMessage::content)
+                .noneSatisfy(content -> assertThat(content).contains("Character B secret"));
+    }
+
+    private CharacterSnapshot character(Long id) {
+        return new CharacterSnapshot(1, id, "AI", "Nova", null, "companion", "kind", null,
+                null, "friend", "natural", CharacterSnapshot.Profile.empty(), "INITIAL", null, null, "purple");
     }
 
     private ChatMessage message(Long id, int role, String content) {

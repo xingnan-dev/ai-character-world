@@ -4,6 +4,7 @@ import com.companion.ai.model.LlmMessage;
 import com.companion.ai.model.LlmRole;
 import com.companion.entity.ChatMessage;
 import com.companion.entity.Personality;
+import com.companion.entity.CharacterRelationship;
 import com.companion.character.snapshot.CharacterSnapshot;
 import org.springframework.stereotype.Component;
 
@@ -75,6 +76,15 @@ public class ChatPromptComposer {
                                                 String memoryContext,
                                                 List<ChatMessage> history,
                                                 String userMessage) {
+        return composeCharacter(userId, sessionId, character, null, memoryContext, history, userMessage);
+    }
+
+    public ComposedChatPrompt composeCharacter(Long userId, Long sessionId,
+                                                CharacterSnapshot character,
+                                                CharacterRelationship relationshipState,
+                                                String memoryContext,
+                                                List<ChatMessage> history,
+                                                String userMessage) {
         if (character == null || !"AI".equals(character.characterType())) {
             throw new PromptTemplateException("AI Character is required to compose a chat prompt");
         }
@@ -97,6 +107,14 @@ public class ChatPromptComposer {
             messages.add(systemMessage(PromptTemplateKey.CHAT_MEMORY,
                     Map.of("memoryContext", memoryContext.trim())));
         }
+        if (relationshipState != null) {
+            messages.add(systemMessage(PromptTemplateKey.CHAT_RELATIONSHIP, Map.of(
+                    "stage", valueOrDefault(relationshipState.getStage(), "NEW"),
+                    "summary", valueOrDefault(relationshipState.getSummary(), "No relationship summary yet."),
+                    "interactionStyle", valueOrDefault(relationshipState.getInteractionStyle(), "Polite and friendly."),
+                    "recentChange", valueOrDefault(relationshipState.getRecentChange(), "No meaningful recent change.")
+            )));
+        }
         normalizedHistory(history).stream().map(this::toLlmMessage)
                 .filter(message -> message.content() != null && !message.content().isBlank())
                 .forEach(messages::add);
@@ -109,6 +127,9 @@ public class ChatPromptComposer {
         metadata.put("characterSnapshotVersion", character.snapshotVersion());
         metadata.put("safetyPromptVersion", PromptTemplateKey.CHAT_SAFETY.version());
         metadata.put("personalityPromptVersion", PromptTemplateKey.CHAT_PERSONALITY.version());
+        if (relationshipState != null) {
+            metadata.put("relationshipPromptVersion", PromptTemplateKey.CHAT_RELATIONSHIP.version());
+        }
         return new ComposedChatPrompt(messages, metadata);
     }
 

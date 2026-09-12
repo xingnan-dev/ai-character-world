@@ -11,6 +11,17 @@ public enum PromptTemplateKey {
             Set.of("name", "corePersonality", "identity", "languageStyle", "hobbies", "relationship")
     ),
     CHAT_MEMORY("prompts/chat/memory-v1.md", "1", Set.of("memoryContext")),
+    CHAT_RELATIONSHIP(
+            "prompts/chat/relationship-v1.md",
+            "1",
+            Set.of("stage", "summary", "interactionStyle", "recentChange")
+    ),
+    RELATIONSHIP_EVALUATION_SYSTEM("prompts/relationship/evaluation-system-v1.md", "1", Set.of()),
+    RELATIONSHIP_EVALUATION_USER(
+            "prompts/relationship/evaluation-user-v1.md",
+            "1",
+            Set.of("stage", "summary", "interactionStyle", "recentChange", "userMessage", "assistantResponse")
+    ),
     AVATAR_GENERATION_SYSTEM("prompts/avatar/generation-system-v1.md", "1", Set.of()),
     AVATAR_GENERATION_USER("prompts/avatar/generation-user-v1.md", "1", Set.of("userDescription")),
     CHARACTER_PARSE_SYSTEM("prompts/character/parse-system-v1.md", "1", Set.of()),

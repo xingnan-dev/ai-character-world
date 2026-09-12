@@ -8,9 +8,11 @@ import com.companion.ai.prompt.ComposedChatPrompt;
 import com.companion.chat.model.ChatMessageExchange;
 import com.companion.entity.ChatMessage;
 import com.companion.entity.Personality;
+import com.companion.entity.CharacterRelationship;
 import com.companion.entity.enums.ChatMessageStatus;
 import com.companion.character.snapshot.CharacterSnapshot;
 import com.companion.mapper.ChatMessageMapper;
+import com.companion.service.CharacterRelationshipService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -27,6 +29,7 @@ public class ChatContextAssembler {
     private final ChatMessageMapper chatMessageMapper;
     private final ChatPromptComposer promptComposer;
     private final LlmProperties llmProperties;
+    private final CharacterRelationshipService relationshipService;
 
     public ComposedChatPrompt assemble(Long userId,
                                        Long sessionId,
@@ -58,12 +61,23 @@ public class ChatContextAssembler {
                                                  ChatMessageExchange exchange) {
         String memoryContext = contextManager.limitMemory(memoryEngine.getMemoryContext(userId,
                 character == null ? null : character.sourceCharacterId(), userMessage));
+        CharacterRelationship relationship = loadRelationship(userId,
+                character == null ? null : character.sourceCharacterId());
         List<ChatMessage> history = loadHistory(sessionId, exchange.userMessageId(), exchange.assistantMessageId());
         ComposedChatPrompt required = promptComposer.composeCharacter(
-                userId, sessionId, character, memoryContext, List.of(), userMessage);
+                userId, sessionId, character, relationship, memoryContext, List.of(), userMessage);
         List<ChatMessage> selected = contextManager.selectHistory(history, required.messages());
         return withAssistantMessageId(promptComposer.composeCharacter(
-                userId, sessionId, character, memoryContext, selected, userMessage), exchange.assistantMessageId());
+                userId, sessionId, character, relationship, memoryContext, selected, userMessage), exchange.assistantMessageId());
+    }
+
+    private CharacterRelationship loadRelationship(Long userId, Long characterId) {
+        if (characterId == null) return null;
+        try {
+            return relationshipService.getOrCreate(userId, characterId);
+        } catch (RuntimeException ignored) {
+            return null;
+        }
     }
 
     private List<ChatMessage> loadHistory(Long sessionId, Long userMessageId, Long assistantMessageId) {

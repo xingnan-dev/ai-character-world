@@ -7,6 +7,7 @@ import com.companion.ai.prompt.ComposedChatPrompt;
 import com.companion.chat.ChatMessageLifecycleService;
 import com.companion.chat.model.ChatMessageExchange;
 import com.companion.character.snapshot.CharacterSnapshot;
+import com.companion.service.CharacterRelationshipService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class AiServiceImpl implements AiService {
     private final ChatContextAssembler chatContextAssembler;
     private final MemoryEngine memoryEngine;
     private final ChatMessageLifecycleService chatMessageLifecycleService;
+    private final CharacterRelationshipService relationshipService;
 
     @Override
     public Flux<String> chatStream(Long userId, Long sessionId, String userMessage,
@@ -99,8 +101,13 @@ public class AiServiceImpl implements AiService {
                     if (!chatMessageLifecycleService.complete(exchange.assistantMessageId(), response)) {
                         throw new IllegalStateException("Unable to complete assistant message lifecycle");
                     }
-                    try { memoryEngine.extractMemory(userMessage, response, userId, characterId); }
-                    catch (Exception error) { log.warn("Failed to extract memory for userId={}: {}", userId, error.getMessage()); }
+                        try { memoryEngine.extractMemory(userMessage, response, userId, characterId); }
+                        catch (Exception error) { log.warn("Failed to extract memory for userId={}: {}", userId, error.getMessage()); }
+                        if (characterId != null) {
+                            try { relationshipService.evaluateAndUpdate(userId, characterId, userMessage, response); }
+                            catch (Exception error) { log.warn("Failed to update relationship for userId={}, characterId={}: {}",
+                                    userId, characterId, error.getMessage()); }
+                        }
                 }))
                 .doOnError(error -> {
                     ensureStreaming(exchange.assistantMessageId(), streamingStarted);
