@@ -130,3 +130,4 @@ Desktop.ini
 
 # Acceptance runtime output (never submit generated images or local logs)
 .acceptance-run/
+backend/generated-images/
