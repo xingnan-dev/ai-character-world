@@ -12,4 +12,14 @@ public interface AiService {
 
     Flux<String> chatStream(Long userId, Long sessionId, String userMessage,
                             CharacterSnapshot character, ChatMessageExchange exchange);
+
+    default Flux<String> chatStream(Long userId, Long sessionId, String userMessage,
+                                    Personality personality, ChatMessageExchange exchange, Long characterId) {
+        return chatStream(userId, sessionId, userMessage, personality, exchange);
+    }
+
+    default Flux<String> chatStream(Long userId, Long sessionId, String userMessage,
+                                    CharacterSnapshot character, ChatMessageExchange exchange, Long characterId) {
+        return chatStream(userId, sessionId, userMessage, character, exchange);
+    }
 }

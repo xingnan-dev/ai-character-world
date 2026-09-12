@@ -27,6 +27,12 @@ public class AiServiceImpl implements AiService {
     @Override
     public Flux<String> chatStream(Long userId, Long sessionId, String userMessage,
                                    Personality personality, ChatMessageExchange exchange) {
+        return chatStream(userId, sessionId, userMessage, personality, exchange, null);
+    }
+
+    @Override
+    public Flux<String> chatStream(Long userId, Long sessionId, String userMessage,
+                                   Personality personality, ChatMessageExchange exchange, Long characterId) {
         StringBuilder responseBuffer = new StringBuilder();
         AtomicBoolean streamingStarted = new AtomicBoolean(false);
 
@@ -47,7 +53,7 @@ public class AiServiceImpl implements AiService {
                             throw new IllegalStateException("Unable to complete assistant message lifecycle");
                         }
                         try {
-                            memoryEngine.extractMemory(userMessage, aiResponse, userId);
+                            memoryEngine.extractMemory(userMessage, aiResponse, userId, characterId);
                         } catch (Exception e) {
                             log.warn("Failed to extract memory for userId={}: {}", userId, e.getMessage());
                         }
@@ -68,13 +74,20 @@ public class AiServiceImpl implements AiService {
     @Override
     public Flux<String> chatStream(Long userId, Long sessionId, String userMessage,
                                    CharacterSnapshot character, ChatMessageExchange exchange) {
-        return stream(userId, sessionId, userMessage, exchange,
+        return chatStream(userId, sessionId, userMessage, character, exchange, character == null ? null : character.sourceCharacterId());
+    }
+
+    @Override
+    public Flux<String> chatStream(Long userId, Long sessionId, String userMessage,
+                                   CharacterSnapshot character, ChatMessageExchange exchange, Long characterId) {
+        return stream(userId, sessionId, userMessage, exchange, characterId,
                 () -> chatContextAssembler.assembleCharacter(
                         userId, sessionId, userMessage, character, exchange));
     }
 
     private Flux<String> stream(Long userId, Long sessionId, String userMessage,
                                 ChatMessageExchange exchange,
+                                Long characterId,
                                 java.util.function.Supplier<ComposedChatPrompt> promptSupplier) {
         StringBuilder responseBuffer = new StringBuilder();
         AtomicBoolean streamingStarted = new AtomicBoolean(false);
@@ -86,7 +99,7 @@ public class AiServiceImpl implements AiService {
                     if (!chatMessageLifecycleService.complete(exchange.assistantMessageId(), response)) {
                         throw new IllegalStateException("Unable to complete assistant message lifecycle");
                     }
-                    try { memoryEngine.extractMemory(userMessage, response, userId); }
+                    try { memoryEngine.extractMemory(userMessage, response, userId, characterId); }
                     catch (Exception error) { log.warn("Failed to extract memory for userId={}: {}", userId, error.getMessage()); }
                 }))
                 .doOnError(error -> {

@@ -56,7 +56,8 @@ public class ChatContextAssembler {
     public ComposedChatPrompt assembleCharacter(Long userId, Long sessionId, String userMessage,
                                                  CharacterSnapshot character,
                                                  ChatMessageExchange exchange) {
-        String memoryContext = contextManager.limitMemory(memoryEngine.getMemoryContext(userId, userMessage));
+        String memoryContext = contextManager.limitMemory(memoryEngine.getMemoryContext(userId,
+                character == null ? null : character.sourceCharacterId(), userMessage));
         List<ChatMessage> history = loadHistory(sessionId, exchange.userMessageId(), exchange.assistantMessageId());
         ComposedChatPrompt required = promptComposer.composeCharacter(
                 userId, sessionId, character, memoryContext, List.of(), userMessage);

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.companion.ai.memory.ExtractedMemory;
 import com.companion.ai.memory.MemoryRetrievalScorer;
 import com.companion.ai.memory.RuleBasedMemoryExtractor;
+import com.companion.ai.memory.LlmMemoryExtractor;
 import com.companion.ai.memory.ScoredMemory;
 import com.companion.ai.config.LlmProperties;
 import com.companion.common.utils.RedisUtils;
@@ -24,6 +25,8 @@ public class MemoryEngine {
 
     private final UserMemoryMapper userMemoryMapper;
     private final RuleBasedMemoryExtractor memoryExtractor;
+    @Autowired(required = false)
+    private LlmMemoryExtractor llmMemoryExtractor;
     private final MemoryRetrievalScorer retrievalScorer;
     private final LlmProperties llmProperties;
 
@@ -42,13 +45,20 @@ public class MemoryEngine {
 
     @Transactional
     public void extractMemory(String userMessage, String aiResponse, Long userId) {
+        extractMemory(userMessage, aiResponse, userId, null);
+    }
+
+    @Transactional
+    public void extractMemory(String userMessage, String aiResponse, Long userId, Long characterId) {
         if (userMessage == null || userMessage.isBlank() || userId == null) {
             return;
         }
 
         try {
-            for (ExtractedMemory memory : memoryExtractor.extract(userMessage)) {
-                saveExtractedMemory(userId, memory);
+            List<ExtractedMemory> extracted = llmMemoryExtractor == null ? List.of() : llmMemoryExtractor.extract(userMessage, aiResponse);
+            if (extracted.isEmpty()) extracted = memoryExtractor.extract(userMessage);
+            for (ExtractedMemory memory : extracted) {
+                saveExtractedMemory(userId, characterId, memory);
             }
             evictContextCache(userId);
         } catch (Exception error) {
@@ -57,27 +67,34 @@ public class MemoryEngine {
     }
 
     public String getMemoryContext(Long userId, String currentMessage) {
+        return getMemoryContext(userId, null, currentMessage);
+    }
+
+    public String getMemoryContext(Long userId, Long characterId, String currentMessage) {
         if (userId == null) {
             return "";
         }
 
         try {
-            List<UserMemory> memories = userMemoryMapper.selectList(
-                    new QueryWrapper<UserMemory>()
+            QueryWrapper<UserMemory> scope = new QueryWrapper<UserMemory>()
                             .eq("user_id", userId)
+                            .and(w -> {
+                                w.isNull("character_id");
+                                if (characterId != null) w.or().eq("character_id", characterId);
+                            })
                             .eq("status", 1)
                             .orderByDesc("importance")
                             .orderByDesc("last_access_time")
                             .orderByDesc("id")
-                            .last("LIMIT " + candidateLimit())
-            );
+                            .last("LIMIT " + candidateLimit());
+            List<UserMemory> memories = userMemoryMapper.selectList(scope);
             if (memories == null || memories.isEmpty()) {
                 return "";
             }
 
             List<UserMemory> selectedMemories = memories.stream()
                     .map(memory -> retrievalScorer.score(memory, currentMessage))
-                    .sorted(scoredMemoryComparator())
+                    .sorted(scoredMemoryComparator(characterId))
                     .limit(retrievalLimit())
                     .map(ScoredMemory::memory)
                     .toList();
@@ -140,6 +157,10 @@ public class MemoryEngine {
     }
 
     private void saveExtractedMemory(Long userId, ExtractedMemory extracted) {
+        saveExtractedMemory(userId, null, extracted);
+    }
+
+    private void saveExtractedMemory(Long userId, Long characterId, ExtractedMemory extracted) {
         String value = normalizeValue(extracted.value());
         if (value.isEmpty()) {
             return;
@@ -149,6 +170,7 @@ public class MemoryEngine {
                 .eq("user_id", userId)
                 .eq("memory_key", extracted.memoryKey())
                 .eq("status", 1);
+        if (characterId == null) query.isNull("character_id"); else query.eq("character_id", characterId);
         if (!extracted.singleValued()) {
             query.eq("value", value);
         }
@@ -167,6 +189,7 @@ public class MemoryEngine {
 
         UserMemory memory = new UserMemory();
         memory.setUserId(userId);
+        memory.setCharacterId(characterId);
         memory.setCategory(extracted.category());
         memory.setMemoryKey(extracted.memoryKey());
         memory.setValue(value);
@@ -182,8 +205,9 @@ public class MemoryEngine {
         return value == null ? "" : value.replaceAll("[\\r\\n]+", " ").trim();
     }
 
-    private Comparator<ScoredMemory> scoredMemoryComparator() {
+    private Comparator<ScoredMemory> scoredMemoryComparator(Long characterId) {
         return Comparator.comparingDouble(ScoredMemory::totalScore).reversed()
+                .thenComparingInt(scored -> characterId != null && characterId.equals(scored.memory().getCharacterId()) ? 0 : 1)
                 .thenComparing(
                         scored -> scored.memory().getImportance() == null ? 0.0f : scored.memory().getImportance(),
                         Comparator.reverseOrder()

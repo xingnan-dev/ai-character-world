@@ -33,7 +33,8 @@ export async function consumeChatStream(reader, message, onError = () => {}) {
         continue
       }
       if (!trimmedLine.startsWith('data:')) continue
-      const data = trimmedLine.substring(5).trim()
+      const rawData = line.substring(line.indexOf('data:') + 5)
+      const data = rawData.startsWith(' ') ? rawData.substring(1) : rawData
       if (currentEvent === 'error') {
         const messageText = parseSseErrorPayload(data)
         onError(messageText)

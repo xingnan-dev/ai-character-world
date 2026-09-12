@@ -116,6 +116,7 @@ CREATE TABLE t_user_memory (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,
     avatar_id BIGINT,
+    character_id BIGINT,
     category TINYINT DEFAULT 1,
     memory_key VARCHAR(100),
     value VARCHAR(4000) NOT NULL,
@@ -127,6 +128,7 @@ CREATE TABLE t_user_memory (
     update_time DATETIME,
     INDEX idx_memory_user_active_importance (user_id, status, deleted, importance),
     INDEX idx_memory_user_key (user_id, memory_key, status, deleted)
+    , INDEX idx_memory_scope (user_id, character_id, status, deleted, importance)
 );
 
 DROP TABLE IF EXISTS t_ai_usage;

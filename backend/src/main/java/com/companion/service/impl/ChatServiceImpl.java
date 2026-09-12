@@ -146,7 +146,7 @@ public class ChatServiceImpl implements ChatService {
                     || !"AI".equals(snapshot.characterType())) {
                 throw new BusinessException(ResultCode.SERVER_ERROR.getCode(), "会话角色快照不一致");
             }
-            return aiService.chatStream(userId, session.getId(), request.getContent(), snapshot, exchange);
+            return aiService.chatStream(userId, session.getId(), request.getContent(), snapshot, exchange, session.getCharacterId());
         }
         Avatar avatar = findOwnedActiveAvatar(userId, session.getAvatarId());
         if (avatar == null) throw new BusinessException(ResultCode.NOT_FOUND.getCode(), "头像不存在");
