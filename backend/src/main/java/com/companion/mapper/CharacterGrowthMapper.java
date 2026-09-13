@@ -1,0 +1,3 @@
+package com.companion.mapper;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper; import com.companion.entity.CharacterGrowth; import org.apache.ibatis.annotations.*;
+@Mapper public interface CharacterGrowthMapper extends BaseMapper<CharacterGrowth> { @Update("UPDATE t_character_growth SET growth_summary=#{g.growthSummary}, behavior_adaptation=#{g.behaviorAdaptation}, user_understanding=#{g.userUnderstanding}, growth_direction=#{g.growthDirection}, update_time=#{g.updateTime}, version=version+1 WHERE id=#{g.id} AND deleted=0 AND version=#{v}") int updateIfVersionMatches(@Param("g") CharacterGrowth g,@Param("v") Integer v); }

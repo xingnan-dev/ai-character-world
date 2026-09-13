@@ -5,6 +5,7 @@ import com.companion.ai.model.LlmRole;
 import com.companion.entity.ChatMessage;
 import com.companion.entity.Personality;
 import com.companion.entity.CharacterRelationship;
+import com.companion.entity.CharacterGrowth;
 import com.companion.character.snapshot.CharacterSnapshot;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -124,6 +125,19 @@ class ChatPromptComposerTest {
                 .containsEntry("relationshipPromptVersion", "1");
         assertThat(result.messages()).extracting(LlmMessage::content)
                 .noneSatisfy(content -> assertThat(content).contains("Character B secret"));
+    }
+
+    @Test void characterGrowthFollowsRelationshipAndPreservesIdentityAuthority() {
+        CharacterRelationship relationship = new CharacterRelationship(); relationship.setStage("TRUSTED");
+        relationship.setSummary("A relationship"); relationship.setInteractionStyle("warm"); relationship.setRecentChange("none");
+        CharacterGrowth growth = new CharacterGrowth(); growth.setGrowthSummary("A growth"); growth.setBehaviorAdaptation("concise");
+        growth.setUserUnderstanding("direct"); growth.setGrowthDirection("continuity");
+        ComposedChatPrompt result = composer.composeCharacter(10L,20L,character(71L),relationship,growth,"A memory",List.of(),"Question");
+        String all=result.messages().stream().map(LlmMessage::content).reduce("",(a,b)->a+"\n"+b);
+        assertThat(all.indexOf("角色设定")).isLessThan(all.indexOf("A growth"));
+        assertThat(all.indexOf("A relationship")).isLessThan(all.indexOf("A growth"));
+        assertThat(all).contains("最高优先级","不得根据成长状态编造记忆或关系事件","Memory 或聊天历史");
+        assertThat(result.metadata()).containsEntry("growthPromptVersion","1");
     }
 
     private CharacterSnapshot character(Long id) {

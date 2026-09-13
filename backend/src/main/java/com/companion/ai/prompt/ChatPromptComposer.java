@@ -5,6 +5,7 @@ import com.companion.ai.model.LlmRole;
 import com.companion.entity.ChatMessage;
 import com.companion.entity.Personality;
 import com.companion.entity.CharacterRelationship;
+import com.companion.entity.CharacterGrowth;
 import com.companion.character.snapshot.CharacterSnapshot;
 import org.springframework.stereotype.Component;
 
@@ -85,6 +86,16 @@ public class ChatPromptComposer {
                                                 String memoryContext,
                                                 List<ChatMessage> history,
                                                 String userMessage) {
+        return composeCharacter(userId, sessionId, character, relationshipState, null, memoryContext, history, userMessage);
+    }
+
+    public ComposedChatPrompt composeCharacter(Long userId, Long sessionId,
+                                                CharacterSnapshot character,
+                                                CharacterRelationship relationshipState,
+                                                CharacterGrowth growthState,
+                                                String memoryContext,
+                                                List<ChatMessage> history,
+                                                String userMessage) {
         if (character == null || !"AI".equals(character.characterType())) {
             throw new PromptTemplateException("AI Character is required to compose a chat prompt");
         }
@@ -115,6 +126,7 @@ public class ChatPromptComposer {
                     "recentChange", valueOrDefault(relationshipState.getRecentChange(), "No meaningful recent change.")
             )));
         }
+        if (growthState != null) messages.add(systemMessage(PromptTemplateKey.CHAT_GROWTH, Map.of("growthSummary", valueOrDefault(growthState.getGrowthSummary(), "No stable growth yet."), "behaviorAdaptation", valueOrDefault(growthState.getBehaviorAdaptation(), "Stay aligned with identity."), "userUnderstanding", valueOrDefault(growthState.getUserUnderstanding(), "No stable preference inferred."), "growthDirection", valueOrDefault(growthState.getGrowthDirection(), "Observe gradually."))));
         normalizedHistory(history).stream().map(this::toLlmMessage)
                 .filter(message -> message.content() != null && !message.content().isBlank())
                 .forEach(messages::add);
@@ -130,6 +142,7 @@ public class ChatPromptComposer {
         if (relationshipState != null) {
             metadata.put("relationshipPromptVersion", PromptTemplateKey.CHAT_RELATIONSHIP.version());
         }
+        if (growthState != null) metadata.put("growthPromptVersion", PromptTemplateKey.CHAT_GROWTH.version());
         return new ComposedChatPrompt(messages, metadata);
     }
 

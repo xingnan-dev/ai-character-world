@@ -16,6 +16,9 @@ public enum PromptTemplateKey {
             "1",
             Set.of("stage", "summary", "interactionStyle", "recentChange")
     ),
+    CHAT_GROWTH("prompts/chat/growth-v1.md", "1", Set.of("growthSummary", "behaviorAdaptation", "userUnderstanding", "growthDirection")),
+    GROWTH_EVALUATION_SYSTEM("prompts/growth/evaluation-system-v1.md", "1", Set.of()),
+    GROWTH_EVALUATION_USER("prompts/growth/evaluation-user-v1.md", "1", Set.of("characterIdentity", "currentGrowth", "relationship", "memory", "userMessage", "assistantResponse")),
     RELATIONSHIP_EVALUATION_SYSTEM("prompts/relationship/evaluation-system-v1.md", "1", Set.of()),
     RELATIONSHIP_EVALUATION_USER(
             "prompts/relationship/evaluation-user-v1.md",

@@ -8,16 +8,17 @@ import com.companion.chat.ChatMessageLifecycleService;
 import com.companion.chat.model.ChatMessageExchange;
 import com.companion.character.snapshot.CharacterSnapshot;
 import com.companion.service.CharacterRelationshipService;
+import com.companion.service.CharacterGrowthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import reactor.core.publisher.Flux;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class AiServiceImpl implements AiService {
 
     private final LlmClient llmClient;
@@ -25,6 +26,20 @@ public class AiServiceImpl implements AiService {
     private final MemoryEngine memoryEngine;
     private final ChatMessageLifecycleService chatMessageLifecycleService;
     private final CharacterRelationshipService relationshipService;
+    private final CharacterGrowthService growthService;
+
+    public AiServiceImpl(LlmClient llmClient, ChatContextAssembler chatContextAssembler, MemoryEngine memoryEngine,
+                         ChatMessageLifecycleService lifecycle, CharacterRelationshipService relationshipService) {
+        this(llmClient, chatContextAssembler, memoryEngine, lifecycle, relationshipService, null);
+    }
+
+    @Autowired
+    public AiServiceImpl(LlmClient llmClient, ChatContextAssembler chatContextAssembler, MemoryEngine memoryEngine,
+                         ChatMessageLifecycleService lifecycle, CharacterRelationshipService relationshipService,
+                         CharacterGrowthService growthService) {
+        this.llmClient=llmClient; this.chatContextAssembler=chatContextAssembler; this.memoryEngine=memoryEngine;
+        this.chatMessageLifecycleService=lifecycle; this.relationshipService=relationshipService; this.growthService=growthService;
+    }
 
     @Override
     public Flux<String> chatStream(Long userId, Long sessionId, String userMessage,
@@ -83,6 +98,7 @@ public class AiServiceImpl implements AiService {
     public Flux<String> chatStream(Long userId, Long sessionId, String userMessage,
                                    CharacterSnapshot character, ChatMessageExchange exchange, Long characterId) {
         return stream(userId, sessionId, userMessage, exchange, characterId,
+                character,
                 () -> chatContextAssembler.assembleCharacter(
                         userId, sessionId, userMessage, character, exchange));
     }
@@ -90,6 +106,7 @@ public class AiServiceImpl implements AiService {
     private Flux<String> stream(Long userId, Long sessionId, String userMessage,
                                 ChatMessageExchange exchange,
                                 Long characterId,
+                                CharacterSnapshot character,
                                 java.util.function.Supplier<ComposedChatPrompt> promptSupplier) {
         StringBuilder responseBuffer = new StringBuilder();
         AtomicBoolean streamingStarted = new AtomicBoolean(false);
@@ -107,6 +124,9 @@ public class AiServiceImpl implements AiService {
                             try { relationshipService.evaluateAndUpdate(userId, characterId, userMessage, response); }
                             catch (Exception error) { log.warn("Failed to update relationship for userId={}, characterId={}: {}",
                                     userId, characterId, error.getMessage()); }
+                            try { if (growthService != null) growthService.evaluateAndUpdate(userId, characterId,
+                                    chatContextAssembler.growthEvaluationContext(userId, character, userMessage, response)); }
+                            catch (Exception error) { log.warn("Failed to update growth for userId={}, characterId={}: {}", userId, characterId, error.getMessage()); }
                         }
                 }))
                 .doOnError(error -> {

@@ -289,3 +289,12 @@ CREATE TABLE IF NOT EXISTS t_character_image_generation (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (user_id, request_id)
 );
+
+CREATE TABLE IF NOT EXISTS t_character_growth (
+ id BIGINT AUTO_INCREMENT PRIMARY KEY, user_id BIGINT NOT NULL, character_id BIGINT NOT NULL,
+ growth_summary VARCHAR(1000) NOT NULL, behavior_adaptation VARCHAR(1000) NOT NULL,
+ user_understanding VARCHAR(1000) NOT NULL, growth_direction VARCHAR(1000) NOT NULL,
+ version INT NOT NULL DEFAULT 0, deleted TINYINT NOT NULL DEFAULT 0,
+ create_time DATETIME NOT NULL, update_time DATETIME NOT NULL,
+ UNIQUE(user_id, character_id)
+);
