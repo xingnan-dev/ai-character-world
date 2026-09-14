@@ -1,0 +1,3 @@
+package com.companion.world;
+import com.companion.entity.CharacterWorld;
+public record WorldSnapshot(int snapshotVersion,Long sourceWorldId,String name,String background,String rules,String atmosphere,String scene,String sourceDescription){public static final int CURRENT_VERSION=1;public static WorldSnapshot from(CharacterWorld w){return new WorldSnapshot(CURRENT_VERSION,w.getId(),w.getName(),w.getBackground(),w.getRules(),w.getAtmosphere(),w.getScene(),w.getSourceDescription());}public CharacterWorld toWorld(){CharacterWorld w=new CharacterWorld();w.setId(sourceWorldId);w.setName(name);w.setBackground(background);w.setRules(rules);w.setAtmosphere(atmosphere);w.setScene(scene);w.setSourceDescription(sourceDescription);return w;}}

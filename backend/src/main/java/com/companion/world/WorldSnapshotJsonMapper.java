@@ -1,0 +1,3 @@
+package com.companion.world;
+import com.fasterxml.jackson.databind.ObjectMapper;import lombok.RequiredArgsConstructor;import org.springframework.stereotype.Component;
+@Component @RequiredArgsConstructor public class WorldSnapshotJsonMapper{private final ObjectMapper mapper;public String write(WorldSnapshot s){try{return mapper.writeValueAsString(s);}catch(Exception e){throw new IllegalArgumentException("Invalid World snapshot",e);}}public WorldSnapshot read(String s){try{return mapper.readValue(s,WorldSnapshot.class);}catch(Exception e){throw new IllegalArgumentException("Invalid World snapshot",e);}}}

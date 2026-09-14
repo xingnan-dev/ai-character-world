@@ -238,6 +238,8 @@ CREATE TABLE t_world_round (
     world_id BIGINT NOT NULL,
     request_id VARCHAR(64) NOT NULL,
     user_input TEXT NOT NULL,
+    world_snapshot VARCHAR(10000),
+    world_snapshot_version INT,
     user_character_id BIGINT,
     user_character_snapshot VARCHAR(10000),
     user_character_snapshot_version INT,
@@ -297,4 +299,13 @@ CREATE TABLE IF NOT EXISTS t_character_growth (
  version INT NOT NULL DEFAULT 0, deleted TINYINT NOT NULL DEFAULT 0,
  create_time DATETIME NOT NULL, update_time DATETIME NOT NULL,
  UNIQUE(user_id, character_id)
+);
+
+CREATE TABLE IF NOT EXISTS t_world_memory (
+ id BIGINT AUTO_INCREMENT PRIMARY KEY, user_id BIGINT NOT NULL, world_id BIGINT NOT NULL,
+ memory_type VARCHAR(32) NOT NULL, memory_key VARCHAR(255), content VARCHAR(2000) NOT NULL, dedupe_hash CHAR(64) NOT NULL,
+ source_round_id BIGINT, source_event_id BIGINT, importance INT NOT NULL DEFAULT 50,
+ version INT NOT NULL DEFAULT 0, deleted TINYINT NOT NULL DEFAULT 0,
+ create_time DATETIME NOT NULL, update_time DATETIME NOT NULL,
+ UNIQUE(user_id, world_id, memory_type, dedupe_hash)
 );

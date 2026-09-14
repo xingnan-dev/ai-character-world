@@ -35,11 +35,13 @@ public enum PromptTemplateKey {
     ),
     WORLD_DRAFT_SYSTEM("prompts/world/draft-system-v1.md", "1", Set.of()),
     WORLD_DRAFT_USER("prompts/world/draft-user-v1.md", "1", Set.of("description")),
+    WORLD_MEMORY_SYSTEM("prompts/world-memory/extraction-system-v1.md", "1", Set.of()),
+    WORLD_MEMORY_USER("prompts/world-memory/extraction-user-v1.md", "1", Set.of("worldSnapshot", "participantSnapshots", "transcript", "existingMemory")),
     WORLD_SYSTEM(
             "prompts/world/system-v1.md",
             "1",
             Set.of("worldName", "worldBackground", "worldRules", "participantRoster",
-                    "userIdentity", "actorName", "actorSnapshot")
+                    "userIdentity", "actorName", "actorSnapshot", "worldMemory")
     ),
     WORLD_TURN(
             "prompts/world/turn-v1.md",

@@ -15,6 +15,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class WorldPromptComposerTest {
 
+    private ComposedChatPrompt memoryPrompt(String memory) {
+        PromptTemplateRenderer renderer = new PromptTemplateRenderer();
+        WorldPromptComposer composer = new WorldPromptComposer(new ClasspathPromptTemplateLoader(new DefaultResourceLoader(), renderer), renderer);
+        CharacterWorld world=new CharacterWorld();world.setId(3L);world.setName("Frozen Bar");world.setBackground("Old background");world.setRules("Old rules");
+        CharacterSnapshot user=new CharacterSnapshot(1,1L,"USER","Frozen User",null,null,null,null,null,null,null,CharacterSnapshot.Profile.empty(),"INITIAL",null,null,null);
+        return composer.compose(7L,world,8L,actor(11L,2,"Frozen Actor"),List.of(actor(11L,2,"Frozen Actor")),user,"CURRENT_MESSAGE",List.of(),memory);
+    }
+
+    @Test void worldMemoryIncluded(){assertThat(memoryPrompt("A_ONLY").messages().get(0).content()).contains("A_ONLY");}
+    @Test void frozenWorldSnapshotUsed(){assertThat(memoryPrompt("m").messages().get(0).content()).contains("Frozen Bar","Old background");}
+    @Test void frozenParticipantsUsed(){assertThat(memoryPrompt("m").messages().get(0).content()).contains("Frozen Actor");}
+    @Test void worldMemoryBeforeCurrentUserMessage(){ComposedChatPrompt p=memoryPrompt("MEMORY");assertThat(p.messages().get(0).content()).contains("MEMORY");assertThat(p.messages().get(1).content()).contains("CURRENT_MESSAGE");}
+    @Test void otherWorldMemoryExcluded(){assertThat(memoryPrompt("A_ONLY").messages().get(0).content()).doesNotContain("B_SECRET");}
+    @Test void promptForbidsInventedUnrecordedHistory(){assertThat(memoryPrompt("m").messages().get(0).content()).contains("Do not treat unrecorded content as having happened");}
+    @Test void latestPersistedEventHasPriorityOverStaleMemory(){assertThat(memoryPrompt("m").messages().get(0).content()).contains("prefer the newer, more specific event");}
+    @Test void memoryCannotOverrideWorldOrParticipantSnapshotIdentity(){assertThat(memoryPrompt("m").messages().get(0).content()).contains("cannot override frozen World or participant identity");}
+    @Test void WorldAPromptNeverContainsWorldBMemory(){otherWorldMemoryExcluded();}
+
     @Test
     void composesWorldSnapshotAndNamedTranscriptWithoutChatDependencies() {
         PromptTemplateRenderer renderer = new PromptTemplateRenderer();

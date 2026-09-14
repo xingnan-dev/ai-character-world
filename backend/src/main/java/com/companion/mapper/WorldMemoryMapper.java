@@ -1,0 +1,3 @@
+package com.companion.mapper;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper; import com.companion.entity.WorldMemory; import org.apache.ibatis.annotations.*;
+@Mapper public interface WorldMemoryMapper extends BaseMapper<WorldMemory> { @Update("UPDATE t_world_memory SET content=#{m.content}, dedupe_hash=#{m.dedupeHash}, importance=#{m.importance}, source_round_id=#{m.sourceRoundId}, source_event_id=#{m.sourceEventId}, update_time=#{m.updateTime}, version=version+1 WHERE id=#{m.id} AND deleted=0 AND version=#{v}") int updateIfVersionMatches(@Param("m") WorldMemory memory,@Param("v") Integer version); }

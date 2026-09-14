@@ -1,0 +1,1 @@
+Extract only important confirmed World facts, events, promises, discoveries, conflicts, or continuing state. Do not invent facts. Return JSON `{ "memories": [...] }`, at most 5 entries. Each entry has type, optional key, content, and importance 1-100.

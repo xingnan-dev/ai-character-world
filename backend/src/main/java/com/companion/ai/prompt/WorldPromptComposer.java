@@ -36,6 +36,12 @@ public class WorldPromptComposer {
                                       WorldActorContext actor, List<WorldActorContext> roster,
                                       CharacterSnapshot userCharacter, String userInput,
                                       List<WorldSpeech> previousSpeeches) {
+        return compose(userId,world,roundId,actor,roster,userCharacter,userInput,previousSpeeches,"");
+    }
+    public ComposedChatPrompt compose(Long userId, CharacterWorld world, Long roundId,
+                                      WorldActorContext actor, List<WorldActorContext> roster,
+                                      CharacterSnapshot userCharacter, String userInput,
+                                      List<WorldSpeech> previousSpeeches, String worldMemory) {
         if (world == null || actor == null || !actor.isValid()) {
             throw new PromptTemplateException("A valid world actor is required");
         }
@@ -49,6 +55,7 @@ public class WorldPromptComposer {
         systemValues.put("actorName", actor.displayName());
         systemValues.put("actorSnapshot", describe(actor.snapshot()));
         systemValues.put("userIdentity", describeUser(userCharacter));
+        systemValues.put("worldMemory", value(worldMemory, "No confirmed World Memory yet."));
 
         String transcript = userCharacter.name() + "：" + value(userInput, "");
         if (previousSpeeches != null && !previousSpeeches.isEmpty()) {

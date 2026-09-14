@@ -12,6 +12,7 @@ import com.companion.entity.CharacterWorld;
 import com.companion.entity.WorldEvent;
 import com.companion.entity.WorldRound;
 import com.companion.entity.enums.WorldEventStatus;
+import com.companion.service.WorldMemoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -30,13 +31,21 @@ public class WorldRoundOrchestrator {
     private final LlmClient llmClient;
     private final WorldRoundLifecycleService lifecycle;
     private final CharacterSnapshotJsonMapper snapshotJsonMapper;
+    private final WorldMemoryService worldMemoryService;
 
-    @org.springframework.beans.factory.annotation.Autowired
     public WorldRoundOrchestrator(WorldParticipantResolver resolver, WorldPromptComposer composer,
                                   LlmClient llm, WorldRoundLifecycleService lifecycle,
                                   CharacterSnapshotJsonMapper mapper) {
         this.participantResolver=resolver; this.promptComposer=composer; this.llmClient=llm;
-        this.lifecycle=lifecycle; this.snapshotJsonMapper=mapper;
+        this.lifecycle=lifecycle; this.snapshotJsonMapper=mapper; this.worldMemoryService=null;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public WorldRoundOrchestrator(WorldParticipantResolver resolver, WorldPromptComposer composer,
+                                  LlmClient llm, WorldRoundLifecycleService lifecycle,
+                                  CharacterSnapshotJsonMapper mapper, WorldMemoryService worldMemoryService) {
+        this.participantResolver=resolver; this.promptComposer=composer; this.llmClient=llm;
+        this.lifecycle=lifecycle; this.snapshotJsonMapper=mapper; this.worldMemoryService=worldMemoryService;
     }
 
     public WorldRoundOrchestrator(WorldParticipantResolver resolver, WorldPromptComposer composer,
@@ -50,6 +59,7 @@ public class WorldRoundOrchestrator {
             return;
         }
         long version = claim.executionVersion();
+        CharacterWorld executionWorld = frozenWorld(round, world);
         List<WorldActorContext> actors = participantResolver.resolveAiParticipants(world.getId());
         Map<Long, WorldEvent> existing = existingByParticipant(round.getId());
 
@@ -63,7 +73,7 @@ public class WorldRoundOrchestrator {
                 return;
             }
             EventResult result = actor.isValid()
-                    ? invoke(userId, world, round, actor, actors, existing)
+                    ? invoke(userId, executionWorld, round, actor, actors, existing)
                     : EventResult.failed(actor.resolutionErrorCode());
             if (!lifecycle.saveEvent(world.getId(), round.getId(), version, sequenceNo, actor.participantId(),
                     result.content(), result.status(), result.errorCode())) {
@@ -71,7 +81,16 @@ public class WorldRoundOrchestrator {
             }
             existing = existingByParticipant(round.getId());
         }
-        lifecycle.finish(round.getId(), version, actors.size());
+        if (lifecycle.finish(round.getId(), version, actors.size()) && worldMemoryService != null) {
+            try { worldMemoryService.extractAndStore(userId, world.getId(), round.getId()); }
+            catch (RuntimeException ignored) { }
+        }
+    }
+
+    private CharacterWorld frozenWorld(WorldRound round, CharacterWorld legacyFallback) {
+        if (round.getWorldSnapshot() == null) return legacyFallback;
+        return new WorldSnapshotJsonMapper(new com.fasterxml.jackson.databind.ObjectMapper())
+                .read(round.getWorldSnapshot()).toWorld();
     }
 
     private EventResult invoke(Long userId, CharacterWorld world, WorldRound round,
@@ -85,7 +104,7 @@ public class WorldRoundOrchestrator {
             LlmResponse response = llmClient.complete(promptComposer.compose(
                     userId, world, round.getId(), actor, actors,
                     userSnapshot, round.getUserInput(),
-                    successfulSpeeches(actors, existing)), null);
+                    successfulSpeeches(actors, existing), worldMemoryService == null ? "" : safeMemory(userId, world.getId(), round.getUserInput())), null);
             String content = response == null ? null : response.content();
             if (content == null || content.isBlank()) {
                 return EventResult.failed("LLM_INVALID_RESPONSE");
@@ -101,6 +120,7 @@ public class WorldRoundOrchestrator {
             return EventResult.failed("WORLD_AI_INTERNAL_ERROR");
         }
     }
+    private String safeMemory(Long userId, Long worldId, String query) { try { return worldMemoryService.getRelevantMemory(userId,worldId,query); } catch(RuntimeException e) { return ""; } }
 
     private String stable(LlmErrorType type) {
         return type == null ? "UPSTREAM_ERROR" : type.name();

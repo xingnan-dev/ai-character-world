@@ -15,6 +15,8 @@ public class WorldRound {
     private Long worldId;
     private String requestId;
     private String userInput;
+    private String worldSnapshot;
+    private Integer worldSnapshotVersion;
     private Long userCharacterId;
     private String userCharacterSnapshot;
     private Integer userCharacterSnapshotVersion;

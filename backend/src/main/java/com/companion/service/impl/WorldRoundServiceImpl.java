@@ -23,6 +23,8 @@ import com.companion.mapper.WorldRoundMapper;
 import com.companion.service.WorldRoundService;
 import com.companion.service.CharacterService;
 import com.companion.world.WorldRoundOrchestrator;
+import com.companion.world.WorldSnapshot;
+import com.companion.world.WorldSnapshotJsonMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
@@ -50,6 +52,7 @@ public class WorldRoundServiceImpl implements WorldRoundService {
     private final Clock clock;
     private final CharacterService characterService;
     private final CharacterSnapshotJsonMapper snapshotJsonMapper;
+    private final WorldSnapshotJsonMapper worldSnapshotJsonMapper = new WorldSnapshotJsonMapper(new com.fasterxml.jackson.databind.ObjectMapper());
 
     @org.springframework.beans.factory.annotation.Autowired
     public WorldRoundServiceImpl(CharacterWorldMapper worldMapper, WorldRoundMapper roundMapper,
@@ -103,6 +106,8 @@ public class WorldRoundServiceImpl implements WorldRoundService {
         round.setWorldId(worldId);
         round.setRequestId(requestId);
         round.setUserInput(userInput);
+        round.setWorldSnapshot(worldSnapshotJsonMapper.write(WorldSnapshot.from(world)));
+        round.setWorldSnapshotVersion(WorldSnapshot.CURRENT_VERSION);
         round.setUserCharacterId(userSnapshot.sourceCharacterId());
         round.setUserCharacterSnapshot(snapshotJsonMapper.write(userSnapshot));
         round.setUserCharacterSnapshotVersion(userSnapshot.snapshotVersion());
