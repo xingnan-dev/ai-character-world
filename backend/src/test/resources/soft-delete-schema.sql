@@ -309,3 +309,23 @@ CREATE TABLE IF NOT EXISTS t_world_memory (
  create_time DATETIME NOT NULL, update_time DATETIME NOT NULL,
  UNIQUE(user_id, world_id, memory_type, dedupe_hash)
 );
+
+CREATE TABLE IF NOT EXISTS t_agent_run (
+ id BIGINT AUTO_INCREMENT PRIMARY KEY, user_id BIGINT NOT NULL, request_id VARCHAR(64) NOT NULL,
+ goal VARCHAR(4000) NOT NULL, status VARCHAR(32) NOT NULL, current_step INT NOT NULL DEFAULT 0,
+ max_steps INT NOT NULL DEFAULT 6, final_result CLOB, last_error_code VARCHAR(64),
+ last_error_message VARCHAR(1000), version INT NOT NULL DEFAULT 0, execution_version INT NOT NULL DEFAULT 0, create_time DATETIME NOT NULL,
+ update_time DATETIME NOT NULL, completion_time DATETIME, UNIQUE(user_id, request_id)
+);
+
+CREATE TABLE IF NOT EXISTS t_agent_step (
+ id BIGINT AUTO_INCREMENT PRIMARY KEY, run_id BIGINT NOT NULL, step_number INT NOT NULL,
+ decision_type VARCHAR(32), decision_summary VARCHAR(500), tool_call_id VARCHAR(64), tool_name VARCHAR(64),
+ tool_arguments JSON, tool_result CLOB, status VARCHAR(32) NOT NULL, retry_count INT NOT NULL DEFAULT 0,
+ tool_attempt_count INT NOT NULL DEFAULT 0,
+ error_code VARCHAR(64), error_message VARCHAR(1000), create_time DATETIME NOT NULL,
+ update_time DATETIME NOT NULL, completion_time DATETIME,
+ FOREIGN KEY(run_id) REFERENCES t_agent_run(id) ON DELETE CASCADE,
+ CONSTRAINT ck_agent_step_tool_attempt_count CHECK (tool_attempt_count BETWEEN 0 AND 2),
+ UNIQUE(run_id, step_number), UNIQUE(tool_call_id)
+);

@@ -1,0 +1,6 @@
+package com.companion.agent.tool;
+import com.companion.agent.AgentExecutionException;import com.companion.config.AgentProperties;import com.fasterxml.jackson.databind.JsonNode;import org.springframework.beans.factory.annotation.Qualifier;import org.springframework.stereotype.Component;import java.util.concurrent.*;
+@Component public class AgentToolExecutor {private final AgentToolRegistry registry;private final ExecutorService executor;private final AgentProperties properties;
+ public AgentToolExecutor(AgentToolRegistry r,@Qualifier("agentToolWorkerExecutor") ExecutorService e,AgentProperties p){registry=r;executor=e;properties=p;}
+ public String execute(Long userId,String name,JsonNode args){AgentTool tool=registry.require(name);tool.validate(args);Future<String> f=executor.submit(()->tool.execute(userId,args));try{return f.get(properties.getToolTimeout().toMillis(),TimeUnit.MILLISECONDS);}catch(TimeoutException e){f.cancel(true);throw new AgentExecutionException("TOOL_TIMEOUT","Tool timed out",true,e);}catch(InterruptedException e){Thread.currentThread().interrupt();throw new AgentExecutionException("TOOL_INTERRUPTED","Tool interrupted",false,e);}catch(ExecutionException e){Throwable c=e.getCause();if(c instanceof AgentExecutionException a)throw a;throw new AgentExecutionException("TOOL_ERROR",c==null?"Tool failed":c.getMessage(),false,c);}}
+}

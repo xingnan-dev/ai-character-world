@@ -101,6 +101,13 @@ logging:
 app:
   redis:
     enabled: false
+  agent:
+    default-max-steps: ${AGENT_DEFAULT_MAX_STEPS:6}
+    max-steps-limit: ${AGENT_MAX_STEPS_LIMIT:10}
+    stale-timeout: ${AGENT_STALE_TIMEOUT:5m}
+    tool-timeout: ${AGENT_TOOL_TIMEOUT:3s}
+    tool-threads: ${AGENT_TOOL_THREADS:2}
+    tool-queue-capacity: ${AGENT_TOOL_QUEUE_CAPACITY:16}
   world:
     execution:
       core-pool-size: 2

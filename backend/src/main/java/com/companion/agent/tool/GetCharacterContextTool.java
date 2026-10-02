@@ -1,0 +1,7 @@
+package com.companion.agent.tool;
+import com.companion.dto.response.CharacterResponse;import com.companion.service.CharacterService;import com.fasterxml.jackson.databind.*;import org.springframework.stereotype.Component;import java.util.LinkedHashMap;
+@Component public class GetCharacterContextTool implements AgentTool {private final CharacterService service;private final ObjectMapper mapper;public GetCharacterContextTool(CharacterService s,ObjectMapper m){service=s;mapper=m;}
+ public String name(){return "get_character_context";}public String description(){return "Read one owned character's identity and profile.";}public String inputSchema(){return "{characterId: positive integer}";}
+ public void validate(JsonNode a){ToolArguments.exact(a,"characterId");ToolArguments.positiveLong(a,"characterId");}public String execute(Long u,JsonNode a){validate(a);CharacterResponse c=service.get(u,ToolArguments.positiveLong(a,"characterId"));var out=new LinkedHashMap<String,Object>();out.put("id",c.getId());out.put("type",c.getCharacterType());out.put("name",c.getName());out.put("identity",c.getIdentity());out.put("corePersonality",c.getCorePersonality());out.put("currentGoal",c.getCurrentGoal());out.put("biography",c.getBiography());out.put("speakingStyle",c.getSpeakingStyle());out.put("profile",c.getProfile());return json(out);}
+ private String json(Object x){try{String s=mapper.writeValueAsString(x);return s.length()>8000?s.substring(0,8000):s;}catch(Exception e){throw new IllegalStateException(e);}}
+}
