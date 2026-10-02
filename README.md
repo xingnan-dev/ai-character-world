@@ -62,6 +62,33 @@ flowchart LR
 - 按 User 和 World 隔离存储，使用稳定哈希去重，并通过乐观锁合并 keyed memory。
 - 检索相关且有界的 World Memory 注入下一轮 Prompt，并使用 Round 创建时的 Frozen World Snapshot 保持历史语义。
 
+### Agent Runtime
+
+- 从用户 Goal 创建持久化 Agent Run，由 LLM 在每一步严格选择 `TOOL_CALL` 或 `FINAL`，并将 Decision、Tool Result、错误与最终结果写入 Agent Run / Agent Step。
+- 使用 `MAX_STEPS` 限制执行闭环；LLM 合约错误和可重试 Provider 错误共享有界 Decision attempt，Tool 执行也有 timeout、retry 与持久化 attempt budget。
+- 支持 checkpoint / resume、基于 `executionVersion` 的 fencing、request ID 幂等，以及同一 Run 内已完成 Tool 调用的 canonical arguments 去重与结果复用。
+- 当前 Tool 全部只读：`get_character_context` 读取 Character context，`search_character_memory` 检索 Character-scoped memory，`get_world_context` 读取 World context。
+
+```text
+Goal
+  ↓
+LLM Decision
+  ↓
+TOOL_CALL / FINAL
+  ↓
+Tool Registry
+  ↓
+Read-only Java Tool
+  ↓
+Persist Tool Result
+  ↓
+Next Decision
+  ↓
+FINAL
+```
+
+每一步都会持久化到 Agent Run / Agent Step，因此中断后的执行可以从 checkpoint 恢复，而不需要重放已经完成的 Tool。
+
 ### 可靠性与安全
 
 - 使用 JWT、BCrypt 与持久化 Auth Session，实现无状态认证和 token revocation。
@@ -75,15 +102,25 @@ flowchart TB
     UI[Vue 3 SPA<br/>Router + Pinia + Element Plus]
     API[Spring Boot REST<br/>JWT + SSE]
     Domain[Character · Chat · Memory · Relationship<br/>Growth · World · World Memory]
+    Agent[Agent Runtime]
+    Loop[Decision Loop]
+    Registry[Tool Registry]
+    Tools[Read-only Tools]
     LLM[LLM Provider<br/>OpenAI-compatible / Mock]
-    DB[(MySQL<br/>Flyway V1-V26)]
+    DB[(MySQL<br/>Flyway V1-V27)]
     External[External LLM / Image API]
-    UI -->|REST + SSE| API --> Domain
+    UI -->|REST + SSE| API
+    API --> Domain
+    API --> Agent
+    Agent --> Loop --> Registry --> Tools
+    Tools --> Domain
     Domain --> DB
+    Agent --> DB
     Domain --> LLM --> External
+    Loop --> LLM
 ```
 
-后端是 modular monolith，统一负责认证、业务编排、状态持久化和外部 AI 集成。当前实现不包含微服务、消息队列、向量数据库或 Agent runtime。
+后端是 modular monolith，统一负责认证、业务编排、状态持久化、Agent Runtime 和外部 AI 集成。LLM Provider 同时服务现有 AI 能力与 Agent Decision。当前实现不包含微服务、消息队列、向量数据库、Multi-Agent、自治写入 Tool 或长期调度器。
 
 ## 工程亮点
 
@@ -98,6 +135,7 @@ flowchart TB
 9. **Failure isolation：** Chat 回复完成后，Memory、Relationship、Growth 分别执行并独立捕获失败；World Memory 提取失败也不回滚已完成 Round。
 10. **短事务边界：** 外部 LLM 调用不处于长数据库事务或锁中；World lifecycle 使用独立短事务。
 11. **Ownership security：** 核心资源均按认证用户查询，配合 JWT、唯一约束、soft delete 与迁移级索引形成数据边界。
+12. **Persistent Agent Runtime：** Goal、Decision、Tool attempt 与结果按 Step 持久化；checkpoint、fencing、幂等和 completed-call guard 共同保证恢复与重复执行安全。
 
 ## 技术栈
 
@@ -128,9 +166,11 @@ erDiagram
     WORLD ||--o{ WORLD_ROUND : contains
     WORLD_ROUND ||--o{ WORLD_EVENT : records
     WORLD ||--o{ WORLD_MEMORY : remembers
+    USER ||--o{ AGENT_RUN : starts
+    AGENT_RUN ||--o{ AGENT_STEP : checkpoints
 ```
 
-Flyway `V1`–`V26` 覆盖基础模型、soft delete、消息生命周期、Character、World、执行恢复、Character-scoped Memory、Relationship、Growth、World Memory 和 Frozen World Snapshot。
+Flyway `V1`–`V27` 覆盖基础模型、soft delete、消息生命周期、Character、World、执行恢复、Character-scoped Memory、Relationship、Growth、World Memory、Frozen World Snapshot，以及 V27 的 persistent Agent Run / Agent Step runtime。
 
 ## 项目结构
 
@@ -192,9 +232,11 @@ npm run build
 
 当前 `develop` 基线实测结果：
 
-- Backend：425 tests，0 failures，0 errors，1 skipped。
-- Frontend：183 / 183 passed。
+- Backend：474 tests，0 failures，0 errors，1 skipped。
+- Frontend：183 / 183 passed（沿用此前已验证基线，本轮 README 更新未重新运行 frontend tests）。
 - Frontend production build：PASS（存在非阻断 Sass legacy API 和 bundle-size warnings）。
+
+Agent A.1 还通过了真实 OpenAI-compatible GLM smoke test，覆盖合法 `TOOL_CALL`、Java Tool 执行、Tool Result 进入下一轮 LLM Decision、`FINAL`、World context Tool、Multi-Tool flow、Decision correction retry，以及 duplicate completed Tool guard。
 
 ## 技术说明
 
@@ -204,7 +246,9 @@ npm run build
 
 以下内容尚未实现，仅作为规划：
 
-- 最小 Agent Loop：Goal、State、Tool Calling、Checkpoint 与 Resume
+- Agent UI 与执行过程可视化
 - World Image Generation
 - UI/UX 优化与项目截图
-- 容器化、部署加固、文档与端到端回归完善
+- CI
+- Docker 与部署加固
+- 端到端回归完善

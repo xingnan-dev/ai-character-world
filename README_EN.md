@@ -62,6 +62,33 @@ flowchart LR
 - Scope records by user and world, deduplicate with stable hashes, and consolidate keyed memory through optimistic updates.
 - Retrieve bounded relevant memory for the next round and use the round's frozen world snapshot to preserve historical meaning.
 
+### Agent Runtime
+
+- Create a persistent Agent Run from a user goal. At each step, the LLM must choose a strict `TOOL_CALL` or `FINAL` decision, while decisions, tool results, errors, and the final result are stored in Agent Run / Agent Step records.
+- Bound the loop with `MAX_STEPS`. Contract-invalid decisions and retryable provider failures share a bounded decision-attempt budget, while tool execution has its own timeout, retry, and persisted attempt budget.
+- Support checkpoint / resume, `executionVersion` fencing, request-ID idempotency, and canonical-argument deduplication with result reuse for completed tool calls within the same run.
+- All current tools are read-only: `get_character_context` reads character context, `search_character_memory` retrieves character-scoped memory, and `get_world_context` reads world context.
+
+```text
+Goal
+  ↓
+LLM Decision
+  ↓
+TOOL_CALL / FINAL
+  ↓
+Tool Registry
+  ↓
+Read-only Java Tool
+  ↓
+Persist Tool Result
+  ↓
+Next Decision
+  ↓
+FINAL
+```
+
+Every step is persisted to Agent Run / Agent Step, so interrupted execution can resume from a checkpoint without replaying already completed tools.
+
 ### Reliability and Security
 
 - Use JWT, BCrypt, and persisted auth sessions for stateless authentication and token revocation.
@@ -75,15 +102,25 @@ flowchart TB
     UI[Vue 3 SPA<br/>Router + Pinia + Element Plus]
     API[Spring Boot REST<br/>JWT + SSE]
     Domain[Character · Chat · Memory · Relationship<br/>Growth · World · World Memory]
+    Agent[Agent Runtime]
+    Loop[Decision Loop]
+    Registry[Tool Registry]
+    Tools[Read-only Tools]
     LLM[LLM Provider<br/>OpenAI-compatible / Mock]
-    DB[(MySQL<br/>Flyway V1-V26)]
+    DB[(MySQL<br/>Flyway V1-V27)]
     External[External LLM / Image API]
-    UI -->|REST + SSE| API --> Domain
+    UI -->|REST + SSE| API
+    API --> Domain
+    API --> Agent
+    Agent --> Loop --> Registry --> Tools
+    Tools --> Domain
     Domain --> DB
+    Agent --> DB
     Domain --> LLM --> External
+    Loop --> LLM
 ```
 
-The backend is a modular monolith that owns authentication, orchestration, domain persistence, and external AI integration. The current implementation has no microservices, message broker, vector database, or agent runtime.
+The backend is a modular monolith that owns authentication, orchestration, domain persistence, the Agent Runtime, and external AI integration. The LLM provider serves both the existing AI features and Agent decisions. The current implementation has no microservices, message broker, vector database, multi-agent system, autonomous write tools, or long-running scheduler.
 
 ## Engineering Highlights
 
@@ -98,6 +135,7 @@ The backend is a modular monolith that owns authentication, orchestration, domai
 9. **Failure isolation:** Memory, relationship, growth, and world-memory side effects cannot invalidate an already completed response or round.
 10. **Short transaction boundaries:** External LLM calls stay outside long database transactions and locks; lifecycle changes use focused transactions.
 11. **Ownership security:** Authenticated ownership queries, unique constraints, soft deletion, and migration-backed indexes protect domain boundaries.
+12. **Persistent Agent Runtime:** Goals, decisions, tool attempts, and results are stored per step; checkpoints, fencing, idempotency, and the completed-call guard make recovery and duplicate execution safe.
 
 ## Tech Stack
 
@@ -128,9 +166,11 @@ erDiagram
     WORLD ||--o{ WORLD_ROUND : contains
     WORLD_ROUND ||--o{ WORLD_EVENT : records
     WORLD ||--o{ WORLD_MEMORY : remembers
+    USER ||--o{ AGENT_RUN : starts
+    AGENT_RUN ||--o{ AGENT_STEP : checkpoints
 ```
 
-Flyway migrations V1-V26 cover the base model, soft deletion, message lifecycle, characters, worlds, execution recovery, character-scoped memory, relationship, growth, world memory, and frozen world snapshots.
+Flyway migrations V1-V27 cover the base model, soft deletion, message lifecycle, characters, worlds, execution recovery, character-scoped memory, relationship, growth, world memory, frozen world snapshots, and the persistent Agent Run / Agent Step runtime introduced in V27.
 
 ## Project Structure
 
@@ -192,9 +232,11 @@ npm run build
 
 Verified on the current `develop` baseline:
 
-- Backend: 425 tests, 0 failures, 0 errors, 1 skipped.
-- Frontend: 183 / 183 passed.
+- Backend: 474 tests, 0 failures, 0 errors, 1 skipped.
+- Frontend: 183 / 183 passed (retained from the previously verified baseline; frontend tests were not rerun for this README update).
 - Frontend production build: PASS, with non-blocking Sass legacy API and bundle-size warnings.
+
+Agent A.1 has also passed real OpenAI-compatible GLM smoke tests covering valid `TOOL_CALL` decisions, Java tool execution, Tool Result handoff to the next LLM decision, `FINAL`, the world-context tool, a multi-tool flow, decision correction retry, and the duplicate completed tool guard.
 
 ## Technical Notes
 
@@ -204,7 +246,9 @@ The repository retains a small legacy Three.js / VRM compatibility path and two 
 
 The following items are planned and are not implemented yet:
 
-- Minimal Agent Loop: Goal, State, Tool Calling, Checkpoint, and Resume
+- Agent UI and execution visualization
 - World Image Generation
 - UI/UX polish and project screenshots
-- Containerization, deployment hardening, documentation, and end-to-end regression improvements
+- CI
+- Docker and deployment hardening
+- End-to-end regression improvements
