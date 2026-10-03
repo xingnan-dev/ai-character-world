@@ -47,6 +47,7 @@ import static org.mockito.Mockito.when;
 @ActiveProfiles("soft-delete-test")
 class AgentCoreIntegrationTest {
     @Autowired AgentRunService service;
+    @Autowired AgentOrchestrator orchestrator;
     @Autowired AgentRunCreationService creation;
     @Autowired AgentRunLifecycleService lifecycle;
     @Autowired AgentRunMapper runs;
@@ -71,10 +72,11 @@ class AgentCoreIntegrationTest {
             assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
             return "world result";
         });
-        var result = service.create(70001L, request);
+        AgentRun created = creation.create(70001L, request);
+        var result = execute(70001L, created.getId());
         assertThat(result.getStatus()).isEqualTo("COMPLETED");
         assertThat(result.getSteps()).extracting("status").containsExactly("COMPLETED", "COMPLETED");
-        var same = service.create(70001L, request);
+        var same = creation.create(70001L, request);
         assertThat(same.getId()).isEqualTo(result.getId());
         verify(tools, times(1)).execute(anyLong(), anyString(), any());
     }
@@ -88,12 +90,12 @@ class AgentCoreIntegrationTest {
                 "get_world_context", json.createObjectNode().put("worldId", 1), null));
         when(tools.execute(anyLong(), anyString(), any()))
                 .thenThrow(new AgentExecutionException("TOOL_TIMEOUT", "timed out", true));
-        var failed = service.resume(70002L, run.getId());
+        var failed = execute(70002L, run.getId());
         assertThat(failed.getStatus()).isEqualTo("FAILED");
         assertThat(failed.getSteps().get(0).getRetryCount()).isEqualTo(1);
         assertThat(failed.getSteps().get(0).getToolAttemptCount()).isEqualTo(2);
         String toolCallId = failed.getSteps().get(0).getToolCallId();
-        var resumed = service.resume(70002L, run.getId());
+        var resumed = execute(70002L, run.getId());
         assertThat(resumed.getSteps().get(0).getToolCallId()).isEqualTo(toolCallId);
         verify(tools, times(2)).execute(anyLong(), anyString(), any());
         assertThatThrownBy(() -> service.get(99999L, run.getId())).isInstanceOf(BusinessException.class);
@@ -108,7 +110,7 @@ class AgentCoreIntegrationTest {
         when(tools.execute(anyLong(), anyString(), any()))
                 .thenThrow(new AgentExecutionException("TOOL_TIMEOUT", "timed out", true))
                 .thenReturn("world");
-        var result = service.resume(70010L, run.getId());
+        var result = execute(70010L, run.getId());
         assertThat(result.getStatus()).isEqualTo("COMPLETED");
         assertThat(result.getSteps().get(0).getToolAttemptCount()).isEqualTo(2);
         assertThat(result.getSteps().get(0).getRetryCount()).isEqualTo(1);
@@ -126,7 +128,7 @@ class AgentCoreIntegrationTest {
                 .thenThrow(new AgentExecutionException("TOOL_TRANSIENT", "temporary", true))
                 .thenReturn("world");
 
-        var result = service.resume(70019L, run.getId());
+        var result = execute(70019L, run.getId());
 
         assertThat(result.getStatus()).isEqualTo("COMPLETED");
         assertThat(result.getSteps().get(0).getDecisionType()).isEqualTo("TOOL_CALL");
@@ -143,7 +145,7 @@ class AgentCoreIntegrationTest {
                 call, call, new AgentDecision("FINAL", "done", null, null, "ok"));
         when(tools.execute(anyLong(), eq("get_character_context"), any())).thenReturn("character-result");
 
-        var result = service.resume(70020L, run.getId());
+        var result = execute(70020L, run.getId());
 
         assertThat(result.getStatus()).isEqualTo("COMPLETED");
         assertThat(result.getSteps()).extracting("decisionType")
@@ -172,7 +174,7 @@ class AgentCoreIntegrationTest {
                 new AgentDecision("FINAL", "done", null, null, "ok"));
         when(tools.execute(anyLong(), eq("search_character_memory"), any())).thenReturn("memory-result");
 
-        var result = service.resume(70021L, run.getId());
+        var result = execute(70021L, run.getId());
 
         assertThat(result.getStatus()).isEqualTo("COMPLETED");
         assertThat(result.getSteps().get(1).getDecisionType()).isEqualTo("DUPLICATE_TOOL_CALL");
@@ -188,7 +190,7 @@ class AgentCoreIntegrationTest {
                 new AgentDecision("FINAL", "done", null, null, "ok"));
         when(tools.execute(anyLong(), eq("get_character_context"), any())).thenReturn("first", "second");
 
-        var result = service.resume(70022L, run.getId());
+        var result = execute(70022L, run.getId());
 
         assertThat(result.getStatus()).isEqualTo("COMPLETED");
         assertThat(result.getSteps()).extracting("decisionType")
@@ -206,7 +208,7 @@ class AgentCoreIntegrationTest {
                 new AgentDecision("FINAL", "done", null, null, "ok"));
         when(tools.execute(anyLong(), anyString(), any())).thenReturn("character", "world");
 
-        var result = service.resume(70023L, run.getId());
+        var result = execute(70023L, run.getId());
 
         assertThat(result.getStatus()).isEqualTo("COMPLETED");
         verify(tools, times(1)).execute(anyLong(), eq("get_character_context"), any());
@@ -221,7 +223,7 @@ class AgentCoreIntegrationTest {
                 call, call, call, new AgentDecision("FINAL", "done", null, null, "ok"));
         when(tools.execute(anyLong(), anyString(), any())).thenReturn("character-result");
 
-        var result = service.resume(70024L, run.getId());
+        var result = execute(70024L, run.getId());
 
         assertThat(result.getStatus()).isEqualTo("COMPLETED");
         assertThat(result.getSteps()).extracting("decisionType").containsExactly(
@@ -240,8 +242,8 @@ class AgentCoreIntegrationTest {
                 characterDecision(3), new AgentDecision("FINAL", "done", null, null, "second"));
         when(tools.execute(anyLong(), anyString(), any())).thenReturn("result-1", "result-2");
 
-        assertThat(service.resume(70025L, first.getId()).getStatus()).isEqualTo("COMPLETED");
-        assertThat(service.resume(70025L, second.getId()).getStatus()).isEqualTo("COMPLETED");
+        assertThat(execute(70025L, first.getId()).getStatus()).isEqualTo("COMPLETED");
+        assertThat(execute(70025L, second.getId()).getStatus()).isEqualTo("COMPLETED");
 
         verify(tools, times(2)).execute(anyLong(), eq("get_character_context"), any());
     }
@@ -253,7 +255,7 @@ class AgentCoreIntegrationTest {
                 new AgentDecision("TOOL_CALL", "need world", "get_world_context", json.createObjectNode().put("worldId", 1), null));
         when(tools.execute(anyLong(), anyString(), any()))
                 .thenThrow(new AgentExecutionException("DENIED", "denied", false));
-        var result = service.resume(70011L, run.getId());
+        var result = execute(70011L, run.getId());
         assertThat(result.getStatus()).isEqualTo("FAILED");
         assertThat(result.getSteps().get(0).getToolAttemptCount()).isEqualTo(1);
         assertThat(result.getSteps().get(0).getRetryCount()).isZero();
@@ -270,9 +272,9 @@ class AgentCoreIntegrationTest {
             assertThat(releaseLlm.await(5, TimeUnit.SECONDS)).isTrue();
             return new AgentDecision("FINAL", "done", null, null, "ok");
         });
-        var first = workers.submit(() -> service.resume(70003L, run.getId()));
+        var first = workers.submit(() -> execute(70003L, run.getId()));
         assertThat(enteredLlm.await(5, TimeUnit.SECONDS)).isTrue();
-        var second = workers.submit(() -> service.resume(70003L, run.getId()));
+        var second = workers.submit(() -> execute(70003L, run.getId()));
         assertThat(second.get(5, TimeUnit.SECONDS).getStatus()).isEqualTo("RUNNING");
         releaseLlm.countDown();
         assertThat(first.get(5, TimeUnit.SECONDS).getStatus()).isEqualTo("COMPLETED");
@@ -297,11 +299,11 @@ class AgentCoreIntegrationTest {
             }
             return "replacement result";
         });
-        var oldWorker = workers.submit(() -> service.resume(70004L, run.getId()));
+        var oldWorker = workers.submit(() -> execute(70004L, run.getId()));
         assertThat(initialToolStarted.await(5, TimeUnit.SECONDS)).isTrue();
         runs.update(null, new UpdateWrapper<AgentRun>().eq("id", run.getId())
                 .set("update_time", LocalDateTime.now().minusMinutes(10)));
-        var replacement = workers.submit(() -> service.resume(70004L, run.getId()));
+        var replacement = workers.submit(() -> execute(70004L, run.getId()));
         assertThat(replacement.get(5, TimeUnit.SECONDS).getStatus()).isEqualTo("COMPLETED");
         releaseInitialTool.countDown();
         assertThat(oldWorker.get(5, TimeUnit.SECONDS).getStatus()).isEqualTo("COMPLETED");
@@ -325,11 +327,11 @@ class AgentCoreIntegrationTest {
             }
             return new AgentDecision("FINAL", "done", null, null, "ok");
         });
-        var oldWorker = workers.submit(() -> service.resume(70005L, run.getId()));
+        var oldWorker = workers.submit(() -> execute(70005L, run.getId()));
         assertThat(oldLlmStarted.await(5, TimeUnit.SECONDS)).isTrue();
         runs.update(null, new UpdateWrapper<AgentRun>().eq("id", run.getId())
                 .set("update_time", LocalDateTime.now().minusMinutes(10)));
-        var replacement = workers.submit(() -> service.resume(70005L, run.getId()));
+        var replacement = workers.submit(() -> execute(70005L, run.getId()));
         assertThat(replacement.get(5, TimeUnit.SECONDS).getStatus()).isEqualTo("COMPLETED");
         releaseOldLlm.countDown();
         assertThat(oldWorker.get(5, TimeUnit.SECONDS).getStatus()).isEqualTo("COMPLETED");
@@ -383,7 +385,7 @@ class AgentCoreIntegrationTest {
         step.setCreateTime(LocalDateTime.now()); step.setUpdateTime(LocalDateTime.now()); steps.insert(step);
         when(tools.execute(anyLong(), anyString(), any())).thenReturn("persisted world result");
 
-        var result = service.resume(70012L, run.getId());
+        var result = execute(70012L, run.getId());
 
         verifyNoInteractions(decisions);
         var name = org.mockito.ArgumentCaptor.forClass(String.class);
@@ -465,7 +467,7 @@ class AgentCoreIntegrationTest {
                 "get_world_context", json.createObjectNode().put("worldId", 1), null));
         when(tools.execute(anyLong(), anyString(), any())).thenReturn("context");
 
-        var result = service.resume(userId, run.getId());
+        var result = execute(userId, run.getId());
 
         assertThat(result.getStatus()).isEqualTo("FAILED");
         assertThat(result.getLastErrorCode()).isEqualTo("MAX_STEPS_EXCEEDED");
@@ -481,6 +483,11 @@ class AgentCoreIntegrationTest {
     private AgentDecision characterDecision(long characterId) {
         return new AgentDecision("TOOL_CALL", "need character", "get_character_context",
                 json.createObjectNode().put("characterId", characterId), null);
+    }
+
+    private com.companion.dto.response.AgentRunResponse execute(long userId, long runId) {
+        orchestrator.execute(userId, runId);
+        return service.get(userId, runId);
     }
 
     private AgentRun run(long user, String status, int current, int max, LocalDateTime updated) {

@@ -108,6 +108,9 @@ app:
     tool-timeout: ${AGENT_TOOL_TIMEOUT:3s}
     tool-threads: ${AGENT_TOOL_THREADS:2}
     tool-queue-capacity: ${AGENT_TOOL_QUEUE_CAPACITY:16}
+    execution-threads: ${AGENT_EXECUTION_THREADS:2}
+    execution-queue-capacity: ${AGENT_EXECUTION_QUEUE_CAPACITY:16}
+    shutdown-await-seconds: ${AGENT_SHUTDOWN_AWAIT_SECONDS:30}
   world:
     execution:
       core-pool-size: 2

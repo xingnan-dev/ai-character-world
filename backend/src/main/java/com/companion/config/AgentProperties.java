@@ -4,4 +4,6 @@ import jakarta.validation.constraints.*;import lombok.Data;import org.springfram
  @Min(1) @Max(10) private int defaultMaxSteps=6; @Min(1) @Max(10) private int maxStepsLimit=10;
  @NotNull private Duration staleTimeout=Duration.ofMinutes(5); @NotNull private Duration toolTimeout=Duration.ofSeconds(3);
  @Min(1) @Max(8) private int toolThreads=2; @Min(1) @Max(100) private int toolQueueCapacity=16;
+ @Min(1) @Max(8) private int executionThreads=2; @Min(1) @Max(100) private int executionQueueCapacity=16;
+ @Min(1) @Max(300) private int shutdownAwaitSeconds=30;
 }

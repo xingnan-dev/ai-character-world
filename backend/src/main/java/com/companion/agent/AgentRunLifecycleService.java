@@ -40,6 +40,48 @@ public class AgentRunLifecycleService {
         return steps.selectList(new QueryWrapper<AgentStep>().eq("run_id", runId).orderByAsc("step_number"));
     }
 
+    public List<AgentRun> listOwned(Long userId, int offset, int pageSize) {
+        return runs.selectList(new QueryWrapper<AgentRun>().eq("user_id", userId)
+                .orderByDesc("create_time").orderByDesc("id")
+                .last("LIMIT " + offset + "," + pageSize));
+    }
+
+    public long countOwned(Long userId) {
+        return runs.selectCount(new QueryWrapper<AgentRun>().eq("user_id", userId));
+    }
+
+    public AgentRecoveryState recoveryState(AgentRun run) {
+        if (terminal(run)) return AgentRecoveryState.TERMINAL;
+        if (AgentRunStatus.PENDING.name().equals(run.getStatus())) return AgentRecoveryState.PENDING;
+        if (AgentRunStatus.RUNNING.name().equals(run.getStatus())) {
+            LocalDateTime cutoff = LocalDateTime.now().minus(properties.getStaleTimeout());
+            return run.getUpdateTime().isBefore(cutoff)
+                    ? AgentRecoveryState.STALE_RECOVERABLE : AgentRecoveryState.ACTIVE;
+        }
+        return AgentRecoveryState.TERMINAL;
+    }
+
+    public boolean canResume(AgentRun run) {
+        AgentRecoveryState state = recoveryState(run);
+        return state == AgentRecoveryState.PENDING || state == AgentRecoveryState.STALE_RECOVERABLE;
+    }
+
+    @Transactional
+    public boolean failDispatch(Long userId, AgentRun expected, String code, String message) {
+        if (!canResume(expected)) return false;
+        LocalDateTime now = LocalDateTime.now();
+        UpdateWrapper<AgentRun> update = new UpdateWrapper<AgentRun>()
+                .eq("id", expected.getId()).eq("user_id", userId).eq("status", expected.getStatus())
+                .eq("version", expected.getVersion()).eq("execution_version", expected.getExecutionVersion())
+                .set("status", AgentRunStatus.FAILED.name()).set("last_error_code", code)
+                .set("last_error_message", limit(message, 1000)).set("completion_time", now)
+                .set("update_time", now);
+        if (AgentRunStatus.RUNNING.name().equals(expected.getStatus())) {
+            update.lt("update_time", now.minus(properties.getStaleTimeout()));
+        }
+        return runs.update(null, update) == 1;
+    }
+
     @Transactional
     public ExecutionClaim claim(Long userId, Long id) {
         AgentRun run = requireOwned(userId, id);
