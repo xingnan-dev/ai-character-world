@@ -375,14 +375,16 @@ class AgentCoreIntegrationTest {
     }
 
     @Test
-    void resumesPersistedDecidedCheckpointWithoutReplanning() {
-        AgentRun run = run(70012L, "RUNNING", 0, 1, LocalDateTime.now().minusMinutes(10));
-        AgentStep step = new AgentStep();
-        step.setRunId(run.getId()); step.setStepNumber(1); step.setDecisionType("TOOL_CALL");
-        step.setDecisionSummary("persisted"); step.setToolCallId("fixed-decided-tool-call");
-        step.setToolName("get_world_context"); step.setToolArguments("{\"worldId\":42}");
-        step.setStatus("DECIDED"); step.setRetryCount(0); step.setToolAttemptCount(0);
-        step.setCreateTime(LocalDateTime.now()); step.setUpdateTime(LocalDateTime.now()); steps.insert(step);
+    void persistedToolArgumentsRoundTripAsObjectAndResumeWithoutReplanning() throws Exception {
+        AgentRun run = run(70012L, "PENDING", 0, 1, LocalDateTime.now());
+        int executionVersion = lifecycle.claim(70012L, run.getId()).executionVersion();
+        AgentStep pending = lifecycle.getOrCreateStep(70012L, run.getId(), executionVersion, 1);
+        AgentStep persisted = lifecycle.persistDecision(70012L, run.getId(), executionVersion, pending,
+                new AgentDecision("TOOL_CALL", "persisted", "get_world_context",
+                        json.createObjectNode().put("worldId", 42), null));
+        assertThat(json.readTree(steps.selectById(persisted.getId()).getToolArguments()).isObject()).isTrue();
+        runs.update(null, new UpdateWrapper<AgentRun>().eq("id", run.getId())
+                .set("update_time", LocalDateTime.now().minusMinutes(10)));
         when(tools.execute(anyLong(), anyString(), any())).thenReturn("persisted world result");
 
         var result = execute(70012L, run.getId());
@@ -393,13 +395,10 @@ class AgentCoreIntegrationTest {
         verify(tools, times(1)).execute(eq(70012L), name.capture(), arguments.capture());
         assertThat(name.getValue()).isEqualTo("get_world_context");
         com.fasterxml.jackson.databind.JsonNode persistedArguments = arguments.getValue();
-        if (persistedArguments.isTextual()) {
-            try { persistedArguments = json.readTree(persistedArguments.asText()); }
-            catch (com.fasterxml.jackson.core.JsonProcessingException exception) { throw new AssertionError(exception); }
-        }
+        assertThat(persistedArguments.isObject()).isTrue();
         assertThat(persistedArguments.path("worldId").asLong()).isEqualTo(42L);
         assertThat(result.getSteps()).hasSize(1);
-        assertThat(result.getSteps().get(0).getToolCallId()).isEqualTo("fixed-decided-tool-call");
+        assertThat(result.getSteps().get(0).getToolCallId()).isEqualTo(persisted.getToolCallId());
         assertThat(result.getSteps().get(0).getToolAttemptCount()).isEqualTo(1);
         assertThat(result.getSteps().get(0).getToolResult()).isEqualTo("persisted world result");
         assertThat(result.getSteps().get(0).getStatus()).isEqualTo("COMPLETED");

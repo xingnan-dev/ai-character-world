@@ -321,7 +321,7 @@ CREATE TABLE IF NOT EXISTS t_agent_run (
 CREATE TABLE IF NOT EXISTS t_agent_step (
  id BIGINT AUTO_INCREMENT PRIMARY KEY, run_id BIGINT NOT NULL, step_number INT NOT NULL,
  decision_type VARCHAR(32), decision_summary VARCHAR(500), tool_call_id VARCHAR(64), tool_name VARCHAR(64),
- tool_arguments JSON, tool_result CLOB, status VARCHAR(32) NOT NULL, retry_count INT NOT NULL DEFAULT 0,
+ tool_arguments CLOB, tool_result CLOB, status VARCHAR(32) NOT NULL, retry_count INT NOT NULL DEFAULT 0,
  tool_attempt_count INT NOT NULL DEFAULT 0,
  error_code VARCHAR(64), error_message VARCHAR(1000), create_time DATETIME NOT NULL,
  update_time DATETIME NOT NULL, completion_time DATETIME,
