@@ -72,7 +72,8 @@ const props = defineProps({
       { key: 'home', label: '首页', icon: '🌌', path: '/home' },
       { key: 'characters', label: '角色', icon: '🎭', path: '/characters' },
       { key: 'worlds', label: '世界', icon: '🌍', path: '/worlds' },
-      { key: 'chat', label: '聊天', icon: '💬', path: '/chat' }
+      { key: 'chat', label: '聊天', icon: '💬', path: '/chat' },
+      { key: 'agent', label: 'Agent', icon: '✦', path: '/agent' }
     ]
   }
 })

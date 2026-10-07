@@ -23,7 +23,7 @@ test('World and UI-2 Character routes enable AppShell without changing unrelated
   for (const path of ['/characters', '/character/create', '/character/:id', '/personality/edit/:avatarId']) {
     assert.match(router, new RegExp(`path: '${path.replaceAll('/', '\\/')}'[\\s\\S]*?appShell: true[\\s\\S]*?navSection: 'characters'`))
   }
-  assert.equal((router.match(/appShell:\s*true/g) || []).length, 8)
+  assert.equal((router.match(/appShell:\s*true/g) || []).length, 9)
   for (const view of ['Login.vue', 'Register.vue', 'Home.vue', 'Chat.vue', 'AvatarCreate.vue']) {
     assert.doesNotMatch(router, new RegExp(`${view.replace('.', '\\.')}[^\\n]*\\n[^\\n]*appShell: true`))
   }
@@ -35,8 +35,8 @@ test('shell uses dynamic viewport height and leaves content flow flexible', () =
   assert.doesNotMatch(shell, /height:100vh|overflow:(?:hidden|auto|scroll)/)
 })
 
-test('top nav has four real destinations, active metadata fallback and no dead links', () => {
-  for (const path of ['/home', '/characters', '/worlds', '/chat']) assert.match(nav, new RegExp(`to:'${path.replaceAll('/', '\\/')}'`))
+test('top nav has five real destinations, active metadata fallback and no dead links', () => {
+  for (const path of ['/home', '/characters', '/worlds', '/chat', '/agent']) assert.match(nav, new RegExp(`to:'${path.replaceAll('/', '\\/')}'`))
   assert.match(nav, /route\.meta\.navSection\|\|pathSection\.value/)
   assert.match(nav, /aria-current/)
   assert.doesNotMatch(nav, /\/memory|\/avatars|\/settings/)

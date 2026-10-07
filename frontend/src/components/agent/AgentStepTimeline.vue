@@ -1,0 +1,51 @@
+<template>
+  <section class="step-timeline" aria-label="Agent Step Timeline">
+    <header class="timeline-header"><div><span class="eyebrow">STEP TIMELINE</span><h3>Execution Timeline</h3></div><span>{{ orderedSteps.length }} steps</span></header>
+    <div v-if="orderedSteps.length===0" class="timeline-empty"><span aria-hidden="true">◌</span><p>Agent is preparing the first decision.</p></div>
+    <ol v-else class="timeline-list" role="listbox" aria-label="Execution steps">
+      <li v-for="(step,index) in orderedSteps" :key="step.id || step.stepNumber" class="timeline-node">
+        <button
+          :ref="element=>setButtonRef(element,index)"
+          type="button"
+          class="step-card"
+          :class="{ 'is-active': selectedStepId===step.id }"
+          :data-decision="step.decisionType || 'PENDING'"
+          :data-tool="step.toolName || undefined"
+          role="option"
+          :aria-selected="selectedStepId===step.id"
+          :aria-current="selectedStepId===step.id?'step':undefined"
+          @click="selectStep(step)"
+          @keydown="handleKeydown($event,index)"
+        >
+          <span class="node-marker" :data-tone="getStepPresentation(step).tone" aria-hidden="true">{{ nodeSymbol(step) }}</span>
+          <span class="step-content"><span class="step-heading"><strong>Step {{ step.stepNumber }}</strong><span class="phase">{{ getStepPresentation(step).phase }}</span><span class="status" :data-tone="getStepPresentation(step).tone">{{ getStepPresentation(step).label }}</span></span><span class="decision-type">{{ step.decisionType || 'Decision pending' }}</span><span class="summary"><b>Decision Summary</b>{{ summarize(step.decisionSummary) }}</span><span v-if="step.toolName" class="tool-name">{{ getToolPresentation(step.toolName).label }} <small>{{ step.toolName }}</small></span><time>{{ formatAgentTime(step.updateTime || step.createTime) }}</time></span>
+        </button>
+      </li>
+    </ol>
+  </section>
+</template>
+
+<script setup>
+import { computed, nextTick, ref } from 'vue'
+import { formatAgentTime, getStepPresentation, getToolPresentation, summarizeAgentGoal } from '../../utils/agentPresentation'
+
+const props=defineProps({steps:{type:Array,default:()=>[]},selectedStepId:{type:Number,default:null}})
+const emit=defineEmits(['select'])
+const buttonRefs=ref([])
+const orderedSteps=computed(()=>[...props.steps].sort((a,b)=>a.stepNumber-b.stepNumber))
+const summarize=value=>summarizeAgentGoal(value||'No decision summary available yet.',110)
+const nodeSymbol=step=>step.decisionType==='FINAL'?'✦':step.decisionType==='DUPLICATE_TOOL_CALL'?'◎':step.status==='TOOL_RUNNING'?'◉':step.decisionType==='TOOL_CALL'?'◇':'●'
+const setButtonRef=(element,index)=>{if(element)buttonRefs.value[index]=element}
+const selectStep=step=>emit('select',step.id)
+const focusAt=async index=>{const bounded=Math.max(0,Math.min(index,orderedSteps.value.length-1));const step=orderedSteps.value[bounded];if(!step)return;selectStep(step);await nextTick();buttonRefs.value[bounded]?.focus()}
+const handleKeydown=(event,index)=>{if(event.key==='ArrowDown'||event.key==='ArrowRight'){event.preventDefault();void focusAt(index+1)}else if(event.key==='ArrowUp'||event.key==='ArrowLeft'){event.preventDefault();void focusAt(index-1)}else if(event.key==='Home'){event.preventDefault();void focusAt(0)}else if(event.key==='End'){event.preventDefault();void focusAt(orderedSteps.value.length-1)}}
+</script>
+
+<style lang="scss" scoped>
+.step-timeline{margin-top:18px;padding:20px;border:1px solid var(--app-border);border-radius:var(--app-radius-md);background:var(--app-surface)}.timeline-header,.step-heading{display:flex;align-items:center;gap:9px}.timeline-header{justify-content:space-between;margin-bottom:16px}.timeline-header h3{margin-top:4px}.timeline-header>span{color:var(--app-text-muted)}.eyebrow{color:var(--app-primary);font-size:10px;font-weight:850;letter-spacing:1.4px}.timeline-list{display:grid;gap:10px}.timeline-node{position:relative;padding-left:12px}.timeline-node:not(:last-child):before{content:'';position:absolute;top:34px;bottom:-18px;left:25px;width:2px;background:var(--app-border)}.step-card{position:relative;width:100%;min-width:0;display:grid;grid-template-columns:38px minmax(0,1fr);gap:12px;padding:13px;text-align:left;border:1px solid var(--app-border);border-radius:var(--app-radius-sm);color:var(--app-text);background:var(--app-surface-subtle)}.step-card:hover,.step-card.is-active{border-color:var(--app-primary);background:var(--app-primary-soft)}.step-card.is-active{box-shadow:inset 3px 0 0 var(--app-primary)}.step-card:focus-visible{outline:2px solid var(--app-primary);outline-offset:2px;box-shadow:var(--app-focus-ring)}.node-marker{position:relative;z-index:1;width:34px;height:34px;display:grid;place-items:center;border:2px solid var(--app-border-strong);border-radius:50%;font-weight:850;background:var(--app-surface)}.node-marker[data-tone="running"],.node-marker[data-tone="decided"]{border-color:var(--app-primary);color:var(--app-primary-strong)}.node-marker[data-tone="completed"],.node-marker[data-tone="reused"]{border-color:var(--app-success);color:var(--app-success)}.node-marker[data-tone="failed"]{border-color:var(--app-danger);color:var(--app-danger)}.step-content{min-width:0;display:grid;gap:6px}.step-heading{flex-wrap:wrap}.phase,.status,.decision-type{width:max-content;padding:3px 7px;border-radius:var(--app-radius-pill);font-size:10px;font-weight:750;background:var(--app-surface)}.status[data-tone="failed"]{color:var(--app-danger);background:var(--app-danger-soft)}.status[data-tone="completed"],.status[data-tone="reused"]{color:var(--app-success);background:var(--app-success-soft)}.status[data-tone="running"],.status[data-tone="decided"]{color:var(--app-primary-strong);background:var(--app-primary-soft)}.decision-type{color:var(--app-text-secondary)}.summary{min-width:0;display:flex;gap:7px;color:var(--app-text-secondary);line-height:1.45}.summary b{flex:0 0 auto;color:var(--app-text);font-size:11px}.tool-name{color:var(--app-primary-strong);font-weight:700}.tool-name small{margin-left:5px;color:var(--app-text-muted);font-weight:500}.step-content time{color:var(--app-text-muted);font-size:10px}.timeline-empty{min-height:130px;display:grid;place-content:center;justify-items:center;gap:8px;color:var(--app-text-secondary);text-align:center}.timeline-empty span{font-size:28px;color:var(--app-primary)}
+@media(max-width:600px){.step-timeline{padding:14px}.timeline-node{padding-left:0}.timeline-node:not(:last-child):before{left:17px}.step-card{grid-template-columns:34px minmax(0,1fr);padding:11px}.summary{display:grid;gap:2px}}
+.step-timeline{position:relative;overflow:hidden;border-color:rgba(225,222,255,.13);background:linear-gradient(145deg,rgba(24,28,48,.76),rgba(16,20,36,.88));box-shadow:inset 0 1px 0 rgba(255,255,255,.055)}.step-timeline::before{content:'';position:absolute;inset:0 8% auto;height:1px;background:linear-gradient(90deg,transparent,rgba(184,165,255,.42),rgba(90,220,225,.3),transparent)}.timeline-node{padding-left:10px}.timeline-node:not(:last-child):before{left:26px;width:1px;background:linear-gradient(rgba(184,165,255,.38),rgba(90,220,225,.16),rgba(225,222,255,.1))}.step-card{border-color:transparent;background:rgba(255,255,255,.018);transition:transform .2s ease,border-color .2s ease,background .2s ease,box-shadow .2s ease}.step-card:hover{border-color:rgba(225,222,255,.13);background:rgba(255,255,255,.04);transform:translateX(2px)}.step-card.is-active{border-color:rgba(184,165,255,.3);background:linear-gradient(105deg,rgba(157,128,255,.13),rgba(90,220,225,.045));box-shadow:inset 2px 0 0 rgba(203,190,255,.85),0 12px 36px rgba(5,7,22,.16)}.node-marker{border-width:1px;border-color:rgba(221,217,255,.32);color:#dcd3ff;font-size:16px;background:rgba(17,20,36,.92);box-shadow:0 0 0 4px rgba(157,128,255,.045),0 0 18px rgba(157,128,255,.1)}.step-card[data-decision="TOOL_CALL"] .node-marker{border-color:rgba(184,165,255,.62);box-shadow:0 0 0 4px rgba(157,128,255,.08),0 0 20px rgba(157,128,255,.16)}.step-card[data-decision="DUPLICATE_TOOL_CALL"] .node-marker{border-style:double;border-width:3px;color:#b8d9d4;box-shadow:0 0 0 4px rgba(126,197,190,.06),0 0 18px rgba(126,197,190,.12)}.step-card[data-decision="FINAL"] .node-marker{border-color:rgba(229,214,255,.72);color:#fff3cf;box-shadow:0 0 0 5px rgba(203,172,255,.07),0 0 24px rgba(226,195,255,.2)}.step-card[data-tool="get_character_context"] .tool-name{color:#cfbcff}.step-card[data-tool="search_character_memory"] .tool-name{color:#efbad4}.step-card[data-tool="get_world_context"] .tool-name{color:#9ee3e7}.phase,.status,.decision-type{border:1px solid rgba(255,255,255,.055);background:rgba(12,15,29,.34)}
+@media(prefers-reduced-motion:reduce){.step-card{transition:none}.step-card:hover{transform:none}}
+/* Light diffuse-gradient overrides. */
+.step-timeline{border-color:var(--agent-border,var(--app-border));background:linear-gradient(145deg,rgba(255,255,253,.78),rgba(249,248,244,.63));box-shadow:inset 0 1px 0 rgba(255,255,255,.82)}.step-timeline::before{background:linear-gradient(90deg,transparent,rgba(139,110,225,.35),rgba(67,195,205,.32),rgba(255,113,167,.28),transparent)}.timeline-node:not(:last-child):before{background:linear-gradient(rgba(130,103,211,.3),rgba(64,180,190,.2),rgba(76,91,96,.1))}.step-card{color:var(--agent-text,var(--app-text));background:rgba(255,255,255,.24)}.step-card:hover{border-color:rgba(76,91,96,.13);background:rgba(255,255,255,.56)}.step-card.is-active{border-color:rgba(112,86,204,.22);background:linear-gradient(105deg,rgba(150,125,235,.11),rgba(88,205,215,.08),rgba(255,135,174,.06));box-shadow:inset 2px 0 0 rgba(112,86,204,.62),0 12px 36px rgba(84,78,113,.08)}.node-marker{border-color:rgba(96,85,137,.28);color:#6654ad;background:rgba(255,255,253,.9);box-shadow:0 0 0 4px rgba(150,125,235,.05),0 0 18px rgba(150,125,235,.1)}.step-card[data-decision="TOOL_CALL"] .node-marker{border-color:rgba(112,86,204,.52)}.step-card[data-decision="DUPLICATE_TOOL_CALL"] .node-marker{color:#3f877d}.step-card[data-decision="FINAL"] .node-marker{border-color:rgba(211,131,168,.54);color:#a5507b}.phase,.status,.decision-type{border-color:rgba(76,91,96,.08);background:rgba(255,255,255,.54)}
+</style>
