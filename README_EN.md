@@ -20,6 +20,9 @@ flowchart LR
     Chat --> Memory --> Relationship --> Growth --> World
     World --> MI[Multi-character Interaction] --> WM[World Memory]
     WM --> MI
+    User --> AW[Agent Workspace] --> AR[Persistent Agent Run]
+    AR --> AC
+    AR --> World
 ```
 
 ## Features
@@ -69,6 +72,14 @@ flowchart LR
 - Support checkpoint / resume, `executionVersion` fencing, request-ID idempotency, and canonical-argument deduplication with result reuse for completed tool calls within the same run.
 - All current tools are read-only: `get_character_context` reads character context, `search_character_memory` retrieves character-scoped memory, and `get_world_context` reads world context.
 
+### Agent Workspace
+
+- Provides a dedicated goal-execution page that creates Agent Runs and refreshes status, steps, and final results through bounded polling.
+- Recent Runs preserve navigation, while a URL `runId` restores the selected Run after refresh. Generation fencing prevents stale responses from overwriting a newly selected Run.
+- The Step Timeline presents decisions, actions, observations, and results for `TOOL_CALL`, `DUPLICATE_TOOL_CALL`, `FINAL`, and failure states without exposing hidden reasoning or chain-of-thought.
+- Step Detail renders read-only tools, arguments, observations, attempt/retry metadata, and timestamps as structured content; long payloads are collapsible and invalid JSON safely falls back to text.
+- The workspace supports terminal results, failure details, and backend-authorized checkpoint resume, with a desktop three-column layout and a mobile Step Detail drawer.
+
 ```text
 Goal
   ↓
@@ -99,7 +110,7 @@ Every step is persisted to Agent Run / Agent Step, so interrupted execution can 
 
 ```mermaid
 flowchart TB
-    UI[Vue 3 SPA<br/>Router + Pinia + Element Plus]
+    UI[Vue 3 SPA<br/>Character · Chat · World · Agent Workspace]
     API[Spring Boot REST<br/>JWT + SSE]
     Domain[Character · Chat · Memory · Relationship<br/>Growth · World · World Memory]
     Agent[Agent Runtime]
@@ -136,6 +147,7 @@ The backend is a modular monolith that owns authentication, orchestration, domai
 10. **Short transaction boundaries:** External LLM calls stay outside long database transactions and locks; lifecycle changes use focused transactions.
 11. **Ownership security:** Authenticated ownership queries, unique constraints, soft deletion, and migration-backed indexes protect domain boundaries.
 12. **Persistent Agent Runtime:** Goals, decisions, tool attempts, and results are stored per step; checkpoints, fencing, idempotency, and the completed-call guard make recovery and duplicate execution safe.
+13. **Agent execution UI:** Recent Runs, polling, Timeline, Step Detail, errors, and Resume state consume the real backend DTO, while manual inspection of an older Step survives later polling updates.
 
 ## Tech Stack
 
@@ -185,7 +197,7 @@ ai-character-world/
 
 ## Getting Started
 
-Prerequisites: JDK 17, Maven, Node.js/npm compatible with Vite 5, MySQL, and either an OpenAI-compatible endpoint or the built-in mock LLM. The repository includes neither Maven Wrapper nor container configuration.
+Prerequisites: JDK 17, Maven, Node.js/npm compatible with Vite 5, MySQL, and either an OpenAI-compatible endpoint (for example, Qwen compatible-mode) or the built-in mock LLM. The repository includes neither Maven Wrapper nor container configuration.
 
 ```bash
 git clone https://github.com/xingnan-dev/ai-character-world.git
@@ -232,11 +244,13 @@ npm run build
 
 Verified on the current `develop` baseline:
 
-- Backend: 474 tests, 0 failures, 0 errors, 1 skipped.
-- Frontend: 183 / 183 passed (retained from the previously verified baseline; frontend tests were not rerun for this README update).
+- Backend: 482 tests, 0 failures, 0 errors, 1 skipped.
+- Frontend: 290 / 290 passed.
 - Frontend production build: PASS, with non-blocking Sass legacy API and bundle-size warnings.
 
-Agent A.1 has also passed real OpenAI-compatible GLM smoke tests covering valid `TOOL_CALL` decisions, Java tool execution, Tool Result handoff to the next LLM decision, `FINAL`, the world-context tool, a multi-tool flow, decision correction retry, and the duplicate completed tool guard.
+Agent A.1 passed real OpenAI-compatible GLM smoke tests covering valid `TOOL_CALL` decisions, Java tool execution, Tool Result handoff to the next LLM decision, `FINAL`, the world-context tool, a multi-tool flow, decision correction retry, and the duplicate completed tool guard.
+
+Agent A.2 also passed a real OpenAI-compatible Qwen UI smoke test. Direct FINAL and Character Tool Runs were created and completed through the browser, with real verification of `get_character_context` arguments, the Java tool observation, the following decision, final-result persistence, the Timeline, and Step Detail. Acceptance used an isolated H2 database and records no API key, personal account identifier, or specific token cost.
 
 ## Technical Notes
 
@@ -246,9 +260,9 @@ The repository retains a small legacy Three.js / VRM compatibility path and two 
 
 The following items are planned and are not implemented yet:
 
-- Agent UI and execution visualization
 - World Image Generation
-- UI/UX polish and project screenshots
+- Gradually extend the Agent Workspace light visual language to Character, World, and Chat
+- UI/UX detail polish and project screenshot curation
 - CI
 - Docker and deployment hardening
 - End-to-end regression improvements

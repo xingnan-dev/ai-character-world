@@ -20,6 +20,9 @@ flowchart LR
     Chat --> Memory --> Relationship --> Growth --> World
     World --> MI[Multi-character Interaction] --> WM[World Memory]
     WM --> MI
+    User --> AW[Agent Workspace] --> AR[Persistent Agent Run]
+    AR --> AC
+    AR --> World
 ```
 
 ## 核心功能
@@ -69,6 +72,14 @@ flowchart LR
 - 支持 checkpoint / resume、基于 `executionVersion` 的 fencing、request ID 幂等，以及同一 Run 内已完成 Tool 调用的 canonical arguments 去重与结果复用。
 - 当前 Tool 全部只读：`get_character_context` 读取 Character context，`search_character_memory` 检索 Character-scoped memory，`get_world_context` 读取 World context。
 
+### Agent Workspace
+
+- 提供独立的目标执行页面，可创建 Agent Run，并通过有界轮询实时刷新状态、Step 和最终结果。
+- Recent Runs 保存执行入口；URL 中的 `runId` 支持刷新后恢复当前 Run，切换 Run 时使用 generation fencing 防止旧响应覆盖新选择。
+- Step Timeline 以 Decision、Action、Observation 和 Result 展示 `TOOL_CALL`、`DUPLICATE_TOOL_CALL`、`FINAL` 与失败状态，不展示隐藏推理或 chain-of-thought。
+- Step Detail 结构化展示只读 Tool、arguments、observation、attempt/retry 和时间信息；长内容可安全折叠，非法 JSON 回退为普通文本。
+- 支持 terminal result、错误详情与后端授权的 checkpoint resume；桌面端使用三栏工作区，移动端使用 Step Detail Drawer。
+
 ```text
 Goal
   ↓
@@ -99,7 +110,7 @@ FINAL
 
 ```mermaid
 flowchart TB
-    UI[Vue 3 SPA<br/>Router + Pinia + Element Plus]
+    UI[Vue 3 SPA<br/>Character · Chat · World · Agent Workspace]
     API[Spring Boot REST<br/>JWT + SSE]
     Domain[Character · Chat · Memory · Relationship<br/>Growth · World · World Memory]
     Agent[Agent Runtime]
@@ -136,6 +147,7 @@ flowchart TB
 10. **短事务边界：** 外部 LLM 调用不处于长数据库事务或锁中；World lifecycle 使用独立短事务。
 11. **Ownership security：** 核心资源均按认证用户查询，配合 JWT、唯一约束、soft delete 与迁移级索引形成数据边界。
 12. **Persistent Agent Runtime：** Goal、Decision、Tool attempt 与结果按 Step 持久化；checkpoint、fencing、幂等和 completed-call guard 共同保证恢复与重复执行安全。
+13. **Agent execution UI：** Recent Runs、轮询、Timeline、Step Detail、错误与 Resume 状态使用真实 backend DTO，且用户主动查看旧 Step 时不会被后续轮询抢走选择。
 
 ## 技术栈
 
@@ -185,7 +197,7 @@ ai-character-world/
 
 ## 快速开始
 
-前置条件：JDK 17、Maven、兼容 Vite 5 的 Node.js/npm、MySQL，以及 OpenAI-compatible endpoint 或内置 Mock LLM。仓库未提供 Maven Wrapper 或容器化配置。
+前置条件：JDK 17、Maven、兼容 Vite 5 的 Node.js/npm、MySQL，以及 OpenAI-compatible endpoint（例如 Qwen compatible-mode）或内置 Mock LLM。仓库未提供 Maven Wrapper 或容器化配置。
 
 ```bash
 git clone https://github.com/xingnan-dev/ai-character-world.git
@@ -232,11 +244,13 @@ npm run build
 
 当前 `develop` 基线实测结果：
 
-- Backend：474 tests，0 failures，0 errors，1 skipped。
-- Frontend：183 / 183 passed（沿用此前已验证基线，本轮 README 更新未重新运行 frontend tests）。
+- Backend：482 tests，0 failures，0 errors，1 skipped。
+- Frontend：290 / 290 passed。
 - Frontend production build：PASS（存在非阻断 Sass legacy API 和 bundle-size warnings）。
 
-Agent A.1 还通过了真实 OpenAI-compatible GLM smoke test，覆盖合法 `TOOL_CALL`、Java Tool 执行、Tool Result 进入下一轮 LLM Decision、`FINAL`、World context Tool、Multi-Tool flow、Decision correction retry，以及 duplicate completed Tool guard。
+Agent A.1 通过了真实 OpenAI-compatible GLM smoke test，覆盖合法 `TOOL_CALL`、Java Tool 执行、Tool Result 进入下一轮 LLM Decision、`FINAL`、World context Tool、Multi-Tool flow、Decision correction retry，以及 duplicate completed Tool guard。
+
+Agent A.2 还通过了真实 OpenAI-compatible Qwen UI smoke test：Direct FINAL 和 Character Tool Run 均从浏览器创建并完成；`get_character_context` 的 arguments、Java Tool observation、下一轮 Decision、最终结果、Timeline 与 Step Detail 均得到真实验证。验收使用隔离 H2 数据库，不包含 API key、个人账号或具体 token cost。
 
 ## 技术说明
 
@@ -246,9 +260,9 @@ Agent A.1 还通过了真实 OpenAI-compatible GLM smoke test，覆盖合法 `TO
 
 以下内容尚未实现，仅作为规划：
 
-- Agent UI 与执行过程可视化
 - World Image Generation
-- UI/UX 优化与项目截图
+- 将 Agent Workspace 的浅色视觉语言逐步统一到 Character、World 与 Chat
+- UI/UX 细节优化与项目截图整理
 - CI
 - Docker 与部署加固
 - 端到端回归完善
