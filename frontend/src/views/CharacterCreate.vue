@@ -10,7 +10,7 @@
     </header>
 
     <main class="create-layout">
-      <section class="creator-card">
+      <section class="creator-card app-surface--elevated">
         <div class="mode-tabs">
           <button :class="{ active: mode === 'ai' }" type="button" @click="mode = 'ai'">AI 辅助创建</button>
           <button :class="{ active: mode === 'manual' }" type="button" @click="mode = 'manual'">手动创建</button>
@@ -24,7 +24,7 @@
           </el-radio-group>
         </div>
 
-        <div v-if="mode === 'ai'" class="ai-panel">
+        <div v-if="mode === 'ai'" class="ai-panel app-surface--inset">
           <el-input
             v-model="description"
             type="textarea"
@@ -117,7 +117,7 @@
         </el-form>
       </section>
 
-      <aside class="preview-card">
+      <aside class="preview-card app-surface--glass" aria-label="角色预览">
         <SimpleAvatar :name="form.name" :image-url="form.imageUrl" :avatar-color="form.avatarColor" :entity-key="form.name" :type="form.characterType" size="xl" />
         <h2>{{ form.name || '未命名角色' }}</h2>
         <p>{{ form.identity || '等待填写角色身份' }}</p>
@@ -222,28 +222,30 @@ async function generateImage() {
 </script>
 
 <style lang="scss" scoped>
-.character-create-page{min-height:100%;padding:clamp(22px,4vw,48px) 24px 56px;color:var(--app-text)}
+.character-create-page{min-width:0;min-height:100%;padding:clamp(22px,4vw,48px) 24px 56px;color:var(--app-text-primary)}
 .page-header{width:min(1180px,100%);margin:0 auto 24px;display:flex;align-items:center;gap:22px;h1{margin:4px 0;font-size:clamp(27px,4vw,36px)}p{margin:0;color:var(--app-text-secondary)}}
-.eyebrow{color:var(--app-primary-strong);font-size:12px;font-weight:800;letter-spacing:1.6px}
-.back-button{min-height:44px;padding:10px 15px;border:1px solid var(--app-border-strong);border-radius:var(--app-radius-sm);color:var(--app-primary-strong);background:var(--app-surface);box-shadow:var(--app-shadow-sm)}
+.eyebrow{color:var(--app-accent-primary-strong);font-size:var(--app-type-label);font-weight:800;letter-spacing:1.6px}
+.back-button{min-height:44px;padding:10px 15px;border:1px solid var(--app-border-strong);border-radius:var(--app-radius-sm);color:var(--app-accent-primary-strong);background:var(--app-surface);box-shadow:var(--app-shadow-sm)}
 .create-layout { width: min(1180px, 100%); margin: auto; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
-.creator-card,.preview-card{min-width:0;border:1px solid var(--app-border);border-radius:var(--app-radius-lg);background:var(--app-surface);box-shadow:var(--app-shadow-lg)}
-.creator-card { padding: 28px; }
+.creator-card,.preview-card{min-width:0}.creator-card { padding: calc(var(--app-card-padding) + 4px); }
 .mode-tabs{display:grid;grid-template-columns:1fr 1fr;padding:4px;border:1px solid var(--app-border);border-radius:var(--app-radius-md);background:var(--app-surface-subtle);button{min-height:44px;padding:12px;border-radius:var(--app-radius-sm);color:var(--app-text-secondary)}button.active{color:var(--app-primary-strong);font-weight:750;background:var(--app-primary-soft);box-shadow:inset 0 0 0 1px var(--app-sky)}}
 .type-row{margin:22px 0;display:flex;justify-content:space-between;align-items:center;color:var(--app-text)}
-.ai-panel{display:grid;gap:14px;margin-bottom:26px;padding:20px;border:1px solid var(--app-mint);border-radius:var(--app-radius-md);background:var(--app-mint-soft)}
+.ai-panel{display:grid;gap:14px;margin-bottom:26px;padding:20px;border-color:var(--app-mint)}
 .character-form{border-top:1px solid var(--app-border);padding-top:22px}
 .section-title { margin: 8px 0 15px; font-size: 18px; font-weight: 700; }
 .section-help{margin:-8px 0 16px;color:var(--app-text-secondary);font-size:13px}
 .form-grid.two-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
 .color-editor{display:flex;align-items:center;gap:12px;margin-bottom:28px;color:var(--app-text-secondary);small{margin-left:8px}}
 .form-actions { display: flex; justify-content: flex-end; gap: 12px; }
-.preview-card{position:sticky;top:24px;padding:30px 24px;text-align:center}.preview-card :deep(.simple-avatar){margin:0 auto 18px}
+.preview-card{position:sticky;top:98px;padding:30px 24px;text-align:center}.preview-card :deep(.simple-avatar){margin:0 auto 18px}
 .preview-card h2{margin:12px 0 5px}.preview-card>p{color:var(--app-text-secondary)}
 .preview-divider{height:1px;margin:22px 0;background:var(--app-border)}
 dl{margin:0;text-align:left;div{margin-bottom:16px;padding:12px;border-radius:var(--app-radius-sm);background:var(--app-peach-soft)}dt{margin-bottom:5px;color:var(--app-text-muted);font-size:12px}dd{margin:0;color:var(--app-text);line-height:1.55}}
-:deep(.el-form-item__label){color:var(--app-text)}
-:deep(.el-input__wrapper),:deep(.el-textarea__inner){color:var(--app-text);background:#fff;box-shadow:0 0 0 1px var(--app-border-strong) inset}
+:deep(.el-form-item__label){color:var(--app-text-primary)}
+:deep(.el-input__wrapper),:deep(.el-textarea__inner){color:var(--app-text-primary);background:var(--app-surface-elevated);box-shadow:0 0 0 1px var(--app-border-strong) inset}
+@media(max-width:1024px){.create-layout{gap:18px;grid-template-columns:minmax(0,1fr) 280px}.creator-card{padding:var(--app-card-padding)}}
 @media(max-width:860px){.character-create-page{padding:24px 20px 44px}.create-layout{grid-template-columns:1fr}.preview-card{position:static;grid-row:1}}
 @media(max-width:600px){.character-create-page{padding-inline:16px}.page-header{align-items:flex-start;flex-direction:column}.creator-card{padding:20px 16px}.form-grid.two-columns{grid-template-columns:1fr}.type-row{align-items:flex-start;flex-direction:column;gap:10px}.color-editor{align-items:flex-start;flex-wrap:wrap}.color-editor small{width:100%;margin-left:0}.form-actions{flex-direction:column-reverse}.form-actions :deep(.el-button){width:100%;margin-left:0}}
+@media(prefers-reduced-motion:reduce){.back-button{transition:none}}
+@media(forced-colors:active){.creator-card,.preview-card,.ai-panel{border:1px solid CanvasText}}
 </style>

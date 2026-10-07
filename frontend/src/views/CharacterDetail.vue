@@ -10,7 +10,7 @@
 
     <main v-loading="loading">
       <el-empty v-if="!loading && !character" description="角色不存在" />
-      <section v-else-if="character" class="detail-card">
+      <section v-else-if="character" class="detail-card app-surface--elevated">
         <div class="profile-heading">
           <SimpleAvatar :name="character.name" :image-url="character.imageUrl" :avatar-color="character.avatarColor" :entity-key="character.id" :type="character.characterType" size="lg" />
           <div>
@@ -57,17 +57,17 @@
 
         <template v-else>
           <div class="details">
-            <div><span>核心性格</span><p>{{ character.corePersonality || '未设置' }}</p></div>
-            <div><span>当前目标</span><p>{{ character.currentGoal || '未设置' }}</p></div>
-            <div><span>角色背景</span><p>{{ character.biography || '未设置' }}</p></div>
-            <div><span>说话风格</span><p>{{ character.speakingStyle || '未设置' }}</p></div>
-            <div><span>与用户关系</span><p>{{ character.relationshipToUser || '未设置' }}</p></div>
-            <div><span>年龄</span><p>{{ character.age ?? '未设置' }}</p></div>
+            <div class="app-surface--inset"><span>核心性格</span><p>{{ character.corePersonality || '未设置' }}</p></div>
+            <div class="app-surface--inset"><span>当前目标</span><p>{{ character.currentGoal || '未设置' }}</p></div>
+            <div class="app-surface--inset"><span>角色背景</span><p>{{ character.biography || '未设置' }}</p></div>
+            <div class="app-surface--inset"><span>说话风格</span><p>{{ character.speakingStyle || '未设置' }}</p></div>
+            <div class="app-surface--inset"><span>与用户关系</span><p>{{ character.relationshipToUser || '未设置' }}</p></div>
+            <div class="app-surface--inset"><span>年龄</span><p>{{ character.age ?? '未设置' }}</p></div>
           </div>
           <div class="profile-section">
             <h2>完整人物资料</h2>
             <div class="profile-grid">
-              <div v-for="field in profileFields" :key="field.key" class="profile-group">
+              <div v-for="field in profileFields" :key="field.key" class="profile-group app-surface--inset">
                 <span>{{ field.label }}</span>
                 <div v-if="profileItems(field.key).length" class="tags">
                   <el-tag v-for="item in profileItems(field.key)" :key="item" effect="dark">{{ item }}</el-tag>
@@ -180,21 +180,24 @@ loadCharacter()
 </script>
 
 <style lang="scss" scoped>
-.character-detail-page{min-height:100%;padding:clamp(22px,4vw,48px) 24px 56px;color:var(--app-text)}
+.character-detail-page{min-width:0;min-height:100%;padding:clamp(22px,4vw,48px) 24px 56px;color:var(--app-text-primary)}
 .page-header, main { width: min(900px, 100%); margin: auto; }
-.page-header{margin-bottom:24px;display:flex;justify-content:space-between;gap:12px;button{min-height:44px;padding:10px 15px;border:1px solid var(--app-border-strong);border-radius:var(--app-radius-sm);color:var(--app-primary-strong);background:var(--app-surface);box-shadow:var(--app-shadow-sm)}}
+.page-header{margin-bottom:24px;display:flex;justify-content:space-between;gap:12px;button{min-height:44px;padding:10px 15px;border:1px solid var(--app-border-strong);border-radius:var(--app-radius-sm);color:var(--app-accent-primary-strong);background:var(--app-surface);box-shadow:var(--app-shadow-sm)}}
 .header-actions { display: flex; gap: 10px; }
-.detail-card{min-width:0;padding:36px;border:1px solid var(--app-border);border-radius:var(--app-radius-lg);background:var(--app-surface);box-shadow:var(--app-shadow-lg)}
+.detail-card{min-width:0;padding:36px}
 .profile-heading{display:flex;align-items:center;gap:20px;h1{margin:7px 0 3px;font-size:clamp(26px,4vw,36px)}p{margin:0;color:var(--app-text-secondary)}}
-.details{margin-top:28px;display:grid;grid-template-columns:1fr 1fr;gap:14px;div{min-width:0;padding:18px;border:1px solid var(--app-border);border-radius:var(--app-radius-md);background:var(--app-surface-subtle)}span,.profile-group>span{color:var(--app-text-muted);font-size:12px}p{margin:7px 0 0;line-height:1.6;overflow-wrap:anywhere}}
+.details{margin-top:28px;display:grid;grid-template-columns:1fr 1fr;gap:14px;div{min-width:0;padding:18px}span,.profile-group>span{color:var(--app-text-muted);font-size:var(--app-type-metadata)}p{margin:7px 0 0;line-height:1.6;overflow-wrap:anywhere}}
 .profile-section{margin-top:28px;padding-top:22px;border-top:1px solid var(--app-border)}
 .profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.profile-group{min-width:0;padding:16px;border-radius:var(--app-radius-md);background:var(--app-peach-soft);p{color:var(--app-text-secondary)}}
+.profile-group{min-width:0;padding:16px;p{color:var(--app-text-secondary)}}
 .tags { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
 .edit-form{margin-top:30px;padding-top:24px;border-top:1px solid var(--app-border)}
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
 .edit-actions { display: flex; justify-content: flex-end; gap: 10px; }
 .image-preview-grid{display:flex;flex-wrap:wrap;gap:16px;margin-top:12px}.image-preview-card{display:flex;flex-direction:column;gap:7px;color:var(--app-text-muted);font-size:12px}.generated-preview{display:block;width:160px;height:160px;object-fit:cover;border-radius:var(--app-radius-md);border:1px solid var(--app-border-strong);background:var(--app-surface-subtle)}
-:deep(.el-form-item__label){color:var(--app-text)}:deep(.el-input__wrapper),:deep(.el-textarea__inner){color:var(--app-text);background:#fff;box-shadow:0 0 0 1px var(--app-border-strong) inset}:deep(.el-tag){border-color:var(--app-mint);color:var(--app-success);background:var(--app-mint-soft)}
+:deep(.el-form-item__label){color:var(--app-text-primary)}:deep(.el-input__wrapper),:deep(.el-textarea__inner){color:var(--app-text-primary);background:var(--app-surface-elevated);box-shadow:0 0 0 1px var(--app-border-strong) inset}:deep(.el-tag){border-color:var(--app-mint);color:var(--app-success);background:var(--app-mint-soft)}
+@media(max-width:1024px){.page-header,main{width:min(860px,100%)}.detail-card{padding:30px}}
 @media(max-width:650px){.character-detail-page{padding:22px 16px 40px}.page-header{align-items:stretch;flex-direction:column}.header-actions{width:100%}.header-actions :deep(.el-button){flex:1;margin-left:0}.detail-card{padding:23px 18px}.details,.profile-grid,.form-grid{grid-template-columns:1fr}.profile-heading{align-items:flex-start}.edit-actions{flex-direction:column-reverse}.edit-actions :deep(.el-button){width:100%;margin-left:0}}
+@media(prefers-reduced-motion:reduce){.detail-card{scroll-behavior:auto}}
+@media(forced-colors:active){.detail-card,.details>div,.profile-group{border:1px solid CanvasText}}
 </style>

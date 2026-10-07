@@ -18,8 +18,8 @@ test('Home stops loading the Three VRM presentation without deleting its depende
   assert.doesNotMatch(home, /AIAvatarShow|AvatarRenderer|SpaceBackground|modelUrl|\.vrm|three/i)
 })
 
-test('Home keeps welcome, core shortcuts and logout', () => {
-  for (const text of ['欢迎回来', '/character/create', '/characters', '/worlds', '/chat', '退出登录']) assert.match(home, new RegExp(text))
-  assert.match(home, /userStore\.logout\(\)/)
+test('Home keeps welcome and core shortcuts while shared navigation owns logout', () => {
+  for (const text of ['欢迎回来', '/character/create', '/characters', '/worlds', '/chat']) assert.match(home, new RegExp(text))
+  assert.doesNotMatch(home, /退出登录|userStore\.logout\(\)|home-nav/)
   assert.match(home, /var\(--app-/)
 })

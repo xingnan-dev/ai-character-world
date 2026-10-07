@@ -22,7 +22,7 @@ const routes = [
     path: '/home',
     name: 'Home',
     component: () => import('../views/Home.vue'),
-    meta: { requiresAuth: true, navSection: 'home' }
+    meta: { requiresAuth: true, appShell: true, navSection: 'home' }
   },
   {
     path: '/avatar/create',

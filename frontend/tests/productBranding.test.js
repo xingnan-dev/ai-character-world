@@ -20,13 +20,12 @@ test('browser and authentication pages use the AIworld product identity', () => 
 test('visible navigation brands use AIworld and keep the four primary destinations', () => {
   const topNav = source('../src/components/layout/AppTopNav.vue')
   const sideMenu = source('../src/components/home/SideMenu.vue')
-  const home = source('../src/views/Home.vue')
   const chat = source('../src/views/Chat.vue')
   const avatarCompatibility = source('../src/views/AvatarCreate.vue')
 
-  for (const view of [topNav, sideMenu, home, chat, avatarCompatibility]) assert.match(view, /> AIworld<|>AIworld</)
+  for (const view of [topNav, sideMenu, chat, avatarCompatibility]) assert.match(view, /> AIworld<|>AIworld</)
   for (const oldBrand of ['AI Character World', 'AI Companion', 'AI Space']) {
-    for (const view of [topNav, sideMenu, home, chat, avatarCompatibility]) {
+    for (const view of [topNav, sideMenu, chat, avatarCompatibility]) {
       assert.doesNotMatch(view, new RegExp(oldBrand))
     }
   }
