@@ -28,6 +28,15 @@ class LlmWorldMemoryExtractorTest {
         reply("{\"memories\":[{\"type\":\"WORLD_EVENT\",\"key\":\"door\",\"content\":\"A door opened\",\"importance\":70}]}");
         assertThat(extractor.extract(context)).containsExactly(new WorldMemoryCandidate(com.companion.entity.enums.WorldMemoryType.WORLD_EVENT, "door", "A door opened", 70));
     }
+    @Test void extractionPromptDeclaresEverySupportedType() {
+        reply("{\"memories\":[]}");
+        extractor.extract(context);
+        var system = org.mockito.ArgumentCaptor.forClass(String.class);
+        org.mockito.Mockito.verify(client).complete(system.capture(), anyString(), anyInt());
+        for (var type : com.companion.entity.enums.WorldMemoryType.values()) {
+            assertThat(system.getValue()).contains(type.name());
+        }
+    }
     @Test void multipleMemoriesExtracted() {
         reply("{\"memories\":[{\"type\":\"WORLD_FACT\",\"content\":\"one\"},{\"type\":\"PROMISE\",\"content\":\"two\"}]}");
         assertThat(extractor.extract(context)).hasSize(2);
