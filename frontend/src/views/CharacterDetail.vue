@@ -3,6 +3,7 @@
     <header class="page-header">
       <button type="button" @click="router.push('/characters')">← 返回角色列表</button>
       <div v-if="character" class="header-actions">
+        <el-button v-if="!editing && character.characterType === 'AI'" type="primary" :loading="startingChat" @click="startChat">开始对话</el-button>
         <el-button v-if="!editing" @click="startEditing">编辑</el-button>
         <el-button v-if="!editing" type="danger" plain :loading="deleting" @click="removeCharacter">删除</el-button>
       </div>
@@ -89,9 +90,12 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { confirmCharacterImage, deleteCharacter, generateCharacterImage, getCharacterById, updateCharacter } from '../api/character'
 import { buildCharacterUpdatePayload, createCharacterForm } from '../utils/characterDraft'
 import SimpleAvatar from '../components/ui/SimpleAvatar.vue'
+import { useChatStore } from '../stores/chat'
 
 const route = useRoute()
 const router = useRouter()
+const chatStore = useChatStore()
+const startingChat = ref(false)
 const loading = ref(false)
 const saving = ref(false)
 const deleting = ref(false)
@@ -136,6 +140,18 @@ function startEditing() {
 }
 
 function cancelEditing() { editing.value = false }
+async function startChat() {
+  if (startingChat.value || character.value?.characterType !== 'AI') return
+  startingChat.value = true
+  try {
+    await chatStore.createSession(characterId(), character.value.name)
+    await router.push('/chat')
+  } catch (error) {
+    ElMessage.error(error.message || '创建对话失败，请重试')
+  } finally {
+    startingChat.value = false
+  }
+}
 function profileItems(field) { return Array.isArray(character.value?.profile?.[field]) ? character.value.profile[field] : [] }
 
 async function saveChanges() {
