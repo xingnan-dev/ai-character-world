@@ -21,10 +21,16 @@ public class LlmMemoryExtractor {
 
     public List<ExtractedMemory> extract(String userMessage, String aiResponse) {
         if (userMessage == null || userMessage.isBlank()) return List.of();
-        String input = userMessage.substring(0, Math.min(MAX_INPUT, userMessage.length()));
+        String input = MemoryInputPolicy.factualStatements(userMessage);
+        if (input.isBlank()) return List.of();
+        input = input.substring(0, Math.min(MAX_INPUT, input.length()));
         String prompt = "Extract durable user memories from this conversation. Return only JSON "
                 + "{\"memories\":[{\"type\":\"USER_FACT|PREFERENCE|EXPERIENCE|RELATIONSHIP_CONTEXT\","
-                + "\"key\":\"...\",\"value\":\"...\",\"importance\":0.0,\"confidence\":0.0}]}\n"
+                + "\"key\":\"...\",\"value\":\"...\",\"evidence\":\"exact user quote\",\"importance\":0.0,\"confidence\":0.0}]}\n"
+                + "Extract only explicitly asserted user facts. Never answer questions or invent missing values. "
+                + "Ignore questions, hypotheses, fiction, quoted dialogue and assistant claims. "
+                + "Both value and evidence must be verbatim substrings of USER. Use confidence >= 0.8. "
+                + "Return an empty memories array when no supported fact exists.\n"
                 + "USER: " + input;
         try {
             LlmResponse response = llmClient.complete("You extract concise structured memories.", prompt, MAX_OUTPUT);
@@ -35,6 +41,10 @@ public class LlmMemoryExtractor {
             for (JsonNode item : items) {
                 String key = text(item, "key"); String value = text(item, "value");
                 if (key.isBlank() || value.isBlank()) continue;
+                String evidence = text(item, "evidence");
+                double confidence = item.path("confidence").asDouble(0);
+                if (evidence.isBlank() || !input.contains(evidence) || !userMessage.contains(evidence) || !evidence.contains(value)
+                        || !Double.isFinite(confidence) || confidence < 0.8 || confidence > 1) continue;
                 int category = switch (text(item, "type")) {
                     case "PREFERENCE" -> 2; case "EXPERIENCE" -> 3;
                     case "RELATIONSHIP_CONTEXT" -> 4; default -> 1;

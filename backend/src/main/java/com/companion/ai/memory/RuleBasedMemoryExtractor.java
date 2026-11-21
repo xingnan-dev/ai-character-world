@@ -42,6 +42,8 @@ public class RuleBasedMemoryExtractor {
         if (userMessage == null || userMessage.isBlank()) {
             return List.of();
         }
+        userMessage = MemoryInputPolicy.factualStatements(userMessage);
+        if (userMessage.isBlank()) return List.of();
 
         List<ExtractedMemory> extracted = new ArrayList<>();
         addFirst(extracted, userMessage, NAME_PATTERN,
