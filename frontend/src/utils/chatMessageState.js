@@ -61,3 +61,11 @@ export function findRetryContent(messages, assistantMessage) {
     message.role === 'user' && message.requestId === assistantMessage.requestId
   )?.content || null
 }
+
+// A rejected network request may never reach persistence. Keep its retryable draft.
+export function reconcileFailedExchange(remote, local, requestId) {
+  if (remote.some(message => message.requestId === requestId)) return remote
+  const exchange = local.filter(message => message.requestId === requestId)
+  if (!exchange.some(message => message.role === 'assistant' && message.status === CHAT_MESSAGE_STATUS.FAILED)) return remote
+  return [...remote, ...exchange]
+}

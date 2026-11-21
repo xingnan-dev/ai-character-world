@@ -12,6 +12,7 @@ import {
   createChatRequestId,
   findRetryContent,
   isMessageActive,
+  reconcileFailedExchange,
   mapChatMessage
 } from '../utils/chatMessageState'
 import { createChatSendGuard } from '../utils/chatSendGuard'
@@ -170,10 +171,14 @@ export const useChatStore = defineStore('chat', {
       await this.sendMessage(content)
     },
     async syncMessagesAfterStream(sessionId, requestId) {
+      const localMessages = this.messages.slice()
+      const streamError = this.error
       for (let attempt = 0; attempt < 3; attempt += 1) {
         await new Promise((resolve) => setTimeout(resolve, 150))
         if (this.currentSessionId !== sessionId) return
         await this.fetchMessages(sessionId)
+        this.messages = reconcileFailedExchange(this.messages, localMessages, requestId)
+        if (streamError) this.error = streamError
         const assistant = this.messages.find((message) =>
           message.role === 'assistant' && message.requestId === requestId
         )
