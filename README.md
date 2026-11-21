@@ -217,6 +217,22 @@ AI_API_KEY=YOUR_API_KEY
 AI_MODEL_NAME=your-model-name
 ```
 
+真实 AI 本地运行建议显式设置 `SPRING_PROFILES_ACTIVE=local-real`（无需新增 profile 文件），使用上述 `DB_*`、`JWT_SECRET`、`AI_*` 环境变量，并设置 `AI_MOCK_ENABLED=false`。默认 `dev` 会读取被 Git 忽略的 `application-dev.yml`；该本地文件可能显式启用 Mock，覆盖基础配置中的占位值。环境变量 `LLM_*` 不是本应用的配置名称，不会自动生效；已有此类配置时，应在启动进程中明确映射到 `AI_API_KEY`、`AI_MODEL_NAME` 和 `AI_API_URL`，不把密钥写入命令历史。`AI_API_URL` 必须是完整的 Chat Completions 地址（以 `/chat/completions` 结尾），而非仅 `/v1` base URL。
+
+PowerShell 中，在当前进程已安全提供上述环境变量后运行：
+
+```powershell
+$env:SPRING_PROFILES_ACTIVE = 'local-real'
+$env:AI_PROVIDER = 'openai-compatible'
+$env:AI_MOCK_ENABLED = 'false'
+# DB_URL 指向独立验收库；先创建空库，不要对日常库进行初始化验收
+# AI_API_KEY、AI_API_URL、AI_MODEL_NAME、DB_USERNAME、DB_PASSWORD、JWT_SECRET 已在进程环境中提供
+cd backend
+mvn spring-boot:run
+```
+
+首次启动会自动执行 Flyway；同版本再次启动应显示校验通过且 schema up to date。数据库、角色与消息保留在 MySQL 中；停止后端使用终端 Ctrl+C。Mock 仍可用于隔离开发测试，但其响应不能证明真实 Provider 可用。
+
 无外部 LLM 时可设置 `AI_MOCK_ENABLED=true`。Character Image API 是可选集成，仅在调用相关功能时需要 `ZHIPU_IMAGE_API_KEY`。
 
 ```bash

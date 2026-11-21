@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 AI Virtual Companion —— AI 3D 数字分身聊天平台（Vue 3 前端 + Spring Boot 3 后端）。
-本文件为项目唯一的长期开发约定来源（项目无 README）。
+本文件记录长期开发约定；运行说明见 README.md。
 
 ## Project Overview
 AI 虚拟伴侣应用：VRM 3D 形象、AI 角色创建与图片生成、SSE 流式聊天、多角色世界
@@ -28,7 +28,7 @@ AI 虚拟伴侣应用：VRM 3D 形象、AI 角色创建与图片生成、SSE 流
 ## Architecture
 - 后端经典分层；MyBatis-Plus 用 `BaseMapper` + 注解，不新增 XML mapper
 - 鉴权：无状态 JWT + 会话黑名单（t_auth_session）；放行 `/api/auth/**`、
-  `/api/avatar/list/public`、`/generated-images/**`
+  `/generated-images/**`（SecurityConfig 还保留无实际 Controller/前端调用方的旧 `/api/avatar/list/public` 白名单）
 - 前端状态放 Pinia store；可单测的纯逻辑放 `frontend/src/utils/*.js`
 - AI 接入遵循 `LlmProvider` 抽象，prompt 用 classpath 模板，不硬编码到业务代码
 
