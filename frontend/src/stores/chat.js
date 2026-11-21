@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { markRaw } from 'vue'
+import { markRaw, reactive } from 'vue'
 import {
   createSession as createSessionApi,
   getSessionList,
@@ -123,7 +123,7 @@ export const useChatStore = defineStore('chat', {
         status: CHAT_MESSAGE_STATUS.COMPLETED,
         time: this.formatTime(now)
       }
-      const assistantMessage = {
+      const assistantMessage = reactive({
         id: `local-assistant-${requestId}`,
         sessionId,
         requestId,
@@ -132,7 +132,7 @@ export const useChatStore = defineStore('chat', {
         status: CHAT_MESSAGE_STATUS.PENDING,
         time: this.formatTime(now),
         streaming: false
-      }
+      })
       this.messages.push(userMessage, assistantMessage)
 
       try {
