@@ -3,6 +3,8 @@
 世界名称：{{worldName}}
 世界背景：{{worldBackground}}
 世界规则：{{worldRules}}
+世界氛围：{{worldAtmosphere}}
+当前场景：{{worldScene}}
 
 参与者名单：
 {{participantRoster}}
