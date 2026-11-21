@@ -82,6 +82,7 @@ export const useChatStore = defineStore('chat', {
       this.error = null
       try {
         const res = await getMessageList(sessionId)
+        if (this.currentSessionId !== sessionId) return
         const list = res.data || res || []
         this.messages = list.map((message) => mapChatMessage(message, this.formatTime))
       } catch (err) {

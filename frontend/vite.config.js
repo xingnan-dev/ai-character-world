@@ -4,6 +4,7 @@ import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import path from 'path'
+import { configureChatProxy } from './src/utils/chatProxyLifecycle.js'
 
 export default defineConfig(({ mode }) => {
   const backend = mode === 'acceptance'
@@ -34,7 +35,8 @@ export default defineConfig(({ mode }) => {
     proxy: {
       '/api': {
         target: backend,
-        changeOrigin: true
+        changeOrigin: true,
+        configure: configureChatProxy
       },
       '/generated-images': {
         target: imageBackend,
