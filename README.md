@@ -201,7 +201,16 @@ ai-character-world/
 
 ## 快速开始
 
-本地核心使用不要求公网部署。前置条件为 Java 17、Maven、Node.js/npm、MySQL；Redis 默认禁用，图片 Provider 为可选项。实测版本和完整配置顺序见 [本地运行与配置](docs/LOCAL_RUN.md)。
+也可使用 [Docker Compose 本地运行](docs/DOCKER_LOCAL.md)：Nginx 前端、Java 17 后端与独立 MySQL，数据库和生成图片使用命名卷。复制 `.env.docker.example` 为本地 `.env.docker` 并填写必需配置后，在项目根目录运行：
+
+```powershell
+docker compose --env-file .env.docker config --quiet
+docker compose --env-file .env.docker up -d --build --wait --wait-timeout 300
+```
+
+默认访问 `http://localhost:8088`；端口可配置，仅绑定本机。普通停止使用 `docker compose --env-file .env.docker stop`，保留卷。不需要停止本机 MySQL。Compose 的环境文件插值与向容器注入是不同步骤，完整配置、SSE、重建及数据保留说明见上述指南。
+
+不使用容器时，前置条件为 Java 17、Maven、Node.js/npm、MySQL；Redis 默认禁用，图片 Provider 为可选项。实测版本和完整配置顺序见 [本地运行与配置](docs/LOCAL_RUN.md)。
 
 1. 准备自己命名的 MySQL 空库及有该库权限的账号；默认端口3307。首次验收不要使用日常数据。
 2. 按 [`.env.example`](.env.example) 的键名在后端进程提供 `DB_*`、`JWT_SECRET`、`AI_*`。该示例不会自动加载，也不含秘密。

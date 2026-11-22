@@ -2,6 +2,8 @@
 
 本项目的交付目标是本地使用，不需要公网部署。以下使用 MySQL、普通 Maven 和普通 Vite；不依赖 `.acceptance-run/`、H2、测量中继或自定义启动类。
 
+如希望前端、后端和 MySQL 全部运行在容器中，使用 [Docker Compose 本地运行](DOCKER_LOCAL.md)。两种方式的数据库互相独立；不要把容器卷指向已有 Windows MySQL 数据目录。
+
 ## 1. 软件与数据库
 
 本轮实测：Windows 11、JDK 17.0.20.1、Maven 3.9.16、Node.js 24.16.0、npm 11.13.0、MySQL 8.0.34。后端要求 Java 17；仓库没有 Maven Wrapper。其他版本组合未逐一验收。

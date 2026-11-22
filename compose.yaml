@@ -1,0 +1,79 @@
+name: ai-companion
+
+services:
+  mysql:
+    image: mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
+    environment:
+      TZ: Asia/Shanghai
+      MYSQL_DATABASE: ${DB_NAME:-companion_local}
+      MYSQL_USER: ${DB_USERNAME:-companion}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in your local environment file}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in your local environment file}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_PASSWORD\" mysql --protocol=TCP -h 127.0.0.1 -u\"$$MYSQL_USER\" -D\"$$MYSQL_DATABASE\" --silent --skip-column-names -e 'SELECT 1' >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    stop_grace_period: 60s
+
+  backend:
+    image: ${COMPOSE_PROJECT_NAME:-ai-companion}-backend:local
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      TZ: Asia/Shanghai
+      SPRING_PROFILES_ACTIVE: local-real
+      DB_URL: jdbc:mysql://mysql:3306/${DB_NAME:-companion_local}?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8
+      DB_USERNAME: ${DB_USERNAME:-companion}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in your local environment file}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your local environment file}
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "false"
+      AI_PROVIDER: ${AI_PROVIDER:-openai-compatible}
+      AI_MOCK_ENABLED: ${AI_MOCK_ENABLED:-false}
+      AI_API_URL: ${AI_API_URL:-}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL_NAME: ${AI_MODEL_NAME:-}
+      AI_MAX_TOKENS: ${AI_MAX_TOKENS:-1024}
+      ZHIPU_IMAGE_API_KEY: ${ZHIPU_IMAGE_API_KEY:-}
+      IMAGE_STORAGE_DIRECTORY: /app/generated-images
+      SERVER_SHUTDOWN: graceful
+      SPRING_LIFECYCLE_TIMEOUT_PER_SHUTDOWN_PHASE: 35s
+    volumes:
+      - generated_images:/app/generated-images
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "test \"$$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/user/info)\" = 401"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+    stop_grace_period: 75s
+
+  frontend:
+    image: ${COMPOSE_PROJECT_NAME:-ai-companion}-frontend:local
+    environment:
+      TZ: Asia/Shanghai
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "127.0.0.1:${APP_PORT:-8088}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    stop_grace_period: 10s
+
+volumes:
+  mysql_data:
+  generated_images:
