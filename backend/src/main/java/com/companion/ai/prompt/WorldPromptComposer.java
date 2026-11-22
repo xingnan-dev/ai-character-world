@@ -49,6 +49,8 @@ public class WorldPromptComposer {
         systemValues.put("worldName", value(world.getName(), "未命名世界"));
         systemValues.put("worldBackground", value(world.getBackground(), "未设置"));
         systemValues.put("worldRules", value(world.getRules(), "遵守角色设定并自然回应"));
+        systemValues.put("worldAtmosphere", value(world.getAtmosphere(), "未设置"));
+        systemValues.put("worldScene", value(world.getScene(), "未设置"));
         systemValues.put("participantRoster", roster.stream()
                 .map(item -> "- " + item.displayName())
                 .collect(Collectors.joining("\n")));

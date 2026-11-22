@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { markRaw } from 'vue'
+import { markRaw, reactive } from 'vue'
 import {
   createSession as createSessionApi,
   getSessionList,
@@ -12,6 +12,7 @@ import {
   createChatRequestId,
   findRetryContent,
   isMessageActive,
+  reconcileFailedExchange,
   mapChatMessage
 } from '../utils/chatMessageState'
 import { createChatSendGuard } from '../utils/chatSendGuard'
@@ -81,6 +82,7 @@ export const useChatStore = defineStore('chat', {
       this.error = null
       try {
         const res = await getMessageList(sessionId)
+        if (this.currentSessionId !== sessionId) return
         const list = res.data || res || []
         this.messages = list.map((message) => mapChatMessage(message, this.formatTime))
       } catch (err) {
@@ -122,7 +124,7 @@ export const useChatStore = defineStore('chat', {
         status: CHAT_MESSAGE_STATUS.COMPLETED,
         time: this.formatTime(now)
       }
-      const assistantMessage = {
+      const assistantMessage = reactive({
         id: `local-assistant-${requestId}`,
         sessionId,
         requestId,
@@ -131,7 +133,7 @@ export const useChatStore = defineStore('chat', {
         status: CHAT_MESSAGE_STATUS.PENDING,
         time: this.formatTime(now),
         streaming: false
-      }
+      })
       this.messages.push(userMessage, assistantMessage)
 
       try {
@@ -170,10 +172,14 @@ export const useChatStore = defineStore('chat', {
       await this.sendMessage(content)
     },
     async syncMessagesAfterStream(sessionId, requestId) {
+      const localMessages = this.messages.slice()
+      const streamError = this.error
       for (let attempt = 0; attempt < 3; attempt += 1) {
         await new Promise((resolve) => setTimeout(resolve, 150))
         if (this.currentSessionId !== sessionId) return
         await this.fetchMessages(sessionId)
+        this.messages = reconcileFailedExchange(this.messages, localMessages, requestId)
+        if (streamError) this.error = streamError
         const assistant = this.messages.find((message) =>
           message.role === 'assistant' && message.requestId === requestId
         )

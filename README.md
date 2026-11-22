@@ -20,6 +20,9 @@ flowchart LR
     Chat --> Memory --> Relationship --> Growth --> World
     World --> MI[Multi-character Interaction] --> WM[World Memory]
     WM --> MI
+    User --> AW[Agent Workspace] --> AR[Persistent Agent Run]
+    AR --> AC
+    AR --> World
 ```
 
 ## 核心功能
@@ -60,7 +63,46 @@ flowchart LR
 
 - 在成功完成 Round 后提取事实、角色发展、关系、事件和未解决线索等结构化记忆。
 - 按 User 和 World 隔离存储，使用稳定哈希去重，并通过乐观锁合并 keyed memory。
+- 新记忆要求本轮已完成 Event 的 ID 与原文证据；USER/AI 叙述的世界行动均可作为来源，计划、疑问与传闻不能直接升级成已完成事件。模型摘要保留作检索/合并线索，不是独立核验的事实；后续 Prompt 只注入核验过的来源引文和计划/未证实标记。历史无来源记录保持原有读取行为，不自动清洗。
 - 检索相关且有界的 World Memory 注入下一轮 Prompt，并使用 Round 创建时的 Frozen World Snapshot 保持历史语义。
+- Round 的终态先提交，再在执行线程中进行记忆后处理；`COMPLETED` 不表示记忆已完成。按资源 ID 观察 `WORLD_MEMORY_STARTED` / `WORLD_MEMORY_COMPLETED` / `WORLD_MEMORY_FAILED` 日志；成功的空提取也有完成日志。日志不包含对话正文、Provider 错误正文或凭证。
+- 后处理期间的下一轮使用当时已提交的记忆及本轮成功发言，不等待上一轮提取；旧 Round 的迟到 keyed 更新不能覆盖更新 Round 的同 key 状态。后处理不是持久任务：终态提交后崩溃可能遗漏提取，目前没有自动补偿；不能把没有完成日志直接解释为空结果。
+- 执行中重启后，RUNNING Round 的 5 分钟租约仍有效时只观察；过期后可通过“恢复执行”或重新进入页面接管。已经保存的参与角色 Event 不重生成，未保存的角色请求可能重发；不保证 Provider 停止计算或避免费用。
+
+### Agent Runtime
+
+- 从用户 Goal 创建持久化 Agent Run，由 LLM 在每一步严格选择 `TOOL_CALL` 或 `FINAL`，并将 Decision、Tool Result、错误与最终结果写入 Agent Run / Agent Step。
+- 使用 `MAX_STEPS` 限制执行闭环；LLM 合约错误和可重试 Provider 错误共享有界 Decision attempt，Tool 执行也有 timeout、retry 与持久化 attempt budget。
+- 支持 checkpoint / resume、基于 `executionVersion` 的 fencing、request ID 幂等，以及同一 Run 内已完成 Tool 调用的 canonical arguments 去重与结果复用。
+- 当前 Tool 全部只读：`get_character_context` 读取 Character context，`search_character_memory` 检索 Character-scoped memory，`get_world_context` 读取 World context。
+
+### Agent Workspace
+
+- 提供独立的目标执行页面，可创建 Agent Run，并通过有界轮询实时刷新状态、Step 和最终结果。
+- Recent Runs 保存执行入口；URL 中的 `runId` 支持刷新后恢复当前 Run，切换 Run 时使用 generation fencing 防止旧响应覆盖新选择。
+- Step Timeline 以 Decision、Action、Observation 和 Result 展示 `TOOL_CALL`、`DUPLICATE_TOOL_CALL`、`FINAL` 与失败状态，不展示隐藏推理或 chain-of-thought。
+- Step Detail 结构化展示只读 Tool、arguments、observation、attempt/retry 和时间信息；长内容可安全折叠，非法 JSON 回退为普通文本。
+- 支持 terminal result、错误详情与后端授权的 checkpoint resume；桌面端使用三栏工作区，移动端使用 Step Detail Drawer。
+
+```text
+Goal
+  ↓
+LLM Decision
+  ↓
+TOOL_CALL / FINAL
+  ↓
+Tool Registry
+  ↓
+Read-only Java Tool
+  ↓
+Persist Tool Result
+  ↓
+Next Decision
+  ↓
+FINAL
+```
+
+每一步都会持久化到 Agent Run / Agent Step，因此中断后的执行可以从 checkpoint 恢复，而不需要重放已经完成的 Tool。
 
 ### 可靠性与安全
 
@@ -72,18 +114,28 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    UI[Vue 3 SPA<br/>Router + Pinia + Element Plus]
+    UI[Vue 3 SPA<br/>Character · Chat · World · Agent Workspace]
     API[Spring Boot REST<br/>JWT + SSE]
     Domain[Character · Chat · Memory · Relationship<br/>Growth · World · World Memory]
+    Agent[Agent Runtime]
+    Loop[Decision Loop]
+    Registry[Tool Registry]
+    Tools[Read-only Tools]
     LLM[LLM Provider<br/>OpenAI-compatible / Mock]
-    DB[(MySQL<br/>Flyway V1-V26)]
+    DB[(MySQL<br/>Flyway V1-V27)]
     External[External LLM / Image API]
-    UI -->|REST + SSE| API --> Domain
+    UI -->|REST + SSE| API
+    API --> Domain
+    API --> Agent
+    Agent --> Loop --> Registry --> Tools
+    Tools --> Domain
     Domain --> DB
+    Agent --> DB
     Domain --> LLM --> External
+    Loop --> LLM
 ```
 
-后端是 modular monolith，统一负责认证、业务编排、状态持久化和外部 AI 集成。当前实现不包含微服务、消息队列、向量数据库或 Agent runtime。
+后端是 modular monolith，统一负责认证、业务编排、状态持久化、Agent Runtime 和外部 AI 集成。LLM Provider 同时服务现有 AI 能力与 Agent Decision。当前实现不包含微服务、消息队列、向量数据库、Multi-Agent、自治写入 Tool 或长期调度器。
 
 ## 工程亮点
 
@@ -98,6 +150,8 @@ flowchart TB
 9. **Failure isolation：** Chat 回复完成后，Memory、Relationship、Growth 分别执行并独立捕获失败；World Memory 提取失败也不回滚已完成 Round。
 10. **短事务边界：** 外部 LLM 调用不处于长数据库事务或锁中；World lifecycle 使用独立短事务。
 11. **Ownership security：** 核心资源均按认证用户查询，配合 JWT、唯一约束、soft delete 与迁移级索引形成数据边界。
+12. **Persistent Agent Runtime：** Goal、Decision、Tool attempt 与结果按 Step 持久化；checkpoint、fencing、幂等和 completed-call guard 共同保证恢复与重复执行安全。
+13. **Agent execution UI：** Recent Runs、轮询、Timeline、Step Detail、错误与 Resume 状态使用真实 backend DTO，且用户主动查看旧 Step 时不会被后续轮询抢走选择。
 
 ## 技术栈
 
@@ -106,7 +160,7 @@ flowchart TB
 | Backend | Java 17, Spring Boot 3.2.5, Spring MVC, Security, Validation, Reactor Core |
 | Persistence | MyBatis-Plus 3.5.5, Flyway, MySQL Connector/J, HikariCP |
 | AI | OpenAI-compatible / Mock provider, SSE, structured JSON, prompt templates, OkHttp 4.12 |
-| Frontend | Vue 3.4, Vue Router 4.3, Pinia 2.1, Element Plus 2.6, Axios 1.6, Vite 5.2, Sass |
+| Frontend | Vue 3.4, Vue Router 4.3, Pinia 2.1, Element Plus 2.6, Axios 1.6, Vite 5.x, Sass |
 | Testing | JUnit 5, Spring Boot Test, Mockito, H2, Node.js test runner |
 
 仓库保留 Spring Data Redis 依赖及相关类，但 Redis 默认关闭且不是当前本地运行的硬依赖。
@@ -128,9 +182,11 @@ erDiagram
     WORLD ||--o{ WORLD_ROUND : contains
     WORLD_ROUND ||--o{ WORLD_EVENT : records
     WORLD ||--o{ WORLD_MEMORY : remembers
+    USER ||--o{ AGENT_RUN : starts
+    AGENT_RUN ||--o{ AGENT_STEP : checkpoints
 ```
 
-Flyway `V1`–`V26` 覆盖基础模型、soft delete、消息生命周期、Character、World、执行恢复、Character-scoped Memory、Relationship、Growth、World Memory 和 Frozen World Snapshot。
+Flyway `V1`–`V27` 覆盖基础模型、soft delete、消息生命周期、Character、World、执行恢复、Character-scoped Memory、Relationship、Growth、World Memory、Frozen World Snapshot，以及 V27 的 persistent Agent Run / Agent Step runtime。
 
 ## 项目结构
 
@@ -145,56 +201,51 @@ ai-character-world/
 
 ## 快速开始
 
-前置条件：JDK 17、Maven、兼容 Vite 5 的 Node.js/npm、MySQL，以及 OpenAI-compatible endpoint 或内置 Mock LLM。仓库未提供 Maven Wrapper 或容器化配置。
+本地核心使用不要求公网部署。前置条件为 Java 17、Maven、Node.js/npm、MySQL；Redis 默认禁用，图片 Provider 为可选项。实测版本和完整配置顺序见 [本地运行与配置](docs/LOCAL_RUN.md)。
 
-```bash
-git clone https://github.com/xingnan-dev/ai-character-world.git
-cd ai-character-world
-```
+1. 准备自己命名的 MySQL 空库及有该库权限的账号；默认端口3307。首次验收不要使用日常数据。
+2. 按 [`.env.example`](.env.example) 的键名在后端进程提供 `DB_*`、`JWT_SECRET`、`AI_*`。该示例不会自动加载，也不含秘密。
+3. 显式设置 `SPRING_PROFILES_ACTIVE=local-real`、`AI_PROVIDER=openai-compatible`、`AI_MOCK_ENABLED=false`。完整 Provider URL 须含 `/chat/completions`；`LLM_*` 不会自动映射。不要将真实值写进命令历史或 Git。
+4. 后端终端执行：
 
-创建 `ai_virtual_companion` 数据库。默认连接为 `127.0.0.1:3307`；其他端口请覆盖 `DB_URL`。Flyway 会在后端启动时自动迁移。
-
-```text
-DB_URL=jdbc:mysql://127.0.0.1:3307/ai_virtual_companion?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8
-DB_USERNAME=root
-DB_PASSWORD=your-password
-JWT_SECRET=replace-with-at-least-32-utf8-bytes
-AI_PROVIDER=openai-compatible
-AI_API_URL=https://your-provider.example/v1/chat/completions
-AI_API_KEY=YOUR_API_KEY
-AI_MODEL_NAME=your-model-name
-```
-
-无外部 LLM 时可设置 `AI_MOCK_ENABLED=true`。Character Image API 是可选集成，仅在调用相关功能时需要 `ZHIPU_IMAGE_API_KEY`。
-
-```bash
+```powershell
 cd backend
 mvn spring-boot:run
-# Backend: http://localhost:8080
+# http://localhost:8080
 ```
 
-```bash
+5. 第二个终端执行：
+
+```powershell
 cd frontend
 npm ci
 npm run dev
-# Frontend: http://localhost:5173
+# http://localhost:5173；/api 与 /generated-images 代理到8080
 ```
 
-Vite 将 `/api` 和 `/generated-images` 代理到 `http://localhost:8080`。
+Flyway 会在启动时自动校验／迁移；缺 AI 配置失败不意味着数据库未被迁移。推荐 `SPRING_FLYWAY_BASELINE_ON_MIGRATE=false`，不修改已执行迁移。`local-real` 不需要额外 profile 文件，可避免加载本机 `dev` 覆盖配置。Mock 可用于开发，但不证明真实 AI 可用；切换、停止和同库重启详见运行说明。
+
+日常顺序见 [使用／演示指南](docs/USER_GUIDE.md)。第一次从角色进入聊天、或刷新页面后，可能需在左侧选择会话。图片默认保存到后端工作目录下的 `generated-images/`，可用 `IMAGE_STORAGE_DIRECTORY` 固定位置。
+
+## 验收与已知限制
+
+[当前验收摘要](docs/ACCEPTANCE_STATUS.md)是验证方式、对应版本和最终候选测试成绩的单一索引；[已知限制与待办](docs/KNOWN_LIMITATIONS.md)区分阻断、正确性、体验和未验证事项。历史测试数字不代表当前源码实测。
+
+角色记忆的提取值采用原文片段，当前不支持任意自由概括；明确疑问、假设、小说台词、计划和猜测有保守过滤。World 可保留摘要作检索线索，但后续事实 Prompt 仅使用带来源与限定语的核验引文。来源约束不等于语义真值，也不自动清洗旧错误记忆。关系／成长按有意义证据评估，不保证每轮变化。
+
+聊天停止／刷新可能延迟确认，不保存未完成片段，也不保证停止 Provider 计费。World 的 Round 完成早于记忆后处理，后处理无崩溃自动补偿。Agent 只读且有步数／尝试上限；恢复只支持后端允许的检查点。历史库升级和真实 Provider 崩溃恢复不因其他场景通过而自动成为已验证。
 
 ## 测试
 
-```bash
-cd backend && mvn test
-cd frontend && npm test
+```powershell
+cd backend
+mvn test
+cd ../frontend
+npm test
 npm run build
 ```
 
-当前 `develop` 基线实测结果：
-
-- Backend：425 tests，0 failures，0 errors，1 skipped。
-- Frontend：183 / 183 passed。
-- Frontend production build：PASS（存在非阻断 Sass legacy API 和 bundle-size warnings）。
+后端测试强制 H2 内存隔离并关闭 Flyway；构建的 Sass／大分块警告当前不是功能阻断。具体本轮成绩与历史区别见验收摘要。
 
 ## 技术说明
 
@@ -204,7 +255,9 @@ npm run build
 
 以下内容尚未实现，仅作为规划：
 
-- 最小 Agent Loop：Goal、State、Tool Calling、Checkpoint 与 Resume
 - World Image Generation
-- UI/UX 优化与项目截图
-- 容器化、部署加固、文档与端到端回归完善
+- 将 Agent Workspace 的浅色视觉语言逐步统一到 Character、World 与 Chat
+- UI/UX 细节优化与项目截图整理
+- CI
+- Docker 与部署加固
+- 端到端回归完善

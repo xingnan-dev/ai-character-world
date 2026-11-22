@@ -40,7 +40,7 @@ public enum PromptTemplateKey {
     WORLD_SYSTEM(
             "prompts/world/system-v1.md",
             "1",
-            Set.of("worldName", "worldBackground", "worldRules", "participantRoster",
+            Set.of("worldName", "worldBackground", "worldRules", "worldAtmosphere", "worldScene", "participantRoster",
                     "userIdentity", "actorName", "actorSnapshot", "worldMemory")
     ),
     WORLD_TURN(

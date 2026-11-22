@@ -39,7 +39,9 @@ spring:
       database: 0
       timeout: 5000ms
   autoconfigure:
-    exclude: org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
 
   servlet:
     multipart:
@@ -52,7 +54,7 @@ mybatis-plus:
   type-aliases-package: com.companion.entity
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
   global-config:
     banner: false
     db-config:
@@ -96,11 +98,21 @@ ai:
 logging:
   level:
     root: INFO
-    com.companion: DEBUG
+    com.companion: INFO
 
 app:
   redis:
     enabled: false
+  agent:
+    default-max-steps: ${AGENT_DEFAULT_MAX_STEPS:6}
+    max-steps-limit: ${AGENT_MAX_STEPS_LIMIT:10}
+    stale-timeout: ${AGENT_STALE_TIMEOUT:5m}
+    tool-timeout: ${AGENT_TOOL_TIMEOUT:3s}
+    tool-threads: ${AGENT_TOOL_THREADS:2}
+    tool-queue-capacity: ${AGENT_TOOL_QUEUE_CAPACITY:16}
+    execution-threads: ${AGENT_EXECUTION_THREADS:2}
+    execution-queue-capacity: ${AGENT_EXECUTION_QUEUE_CAPACITY:16}
+    shutdown-await-seconds: ${AGENT_SHUTDOWN_AWAIT_SECONDS:30}
   world:
     execution:
       core-pool-size: 2

@@ -9,6 +9,29 @@ import {
   mapChatMessage,
   messageStatusMeta
 } from '../src/utils/chatMessageState.js'
+import { reconcileFailedExchange } from '../src/utils/chatMessageState.js'
+
+test('network failure without a persisted exchange retains its draft and retry content', () => {
+  const local = [
+    { requestId: 'old', role: 'user', content: 'unrelated' },
+    { requestId: 'failed', role: 'user', content: 'recover this draft' },
+    { requestId: 'failed', role: 'assistant', status: CHAT_MESSAGE_STATUS.FAILED }
+  ]
+  const remote = [{ requestId: 'saved', role: 'user', content: 'saved history' }]
+  const merged = reconcileFailedExchange(remote, local, 'failed')
+  assert.equal(merged.length, 3)
+  assert.equal(findRetryContent(merged, merged[2]), 'recover this draft')
+  assert.equal(remote.length, 1)
+  assert.equal(merged.some(message => message.requestId === 'old'), false)
+})
+
+test('persisted exchanges take precedence and active local messages are not resurrected', () => {
+  const failed = [{ requestId: 'same', role: 'assistant', status: CHAT_MESSAGE_STATUS.FAILED }]
+  const remote = [{ requestId: 'same', role: 'assistant', status: CHAT_MESSAGE_STATUS.COMPLETED }]
+  assert.equal(reconcileFailedExchange(remote, failed, 'same'), remote)
+  const active = [{ requestId: 'active', role: 'assistant', status: CHAT_MESSAGE_STATUS.STREAMING }]
+  assert.deepEqual(reconcileFailedExchange([], active, 'active'), [])
+})
 
 test('request ids are present and unique', () => {
   const first = createChatRequestId()

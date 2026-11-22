@@ -43,6 +43,8 @@ class WorldPromptComposerTest {
         world.setName("海港");
         world.setBackground("暴雨中的港口");
         world.setRules("不能离开灯塔");
+        world.setAtmosphere("紧张但合作");
+        world.setScene("灯塔顶层观测室");
         WorldActorContext actor = actor(10L, 1, "林");
         WorldActorContext other = actor(11L, 2, "周");
 
@@ -51,7 +53,7 @@ class WorldPromptComposerTest {
 
         assertThat(prompt.messages()).hasSize(2);
         assertThat(prompt.messages().get(0).content())
-                .contains("暴雨中的港口", "不能离开灯塔", "当前角色的不可变快照", "姓名=周", "- 林", "- 周");
+                .contains("暴雨中的港口", "不能离开灯塔", "紧张但合作", "灯塔顶层观测室", "当前角色的不可变快照", "姓名=周", "- 林", "- 周");
         assertThat(prompt.messages().get(1).content())
                 .contains("用户：发生了什么？", "林：船回来了。", "轮到“周”");
         assertThat(prompt.metadata()).containsEntry("worldId", 3L)

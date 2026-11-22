@@ -9,7 +9,7 @@
     </header>
 
     <main class="edit-layout">
-      <section class="form-card" v-loading="loading">
+      <section class="form-card app-surface--elevated" v-loading="loading">
         <div class="card-heading">
           <SimpleAvatar :name="personality?.name" :image-url="personality?.imageUrl" :avatar-color="personality?.avatarColor" :entity-key="avatarId" type="AI" size="lg" />
           <div class="identity-summary">
@@ -152,7 +152,7 @@ onMounted(loadPersonality)
 </script>
 
 <style lang="scss" scoped>
-.personality-edit-page{min-height:100%;padding:clamp(22px,4vw,48px) 24px 56px;color:var(--app-text)}
+.personality-edit-page{min-width:0;min-height:100%;padding:clamp(22px,4vw,48px) 24px 56px;color:var(--app-text-primary)}
 
 .page-header {
   width: min(820px, 100%);
@@ -170,7 +170,7 @@ onMounted(loadPersonality)
   min-height:44px;
   border: 1px solid var(--app-border-strong);
   border-radius: var(--app-radius-sm);
-  color: var(--app-primary-strong);
+  color: var(--app-accent-primary-strong);
   background: var(--app-surface);
   box-shadow:var(--app-shadow-sm);
   cursor: pointer;
@@ -181,10 +181,6 @@ onMounted(loadPersonality)
 .form-card {
   padding: 32px;
   min-width:0;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-lg);
-  background: var(--app-surface);
-  box-shadow: var(--app-shadow-lg);
 }
 
 .card-heading {
@@ -195,17 +191,19 @@ onMounted(loadPersonality)
   h2 { margin: 5px 0 0; }
 }
 
-.identity-summary{min-width:0}.eyebrow{color:var(--app-primary-strong);font-size:12px;font-weight:800;letter-spacing:1.5px}
-.avatar-badge{display:inline-block;padding:6px 10px;border-radius:var(--app-radius-pill);color:var(--app-primary-strong);background:var(--app-primary-soft);font-size:12px;font-weight:700}
+.identity-summary{min-width:0}.eyebrow{color:var(--app-accent-primary-strong);font-size:var(--app-type-label);font-weight:800;letter-spacing:1.5px}
+.avatar-badge{display:inline-block;padding:6px 10px;border-radius:var(--app-radius-pill);color:var(--app-accent-primary-strong);background:var(--app-primary-soft);font-size:var(--app-type-metadata);font-weight:700}
 .personality-form { margin-top: 24px; }
 .form-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 10px; }
 
-:deep(.el-form-item__label) { color: var(--app-text); }
+:deep(.el-form-item__label) { color: var(--app-text-primary); }
 :deep(.el-input__wrapper), :deep(.el-textarea__inner) {
-  background: #fff;
+  background: var(--app-surface-elevated);
   box-shadow: 0 0 0 1px var(--app-border-strong) inset;
-  color: var(--app-text);
+  color: var(--app-text-primary);
 }
+
+@media (max-width: 1024px) { .page-header,.edit-layout { width:min(760px,100%); } }
 
 @media (max-width: 640px) {
   .personality-edit-page { padding: 22px 16px 40px; }
@@ -214,4 +212,6 @@ onMounted(loadPersonality)
   .card-heading{align-items:flex-start}
   .form-actions{flex-direction:column-reverse}.form-actions :deep(.el-button){width:100%;margin-left:0}
 }
+@media(prefers-reduced-motion:reduce){.form-card{scroll-behavior:auto}}
+@media(forced-colors:active){.form-card,.back-button{border:1px solid CanvasText}}
 </style>

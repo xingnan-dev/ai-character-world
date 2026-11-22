@@ -96,6 +96,9 @@
         <div class="chat-workspace">
           <section class="conversation-panel">
             <div class="chat-messages" ref="messagesRef">
+          <el-alert v-if="recovering" :title="recoveryExpired ? '回复状态尚未确认，请刷新状态后再发送。' : '实时连接已断开，正在同步回复状态…'" type="info" :closable="false">
+            <el-button link @click="chatStore.fetchMessages(chatStore.currentSessionId)">刷新状态</el-button>
+          </el-alert>
           <div
             v-for="msg in chatStore.messages"
             :key="msg.id"
@@ -182,7 +185,7 @@
                   circle
                   class="send-btn"
                   :icon="Promotion"
-                  :disabled="!inputMessage.trim() || chatStore.streaming"
+                  :disabled="!inputMessage.trim() || chatStore.streaming || recovering"
                   @click="handleSend"
                 />
               </div>
@@ -290,6 +293,7 @@ import { getCharacterList } from '../api/character'
 import { resolveAssistantPresentation } from '../utils/chatSessionPresentation'
 import {
   CHAT_MESSAGE_STATUS,
+  isMessageActive,
   isMessageRetryable,
   messageStatusMeta
 } from '../utils/chatMessageState'
@@ -303,6 +307,23 @@ const inputMessage = ref('')
 const showAvatarDialog = ref(false)
 const tempAvatarId = ref(null)
 const aiCharacters = ref([])
+const recoveryExpired = ref(false)
+const recovering = computed(() => !chatStore.streaming && chatStore.messages.some(message => isMessageActive(message.status)))
+let recoveryTimer
+watch(() => `${chatStore.currentSessionId}:${recovering.value}`, (_, __, onCleanup) => {
+  let disposed = false
+  const sessionId = chatStore.currentSessionId
+  const deadline = Date.now() + 150000
+  recoveryExpired.value = false
+  const poll = async () => {
+    if (disposed || !recovering.value || chatStore.currentSessionId !== sessionId) return
+    if (Date.now() >= deadline) { recoveryExpired.value = true; return }
+    await chatStore.fetchMessages(sessionId)
+    if (!disposed) recoveryTimer = setTimeout(poll, 2000)
+  }
+  if (recovering.value && sessionId) recoveryTimer = setTimeout(poll, 1000)
+  onCleanup(() => { disposed = true; clearTimeout(recoveryTimer) })
+})
 
 const assistantFor = (session) => resolveAssistantPresentation(session)
 
@@ -391,7 +412,7 @@ const handleCreateSession = async () => {
 
 const handleSend = async () => {
   const text = inputMessage.value.trim()
-  if (!text || chatStore.streaming) return
+  if (!text || chatStore.streaming || recovering.value) return
 
   if (!chatStore.currentSessionId) {
     ElMessage.warning('请先选择或创建一个对话')

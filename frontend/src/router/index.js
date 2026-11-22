@@ -22,7 +22,7 @@ const routes = [
     path: '/home',
     name: 'Home',
     component: () => import('../views/Home.vue'),
-    meta: { requiresAuth: true, navSection: 'home' }
+    meta: { requiresAuth: true, appShell: true, navSection: 'home' }
   },
   {
     path: '/avatar/create',
@@ -83,6 +83,12 @@ const routes = [
     name: 'Chat',
     component: () => import('../views/Chat.vue'),
     meta: { requiresAuth: true, navSection: 'chat' }
+  },
+  {
+    path: '/agent',
+    name: 'AgentWorkspace',
+    component: () => import('../views/AgentWorkspace.vue'),
+    meta: { requiresAuth: true, appShell: true, navSection: 'agent' }
   }
 ]
 

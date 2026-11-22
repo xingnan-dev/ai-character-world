@@ -99,6 +99,41 @@
   --app-space-16: 64px;
   --app-focus-ring: 0 0 0 4px rgba(22, 138, 192, 0.18);
 
+  /* AIworld V2 semantic visual foundation. */
+  --app-page-background: #f7f3e8;
+  --app-surface-elevated: rgba(255, 255, 253, 0.96);
+  --app-surface-glass: rgba(255, 255, 252, 0.72);
+  --app-surface-inset: rgba(250, 249, 245, 0.82);
+  --app-text-primary: #28333d;
+  --app-accent-primary: #745ad5;
+  --app-accent-primary-strong: #5542a8;
+  --app-accent-secondary: #4ca9c4;
+  --app-info: #397b96;
+  --app-atmosphere-mist-blue: rgba(70, 208, 221, 0.25);
+  --app-atmosphere-pale-violet: rgba(157, 130, 255, 0.28);
+  --app-atmosphere-soft-pink: rgba(255, 113, 167, 0.22);
+  --app-atmosphere-warm-ivory: rgba(255, 247, 224, 0.82);
+  --app-atmosphere-mint: rgba(180, 226, 96, 0.2);
+  --app-aura-opacity: 0.82;
+  --app-shadow-card: 0 18px 48px rgba(69, 68, 86, 0.09);
+  --app-shadow-floating: 0 26px 70px rgba(69, 68, 86, 0.12);
+  --app-selected-glow: 0 0 0 2px rgba(116, 90, 213, 0.2), 0 16px 38px rgba(89, 72, 160, 0.12);
+  --app-page-gutter: max(24px, calc((100% - 1180px) / 2));
+  --app-section-gap: 32px;
+  --app-card-padding: 24px;
+  --app-control-gap: 12px;
+  --app-motion-fast: 150ms;
+  --app-motion-normal: 260ms;
+  --app-motion-slow: 520ms;
+  --app-ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --app-type-display: clamp(36px, 5vw, 58px);
+  --app-type-page-title: clamp(30px, 4vw, 44px);
+  --app-type-section-title: clamp(21px, 2.4vw, 28px);
+  --app-type-body: 15px;
+  --app-type-secondary: 14px;
+  --app-type-metadata: 12px;
+  --app-type-label: 11px;
+
   /* World aliases keep the existing pages visually stable during migration. */
   --world-bg: var(--app-bg);
   --world-surface: var(--app-surface);
@@ -284,6 +319,32 @@ ol {
   -webkit-backdrop-filter: blur(20px);
 }
 
+/* Shared V2 surfaces are opt-in and stay inside the application theme scope. */
+.app-v2-theme {
+  color: var(--app-text-primary);
+  background-color: var(--app-page-background);
+}
+
+.app-v2-theme .app-surface,
+.app-v2-theme .app-surface--elevated,
+.app-v2-theme .app-surface--glass,
+.app-v2-theme .app-surface--inset,
+.app-v2-theme .app-empty-state {
+  min-width: 0;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+}
+
+.app-v2-theme .app-surface { background: var(--app-surface); box-shadow: var(--app-shadow-sm); }
+.app-v2-theme .app-surface--elevated { background: var(--app-surface-elevated); box-shadow: var(--app-shadow-card); }
+.app-v2-theme .app-surface--glass { background: var(--app-surface-glass); box-shadow: var(--app-shadow-card); backdrop-filter: blur(18px); }
+.app-v2-theme .app-surface--inset { background: var(--app-surface-inset); }
+.app-v2-theme .app-surface--selected { outline: 2px solid var(--app-accent-primary); outline-offset: 2px; box-shadow: var(--app-selected-glow); }
+.app-v2-theme .app-status-chip { display: inline-flex; align-items: center; min-height: 28px; padding: 4px 10px; border: 1px solid var(--app-border); border-radius: var(--app-radius-pill); font-size: var(--app-type-metadata); font-weight: 750; }
+.app-v2-theme .app-metadata { color: var(--app-text-muted); font-size: var(--app-type-metadata); }
+.app-v2-theme .app-empty-state { padding: var(--app-card-padding); color: var(--app-text-secondary); text-align: center; background: var(--app-surface-inset); }
+.app-v2-theme :where(a, button, [tabindex]):focus-visible { outline: 2px solid var(--app-accent-primary); outline-offset: 3px; box-shadow: var(--app-focus-ring); }
+
 .glow-purple {
   box-shadow: 0 0 30px rgba(124, 92, 255, 0.3);
 }
@@ -368,6 +429,19 @@ ol {
 }
 
 @media (max-width: 768px) {
+  :root {
+    --app-page-gutter: 16px;
+    --app-section-gap: 24px;
+    --app-card-padding: 18px;
+    --app-aura-opacity: 0.58;
+    --app-shadow-card: 0 12px 30px rgba(69, 68, 86, 0.07);
+    --app-shadow-floating: 0 18px 42px rgba(69, 68, 86, 0.09);
+  }
+
+  .app-v2-theme .app-surface--glass {
+    backdrop-filter: blur(10px);
+  }
+
   .page-container {
     padding: var(--spacing-md);
   }

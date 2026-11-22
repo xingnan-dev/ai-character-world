@@ -45,7 +45,7 @@ class WorldMemoryServiceImplTest {
     @Test void sameTypeAndKeyUpdatesExistingRow(){WorldMemory old=memory(5,2,"investigation_status","old",50,4);when(memories.selectOne(any())).thenReturn(null,old);when(memories.updateIfVersionMatches(any(),eq(4))).thenReturn(1);service.consolidate(1L,2L,3L,candidate("investigation_status","new"));verify(memories).updateIfVersionMatches(same(old),eq(4));assertThat(old.getContent()).isEqualTo("new");}
     @Test void contentUpdateChangesDedupeHash(){WorldMemory old=memory(5,2,"k","old",50,1);old.setDedupeHash("oldhash");when(memories.selectOne(any())).thenReturn(null,old);when(memories.updateIfVersionMatches(any(),anyInt())).thenReturn(1);service.consolidate(1L,2L,3L,candidate("k","new"));assertThat(old.getDedupeHash()).isNotEqualTo("oldhash").hasSize(64);}
     @Test void differentKeyCreatesNewMemory(){when(memories.selectOne(any())).thenReturn(null);service.consolidate(1L,2L,3L,candidate("new-key","new"));verify(memories).insert(any());}
-    @Test void staleVersionCasRejected(){WorldMemory old=memory(5,2,"k","old",50,1);when(memories.selectOne(any())).thenReturn(null,old,old);when(memories.updateIfVersionMatches(any(),anyInt())).thenReturn(0);service.consolidate(1L,2L,3L,candidate("k","new"));verify(memories,times(2)).updateIfVersionMatches(any(),anyInt());}
+    @Test void staleVersionCasRejected(){WorldMemory old=memory(5,2,"k","old",50,1);when(memories.selectOne(any())).thenReturn(null,old,old);when(memories.updateIfVersionMatches(any(),anyInt())).thenReturn(0);assertThatThrownBy(()->service.consolidate(1L,2L,3L,candidate("k","new"))).isInstanceOf(IllegalStateException.class);verify(memories,times(2)).updateIfVersionMatches(any(),anyInt());}
     @Test void firstCasConflictRetriesOnce(){WorldMemory old=memory(5,2,"k","old",50,1);when(memories.selectOne(any())).thenReturn(null,old,old);when(memories.updateIfVersionMatches(any(),anyInt())).thenReturn(0,1);service.consolidate(1L,2L,3L,candidate("k","new"));verify(memories,times(2)).updateIfVersionMatches(any(),anyInt());}
     @Test void secondConflictReturnsLatest(){staleVersionCasRejected();verify(memories,never()).insert(any());}
     @Test void maxAttemptsIsTwo(){assertThat(WorldMemoryServiceImpl.MAX_ATTEMPTS).isEqualTo(2);}
@@ -78,4 +78,49 @@ class WorldMemoryServiceImplTest {
     @Test void worldRetrievalDoesNotMixCharacterMemory(){assertThat(service.getRelevantMemory(1L,2L,"")).doesNotContain("USER_FACT");}
 
     private void extract(String snapshot){when(rounds.selectOne(any())).thenReturn(completed(snapshot));when(events.selectList(any())).thenReturn(List.of());when(participants.selectList(any())).thenReturn(List.of());when(extractor.extract(any())).thenReturn(List.of());service.extractAndStore(1L,2L,3L);}
+
+    @Test void onlyCompletedKnownEventsAreEvidenceAndSourceIdIsPersisted() {
+        when(rounds.selectOne(any())).thenReturn(completed("snapshot"));
+        when(participants.selectList(any())).thenReturn(List.of());
+        var good=new WorldEvent();good.setId(11L);good.setStatus("COMPLETED");good.setEventType("AI_MESSAGE");good.setContent("box sealed");
+        var failed=new WorldEvent();failed.setId(12L);failed.setStatus("FAILED");failed.setEventType("AI_MESSAGE");failed.setContent("failed evidence");
+        var running=new WorldEvent();running.setId(13L);running.setStatus("RUNNING");running.setEventType("USER_MESSAGE");running.setContent("unfinished evidence");
+        when(events.selectList(any())).thenReturn(List.of(good,failed,running));
+        when(extractor.extract(any())).thenReturn(List.of(new WorldMemoryCandidate(WorldMemoryType.WORLD_EVENT,"seal","sealed",70,11L)));
+        service.extractAndStore(1L,2L,3L);
+        var context=ArgumentCaptor.forClass(WorldMemoryExtractionContext.class);verify(extractor).extract(context.capture());
+        assertThat(context.getValue().sourceEvents()).containsExactlyEntriesOf(Map.of(11L,"box sealed"));
+        assertThat(context.getValue().transcript()).contains("Event 11").doesNotContain("failed evidence","unfinished evidence");
+        var saved=ArgumentCaptor.forClass(WorldMemory.class);verify(memories).insert(saved.capture());assertThat(saved.getValue().getSourceEventId()).isEqualTo(11L);
+    }
+    @Test void extractionFailureHasSanitizedTerminalDiagnosticDistinctFromEmptySuccess() {
+        var logger=(ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger(WorldMemoryServiceImpl.class);
+        var appender=new ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent>();appender.start();logger.addAppender(appender);
+        try {
+            when(rounds.selectOne(any())).thenReturn(completed("snapshot"));when(events.selectList(any())).thenReturn(List.of());when(participants.selectList(any())).thenReturn(List.of());
+            when(extractor.extract(any())).thenThrow(new IllegalStateException("secret-fixture-must-not-log"));
+            assertThatThrownBy(()->service.extractAndStore(1L,2L,3L)).isInstanceOf(IllegalStateException.class);
+            assertThat(appender.list).extracting(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage).anyMatch(m->m.contains("WORLD_MEMORY_FAILED")&&m.contains("roundId=3")).noneMatch(m->m.contains("secret-fixture"));
+            appender.list.clear();doReturn(List.of()).when(extractor).extract(any());service.extractAndStore(1L,2L,3L);
+            assertThat(appender.list).extracting(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage).anyMatch(m->m.contains("WORLD_MEMORY_COMPLETED")&&m.contains("acceptedCount=0"));
+        } finally {logger.detachAppender(appender);appender.stop();}
+    }
+
+    @Test void unsupportedSummaryAttachedToRealQuoteNeverEntersFactualPrompt() {
+        WorldMemory m=memory(1,2,"k","The tower exploded.\n[来源 Event 11 原文] The box was sealed.",70,0);m.setSourceEventId(11L);
+        when(memories.selectList(any())).thenReturn(List.of(m));
+        assertThat(service.getRelevantMemory(1L,2L,"tower")).contains("The box was sealed.").doesNotContain("tower exploded");
+    }
+    @Test void uncertaintyAndPlanMarkersSurviveSourceOnlyRendering() {
+        WorldMemory m=memory(1,2,"k","[计划或承诺，尚不代表已完成] open tower\n[来源 Event 11 原文] I plan to open the tower.",70,0);m.setSourceEventId(11L);m.setMemoryType("PROMISE");
+        when(memories.selectList(any())).thenReturn(List.of(m));assertThat(service.getRelevantMemory(1L,2L,"")).contains("尚不代表已完成", "I plan to open the tower.");
+    }
+
+    @Test void olderAsyncRoundCannotOverwriteNewerKeyedState() {
+        WorldMemory newer=memory(5,2,"box","box open",70,2);newer.setSourceRoundId(8L);
+        when(memories.selectOne(any())).thenReturn(null,newer);
+        service.consolidate(1L,2L,7L,candidate("box","box sealed"));
+        assertThat(newer.getContent()).isEqualTo("box open");
+        verify(memories,never()).updateIfVersionMatches(any(),anyInt());verify(memories,never()).insert(any());
+    }
 }

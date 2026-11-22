@@ -10,6 +10,15 @@ class RuleBasedMemoryExtractorTest {
     private final RuleBasedMemoryExtractor extractor = new RuleBasedMemoryExtractor();
 
     @Test
+    void hypothesesAndFictionAreNotUserFacts() {
+        assertThat(extractor.extract("如果我住在月球，会看到什么？")).isEmpty();
+        assertThat(extractor.extract("小说角色台词：我叫月影99，我喜欢偷星星")).isEmpty();
+        assertThat(extractor.extract("What if I said 我叫月影99？")).isEmpty();
+        assertThat(extractor.extract("我叫小明，你叫什么名字？"))
+                .extracting(ExtractedMemory::value).containsExactly("小明");
+    }
+
+    @Test
     void extractsStableProfileKeys() {
         assertThat(extractor.extract("我叫小明")).singleElement().satisfies(memory -> {
             assertThat(memory.memoryKey()).isEqualTo("profile.name");
