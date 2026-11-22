@@ -414,7 +414,7 @@ export function createWorldInteractionStoreDefinition(api) {
         if (this.pollCount % 4 === 0 && !isTerminalRound(this.activeRound?.status)) {
           await this.refreshTimelineHead(generation)
         }
-        if (!active && this.activeRound && !isTerminalRound(this.activeRound.status)) {
+        if (this.activeRound && !isTerminalRound(this.activeRound.status)) {
           this.notice = this.activeRound.executionRecoverable
             ? '本轮执行已暂停，可以恢复执行'
             : this.notice

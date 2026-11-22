@@ -5,6 +5,35 @@ import { createWorldInteractionStoreDefinition } from '../src/stores/worldIntera
 
 let storeSequence = 0
 
+test('expired active lease exposes recovery without losing saved Events or creating another Round', async () => {
+  const timers = fakeTimers()
+  const round = { id: 7, status: 'RUNNING', executionRecoverable: true }
+  let executions = 0
+  const store = freshStore(defaultApi({
+    getActiveWorldRound: async () => ({ data: round }),
+    getWorldRound: async () => ({ data: round }),
+    getWorldRoundEvents: async () => ({ data: [{ id: 12, sequenceNo: 2, content: 'saved' }] }),
+    executeWorldRound: async () => { executions += 1; return { data: { dispatchStatus: 'ACCEPTED' } } }
+  }))
+  try {
+    store.worldId = 3
+    store.activeRound = { ...round, executionRecoverable: false }
+    store.pendingSubmission = { roundId: 7, requestId: 'stable' }
+    await store.pollOnce()
+    assert.equal(store.canRecover, true)
+    assert.match(store.notice, /可以恢复执行/)
+    assert.equal(store.activeEvents[0].id, 12)
+    assert.equal(store.pendingSubmission.roundId, 7)
+    assert.equal(executions, 0)
+    await store.recoverExecution()
+    assert.equal(executions, 1)
+    assert.equal(store.activeRound.id, 7)
+  } finally {
+    store.dispose()
+    timers.restore()
+  }
+})
+
 function deferred() {
   let resolve
   let reject
