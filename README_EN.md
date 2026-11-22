@@ -197,7 +197,9 @@ ai-character-world/
 
 ## Getting Started
 
-This is a local application; public deployment is not required. Use Java 17, Maven, Node.js/npm and MySQL. Redis is disabled by default. See [local setup](docs/LOCAL_RUN.md) for the tested environment, secure PowerShell configuration, startup, shutdown and restart steps.
+For a container-only local setup, follow [Docker Compose local setup](docs/DOCKER_LOCAL.md): copy `.env.docker.example` to `.env.docker`, fill in the required secrets and real AI settings, then run `docker compose --env-file .env.docker up -d --build --wait --wait-timeout 300` from the repository root. The default URL is `http://localhost:8088`. Nginx, Java 17 and a separate MySQL container use named database/image volumes. Use `docker compose --env-file .env.docker stop` for ordinary shutdown; keep volumes and the same project name. Your host MySQL is unaffected.
+
+For the non-container setup, use Java 17, Maven, Node.js/npm and MySQL. Redis is disabled by default. See [local setup](docs/LOCAL_RUN.md) for the tested environment, secure PowerShell configuration, startup, shutdown and restart steps. Public deployment is not required.
 
 1. Create a separately named MySQL database. The default server port is 3307. Do not initialize against daily user data.
 2. Provide `DB_*`, `JWT_SECRET`, and `AI_*` in the backend process environment. [`.env.example`](.env.example) is a reference, **not an automatically loaded file**.
