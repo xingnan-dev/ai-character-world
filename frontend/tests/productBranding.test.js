@@ -23,7 +23,10 @@ test('visible navigation brands use AIworld and keep the four primary destinatio
   const chat = source('../src/views/Chat.vue')
   const avatarCompatibility = source('../src/views/AvatarCreate.vue')
 
-  for (const view of [topNav, sideMenu, chat, avatarCompatibility]) assert.match(view, /> AIworld<|>AIworld</)
+  for (const view of [topNav, sideMenu, avatarCompatibility]) assert.match(view, /> AIworld<|>AIworld</)
+  // Chat renders the existing shell brand instead of maintaining a second logo.
+  assert.match(chat, /<AppShell\b/)
+  assert.match(source('../src/components/layout/AppShell.vue'), /<AppTopNav\s*\/>/)
   for (const oldBrand of ['AI Character World', 'AI Companion', 'AI Space']) {
     for (const view of [topNav, sideMenu, chat, avatarCompatibility]) {
       assert.doesNotMatch(view, new RegExp(oldBrand))

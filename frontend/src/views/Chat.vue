@@ -1,266 +1,103 @@
 <template>
-  <div class="chat-layout">
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <div class="logo" @click="goHome">
-          <el-icon :size="24" color="#fff"><MagicStick /></el-icon>
-          <span>AIworld</span>
-        </div>
-        <el-tooltip content="新建对话">
-          <el-button
-            circle
-            class="new-chat-btn"
-            :icon="Plus"
-            @click="showAvatarDialog = true"
-          />
-        </el-tooltip>
-      </div>
+  <AppShell class="chat-page">
+    <div class="chat-layout">
+      <aside class="session-sidebar app-surface--glass" aria-label="对话会话">
+        <ChatSessionList :sessions="chatStore.sessions" :current-session-id="chatStore.currentSessionId" :loading="chatStore.loading" :error="chatStore.error || ''" :user="userStore.userInfo" @select="handleSelectSession" @delete="handleDeleteSession" @create="openNewChat" @reload="chatStore.fetchSessions()" />
+      </aside>
 
-      <div class="chat-list">
-        <div class="chat-list-header">
-          <span>最近对话</span>
-          <span class="session-count">{{ chatStore.sessions.length }}</span>
-        </div>
-
-        <div v-if="chatStore.loading && chatStore.sessions.length === 0" class="loading-state">
-          <el-icon :size="32" class="is-loading"><Loading /></el-icon>
-          <span>加载中...</span>
-        </div>
-
-        <div v-else-if="chatStore.sessions.length === 0" class="empty-state">
-          <el-icon :size="48" color="rgba(255,255,255,0.3)"><ChatLineRound /></el-icon>
-          <p>暂无对话</p>
-          <span>点击上方 + 开始新对话</span>
-        </div>
-
-        <div v-else class="chat-items">
-          <div
-            v-for="session in chatStore.sessions"
-            :key="session.id"
-            class="chat-item"
-            :class="{ active: session.id === chatStore.currentSessionId }"
-            @click="handleSelectSession(session)"
-          >
-            <div class="chat-avatar">
-              <ChatSessionAvatar :session="session" :user="userStore.userInfo" :size="40" />
-            </div>
-            <div class="chat-info">
-              <span class="chat-name">{{ session.title || assistantFor(session).name }}</span>
-              <span class="chat-preview">与 {{ assistantFor(session).name }} 的对话</span>
-            </div>
-            <el-icon
-              class="delete-icon"
-              :size="14"
-              @click.stop="handleDeleteSession(session)"
-            >
-              <Close />
-            </el-icon>
-          </div>
-        </div>
-      </div>
-
-      <div class="sidebar-footer">
-        <el-avatar :size="36" style="background: linear-gradient(135deg, #667eea, #764ba2)">
-          {{ userStore.nickname.charAt(0).toUpperCase() }}
-        </el-avatar>
-        <div class="user-info">
-          <span class="user-name">{{ userStore.nickname }}</span>
-          <span class="user-status">在线</span>
-        </div>
-      </div>
-    </aside>
-
-    <main class="chat-main">
-      <template v-if="chatStore.currentSession">
-        <header class="chat-header">
+      <main class="chat-main" aria-label="聊天工作区">
+        <header class="chat-header app-surface--glass">
           <div class="chat-header-left">
-            <ChatSessionAvatar :session="chatStore.currentSession" :user="userStore.userInfo" :size="44" />
+            <el-button class="sessions-toggle" circle :icon="Menu" aria-label="打开会话列表" :aria-expanded="showSessions" @click="showSessions = true" />
+            <ChatSessionAvatar v-if="chatStore.currentSession" :session="chatStore.currentSession" :user="userStore.userInfo" :size="40" />
             <div class="chat-header-info">
-              <h3>{{ chatStore.currentSession.title || currentSessionAvatarName }}</h3>
-              <span class="status-online">
-                <span class="status-dot"></span>
-                {{ chatStore.streaming ? '正在回复...' : '在线' }}
+              <span class="workspace-eyebrow">CHAT SPACE</span>
+              <h1>{{ chatStore.currentSession ? (chatStore.currentSession.title || currentSessionAvatarName) : '对话空间' }}</h1>
+              <span v-if="chatStore.currentSession" class="status-online" role="status">
+                <span class="status-dot" :class="{ responding: chatStore.streaming }"></span>
+                {{ chatStore.streaming ? '正在回复…' : recovering ? '正在同步回复状态' : '准备好继续交流' }}
               </span>
             </div>
           </div>
-          <div class="chat-header-actions">
-            <el-tooltip content="返回首页">
-              <el-button circle :icon="HomeFilled" @click="goHome" />
-            </el-tooltip>
-            <el-tooltip content="删除对话">
-              <el-button circle :icon="Delete" @click="handleDeleteCurrentSession" />
-            </el-tooltip>
+          <div v-if="chatStore.currentSession" class="chat-header-actions">
+            <el-button class="character-toggle" :icon="User" @click="showCharacter = true">角色资料</el-button>
+            <el-tooltip content="删除当前对话"><el-button circle :icon="Delete" aria-label="删除当前对话" @click="handleDeleteCurrentSession" /></el-tooltip>
           </div>
         </header>
 
-        <div class="chat-workspace">
-          <section class="conversation-panel">
-            <div class="chat-messages" ref="messagesRef">
-          <el-alert v-if="recovering" :title="recoveryExpired ? '回复状态尚未确认，请刷新状态后再发送。' : '实时连接已断开，正在同步回复状态…'" type="info" :closable="false">
-            <el-button link @click="chatStore.fetchMessages(chatStore.currentSessionId)">刷新状态</el-button>
-          </el-alert>
-          <div
-            v-for="msg in chatStore.messages"
-            :key="msg.id"
-            class="message-item"
-            :class="msg.role"
-          >
-            <div class="message-avatar">
-              <ChatSessionAvatar
-                :session="chatStore.currentSession"
-                :role="msg.role"
-                :user="userStore.userInfo"
-                :size="36"
-              />
-            </div>
-            <div class="message-content">
-              <div class="message-bubble" :class="{ streaming: msg.streaming }">
-                {{ msg.content || emptyMessageText(msg) }}
-                <span v-if="msg.streaming && msg.content" class="cursor-blink">▊</span>
+        <div v-if="chatStore.currentSession" class="chat-workspace">
+          <section class="conversation-panel app-surface--elevated" aria-label="当前对话">
+            <div class="chat-messages" ref="messagesRef" tabindex="0" role="region" aria-label="对话消息">
+              <el-alert v-if="recovering" :title="recoveryExpired ? '回复状态尚未确认，请刷新状态后再发送。' : '实时连接已断开，正在同步回复状态…'" type="info" :closable="false">
+                <el-button link @click="chatStore.fetchMessages(chatStore.currentSessionId)">刷新状态</el-button>
+              </el-alert>
+              <div v-for="msg in chatStore.messages" :key="msg.id" class="message-item" :class="msg.role">
+                <div class="message-avatar"><ChatSessionAvatar :session="chatStore.currentSession" :role="msg.role" :user="userStore.userInfo" :size="32" /></div>
+                <div class="message-content">
+                  <div class="message-bubble" :class="{ streaming: msg.streaming, 'is-failed': msg.status === CHAT_MESSAGE_STATUS.FAILED }">
+                    {{ msg.content || emptyMessageText(msg) }}
+                    <span v-if="msg.streaming && msg.content" class="cursor-blink" aria-hidden="true">▊</span>
+                  </div>
+                  <div class="message-meta">
+                    <span class="message-time">{{ msg.time }}</span>
+                    <el-tag v-if="msg.role === 'assistant' && msg.status !== CHAT_MESSAGE_STATUS.COMPLETED" :type="messageStatusMeta(msg.status).type" size="small" effect="plain">{{ messageStatusMeta(msg.status).label }}</el-tag>
+                    <el-button v-if="isMessageRetryable(msg)" link type="primary" size="small" :disabled="chatStore.streaming" @click="handleRetry(msg)">重新发送</el-button>
+                  </div>
+                </div>
               </div>
-              <div class="message-meta">
-                <span class="message-time">{{ msg.time }}</span>
-                <el-tag
-                  v-if="msg.role === 'assistant' && msg.status !== CHAT_MESSAGE_STATUS.COMPLETED"
-                  :type="messageStatusMeta(msg.status).type"
-                  size="small"
-                  effect="plain"
-                >
-                  {{ messageStatusMeta(msg.status).label }}
-                </el-tag>
-                <el-button
-                  v-if="isMessageRetryable(msg)"
-                  link
-                  type="primary"
-                  size="small"
-                  :disabled="chatStore.streaming"
-                  @click="handleRetry(msg)"
-                >
-                  重新发送
-                </el-button>
+              <div v-if="chatStore.messages.length === 0" class="no-messages">
+                <span class="empty-symbol"><el-icon :size="28"><ChatDotRound /></el-icon></span>
+                <h2>和 {{ currentSessionAvatarName }} 打个招呼</h2><p>从一个问题或今天的心情开始。</p>
               </div>
-            </div>
-          </div>
-
-          <div v-if="chatStore.messages.length === 0" class="no-messages">
-            <el-icon :size="48" color="rgba(0,0,0,0.2)"><ChatDotRound /></el-icon>
-            <p>开始与 {{ currentSessionAvatarName }} 对话吧！</p>
-          </div>
             </div>
 
             <div class="chat-input-area">
               <div class="input-tools">
-                <el-tooltip content="表情（开发中）">
-                  <el-button circle :icon="Avatar" disabled />
-                </el-tooltip>
-                <el-tooltip content="图片（开发中）">
-                  <el-button circle :icon="Picture" disabled />
-                </el-tooltip>
-                <el-tooltip content="语音（开发中）">
-                  <el-button circle :icon="Microphone" disabled />
-                </el-tooltip>
+                <el-tooltip content="表情（开发中）"><el-button circle :icon="Avatar" aria-label="表情（开发中）" disabled /></el-tooltip>
+                <el-tooltip content="图片（开发中）"><el-button circle :icon="Picture" aria-label="图片（开发中）" disabled /></el-tooltip>
+                <el-tooltip content="语音（开发中）"><el-button circle :icon="Microphone" aria-label="语音（开发中）" disabled /></el-tooltip>
+                <span class="keyboard-hint">Enter 发送 · Shift+Enter 换行</span>
               </div>
               <div class="input-wrapper">
-                <el-input
-                  v-model="inputMessage"
-                  type="textarea"
-                  :rows="2"
-                  :placeholder="chatStore.streaming ? 'AI正在回复中，请稍候...' : '输入消息，Enter 发送，Shift+Enter 换行'"
-                  resize="none"
-                  :disabled="chatStore.streaming"
-                  @keydown.enter.exact.prevent="handleSend"
-                />
-                <el-button
-                  v-if="chatStore.streaming"
-                  type="danger"
-                  circle
-                  class="send-btn"
-                  :icon="VideoPause"
-                  title="停止生成"
-                  @click="handleStop"
-                />
-                <el-button
-                  v-else
-                  type="primary"
-                  circle
-                  class="send-btn"
-                  :icon="Promotion"
-                  :disabled="!inputMessage.trim() || chatStore.streaming || recovering"
-                  @click="handleSend"
-                />
+                <el-input v-model="inputMessage" type="textarea" :rows="2" aria-label="聊天消息" :placeholder="chatStore.streaming ? 'AI正在回复中，请稍候...' : '输入消息，开始交流…'" resize="none" :disabled="chatStore.streaming" @keydown.enter.exact.prevent="handleSend" />
+                <el-button v-if="chatStore.streaming" type="danger" circle class="send-btn" :icon="VideoPause" title="停止生成" aria-label="停止生成" @click="handleStop" />
+                <el-button v-else type="primary" circle class="send-btn" :icon="Promotion" aria-label="发送消息" :disabled="!inputMessage.trim() || chatStore.streaming || recovering" @click="handleSend" />
               </div>
-              <div v-if="chatStore.error" class="error-tip">
-                <el-icon><Warning /></el-icon>
-                <span>{{ chatStore.error }}</span>
-              </div>
+              <div v-if="chatStore.error" class="error-tip" role="alert"><el-icon><Warning /></el-icon><span>{{ chatStore.error }}</span></div>
             </div>
           </section>
-
-          <ChatCharacterPanel
-            :session="chatStore.currentSession"
-            :user="userStore.userInfo"
-            :streaming="chatStore.streaming"
-          />
+          <ChatCharacterPanel class="desktop-character" :session="chatStore.currentSession" :user="userStore.userInfo" :streaming="chatStore.streaming" />
         </div>
-      </template>
 
-      <template v-else>
-        <div class="no-session">
-          <div class="no-session-content">
-            <el-icon :size="80" color="rgba(102,126,234,0.6)"><ChatDotRound /></el-icon>
-            <h2>开始一段新对话</h2>
-            <p>选择一个 AI Character，开启一对一对话</p>
-            <el-button type="primary" size="large" @click="showAvatarDialog = true">
-              <el-icon style="margin-right: 8px"><Plus /></el-icon>
-              新建对话
-            </el-button>
-          </div>
-        </div>
-      </template>
-    </main>
+        <section v-else class="no-session app-surface--glass">
+          <span class="empty-symbol"><el-icon :size="36"><ChatDotRound /></el-icon></span>
+          <span class="workspace-eyebrow">A LITTLE CONVERSATION, A LITTLE CONNECTION</span>
+          <h2>故事，从一句问候开始</h2>
+          <p>选择一位 AI Character，开启专属于你们的对话。</p>
+          <el-button type="primary" size="large" :icon="Plus" @click="openNewChat">新建对话</el-button>
+          <span class="empty-note">也可以从会话列表继续之前的交流</span>
+        </section>
+      </main>
+    </div>
 
-    <el-dialog
-      v-model="showAvatarDialog"
-      title="选择 AI Character"
-      width="560px"
-      :close-on-click-modal="true"
-      class="avatar-dialog"
-    >
+    <el-drawer v-model="showSessions" title="会话列表" direction="ltr" size="min(88vw, 340px)" append-to-body class="app-v2-theme chat-sessions-drawer">
+      <ChatSessionList :sessions="chatStore.sessions" :current-session-id="chatStore.currentSessionId" :loading="chatStore.loading" :error="chatStore.error || ''" :user="userStore.userInfo" @select="handleSelectSession" @delete="handleDeleteSession" @create="openNewChat" @reload="chatStore.fetchSessions()" />
+    </el-drawer>
+    <el-drawer v-model="showCharacter" title="会话角色资料" size="min(92vw, 380px)" append-to-body class="app-v2-theme chat-character-drawer">
+      <ChatCharacterPanel :session="chatStore.currentSession" :user="userStore.userInfo" :streaming="chatStore.streaming" />
+    </el-drawer>
+
+    <el-dialog v-model="showAvatarDialog" title="选择 AI Character" width="min(560px, calc(100vw - 32px))" :close-on-click-modal="true" append-to-body class="app-v2-theme avatar-dialog">
       <div class="avatar-grid">
-        <div
-          v-for="avatar in aiCharacters"
-          :key="avatar.id"
-          class="avatar-card"
-          :class="{ selected: tempAvatarId === avatar.id }"
-          @click="tempAvatarId = avatar.id"
-        >
+        <button v-for="avatar in aiCharacters" :key="avatar.id" type="button" class="avatar-card" :class="{ selected: tempAvatarId === avatar.id }" :aria-pressed="tempAvatarId === avatar.id" @click="tempAvatarId = avatar.id">
           <SimpleAvatar :name="avatar.name" :image-url="avatar.imageUrl" :avatar-color="avatar.avatarColor" :entity-key="avatar.id" type="AI" :size="56" shape="circle" />
-          <div class="avatar-card-info">
-            <h4>{{ avatar.name }}</h4>
-            <p class="avatar-slogan">{{ avatar.identity || avatar.corePersonality || '暂无角色简介' }}</p>
-            <span class="avatar-type">AI Character</span>
-          </div>
-        </div>
-
-        <div v-if="aiCharacters.length === 0" class="no-avatars">
-          <el-icon :size="48" color="rgba(0,0,0,0.2)"><User /></el-icon>
-          <p>你还没有创建 AI Character</p>
-          <el-button type="primary" @click="goToCreateCharacter">去创建</el-button>
-        </div>
+          <span class="avatar-card-info"><strong>{{ avatar.name }}</strong><span class="avatar-slogan">{{ avatar.identity || avatar.corePersonality || '暂无角色简介' }}</span><span class="avatar-type">AI Character</span></span>
+        </button>
+        <div v-if="aiCharacters.length === 0" class="no-avatars"><el-icon :size="40"><User /></el-icon><p>你还没有创建 AI Character</p><el-button type="primary" @click="goToCreateCharacter">去创建</el-button></div>
       </div>
-
-      <template #footer>
-        <el-button @click="showAvatarDialog = false">取消</el-button>
-        <el-button
-          type="primary"
-          :disabled="!tempAvatarId"
-          @click="handleCreateSession"
-        >
-          开始对话
-        </el-button>
-      </template>
+      <template #footer><el-button @click="showAvatarDialog = false">取消</el-button><el-button type="primary" :disabled="!tempAvatarId" @click="handleCreateSession">开始对话</el-button></template>
     </el-dialog>
-  </div>
+  </AppShell>
 </template>
 
 <script setup>
@@ -268,19 +105,15 @@ import { ref, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  MagicStick,
   Plus,
+  Menu,
   User,
   Delete,
   Avatar,
   Picture,
   Microphone,
   Promotion,
-  Loading,
-  Close,
-  ChatLineRound,
   ChatDotRound,
-  HomeFilled,
   Warning,
   VideoPause
 } from '@element-plus/icons-vue'
@@ -288,9 +121,10 @@ import { useChatStore } from '../stores/chat'
 import { useUserStore } from '../stores/user'
 import ChatSessionAvatar from '../components/chat/ChatSessionAvatar.vue'
 import ChatCharacterPanel from '../components/chat/ChatCharacterPanel.vue'
+import ChatSessionList from '../components/chat/ChatSessionList.vue'
+import AppShell from '../components/layout/AppShell.vue'
 import SimpleAvatar from '../components/ui/SimpleAvatar.vue'
 import { getCharacterList } from '../api/character'
-import { resolveAssistantPresentation } from '../utils/chatSessionPresentation'
 import {
   CHAT_MESSAGE_STATUS,
   isMessageActive,
@@ -305,6 +139,9 @@ const userStore = useUserStore()
 const messagesRef = ref(null)
 const inputMessage = ref('')
 const showAvatarDialog = ref(false)
+const showSessions = ref(false)
+const showCharacter = ref(false)
+const openNewChat = () => { showSessions.value = false; showAvatarDialog.value = true }
 const tempAvatarId = ref(null)
 const aiCharacters = ref([])
 const recoveryExpired = ref(false)
@@ -325,7 +162,6 @@ watch(() => `${chatStore.currentSessionId}:${recovering.value}`, (_, __, onClean
   onCleanup(() => { disposed = true; clearTimeout(recoveryTimer) })
 })
 
-const assistantFor = (session) => resolveAssistantPresentation(session)
 
 const currentSessionAvatarName = computed(() => {
   if (!chatStore.currentSession) return ''
@@ -356,13 +192,10 @@ onBeforeUnmount(() => {
   chatStore.stopGeneration()
 })
 
-const goHome = () => {
-  router.push('/home')
-}
-
 const goToCreateCharacter = () => { showAvatarDialog.value = false; router.push('/character/create?type=AI') }
 
 const handleSelectSession = async (session) => {
+  showSessions.value = false
   if (session.id === chatStore.currentSessionId) return
   await chatStore.selectSession(session.id)
 }
@@ -372,7 +205,7 @@ const handleDeleteSession = async (session) => {
     await ElMessageBox.confirm(
       `确定要删除与 ${session.avatarName || session.title} 的对话吗？`,
       '删除确认',
-      { type: 'warning' }
+      { type: 'warning', customClass: 'app-v2-theme chat-confirm' }
     )
     await chatStore.deleteSession(session.id)
     ElMessage.success('对话已删除')
@@ -385,7 +218,7 @@ const handleDeleteCurrentSession = async () => {
   if (!chatStore.currentSessionId) return
   try {
     await ElMessageBox.confirm('确定要删除当前对话吗？', '删除确认', {
-      type: 'warning'
+      type: 'warning', customClass: 'app-v2-theme chat-confirm'
     })
     await chatStore.deleteSession(chatStore.currentSessionId)
     ElMessage.success('对话已删除')
@@ -443,703 +276,53 @@ const emptyMessageText = (message) => {
 </script>
 
 <style lang="scss" scoped>
-.chat-layout {
-  display: flex;
-  height: 100vh;
-  background: #f5f7fb;
-  overflow: hidden;
-}
-
-.sidebar {
-  width: 232px;
-  background: linear-gradient(180deg, #171b31 0%, #141c34 55%, #102643 100%);
-  color: #fff;
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-}
-
-.sidebar-header {
-  padding: 18px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  cursor: pointer;
-  transition: opacity 0.2s;
-
-  &:hover {
-    opacity: 0.8;
-  }
-}
-
-.new-chat-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #fff;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.2);
-  }
-}
-
-.chat-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px 10px;
-}
-
-.chat-list-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 12px 12px;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.5);
-  font-weight: 500;
-
-  .session-count {
-    background: rgba(255, 255, 255, 0.1);
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 11px;
-  }
-}
-
-.loading-state,
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px;
-  color: rgba(255, 255, 255, 0.4);
-  gap: 10px;
-
-  p {
-    font-size: 14px;
-    margin: 0;
-  }
-
-  span {
-    font-size: 12px;
-  }
-}
-
-.chat-items {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.chat-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px;
-  border-radius: 11px;
-  cursor: pointer;
-  transition: all 0.2s;
-  position: relative;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.08);
-  }
-
-  &.active {
-    background: rgba(255, 255, 255, 0.15);
-    box-shadow: 0 0 20px rgba(102, 126, 234, 0.3);
-  }
-
-  .chat-info {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .chat-name {
-    font-size: 14px;
-    font-weight: 600;
-    color: #fff;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .chat-preview {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.5);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .delete-icon {
-    opacity: 0;
-    color: rgba(255, 255, 255, 0.5);
-    transition: all 0.2s;
-
-    &:hover {
-      color: #ff6b6b;
-    }
-  }
-
-  &:hover .delete-icon {
-    opacity: 1;
-  }
-}
-
-.sidebar-footer {
-  padding: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-
-  .user-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .user-name {
-    font-size: 14px;
-    font-weight: 600;
-    color: #fff;
-  }
-
-  .user-status {
-    font-size: 12px;
-    color: #67c23a;
-  }
-}
-
-.chat-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-width: 0;
-}
-
-.chat-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  min-height: 70px;
-  padding: 12px 22px;
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid #ebeef5;
-}
-
-.chat-header-left {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.chat-header-info {
-  h3 {
-    font-size: 16px;
-    font-weight: 600;
-    color: #303133;
-    margin-bottom: 2px;
-  }
-}
-
-.status-online {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: #67c23a;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #67c23a;
-  animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.chat-header-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.chat-workspace {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(290px, 27vw, 390px);
-  gap: 16px;
-  padding: 16px;
-}
-
-.conversation-panel {
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(111, 124, 168, 0.12);
-  border-radius: 20px;
-  box-shadow: 0 18px 50px rgba(44, 55, 92, 0.08);
-}
-
-.chat-avatar-area {
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  color: #f7f8ff;
-  background:
-    radial-gradient(circle at 50% 28%, rgba(111, 98, 255, 0.26), transparent 38%),
-    linear-gradient(160deg, #1a203b 0%, #11182c 58%, #152641 100%);
-  border: 1px solid rgba(126, 139, 255, 0.22);
-  border-radius: 20px;
-  box-shadow: 0 20px 55px rgba(24, 31, 62, 0.18);
-}
-
-.avatar-stage-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 20px 20px 10px;
-
-  h4 {
-    margin: 4px 0 0;
-    font-size: 18px;
-    letter-spacing: 0.02em;
-  }
-}
-
-.avatar-stage-eyebrow {
-  color: rgba(190, 199, 255, 0.62);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-}
-
-.avatar-behavior-label {
-  padding: 5px 9px;
-  color: #b8fff0;
-  background: rgba(55, 211, 175, 0.12);
-  border: 1px solid rgba(55, 211, 175, 0.24);
-  border-radius: 999px;
-  font-size: 10px;
-  text-transform: uppercase;
-}
-
-.avatar-stage {
-  flex: 1;
-  min-height: 300px;
-  margin: 4px 14px;
-  background:
-    radial-gradient(ellipse at 50% 76%, rgba(103, 126, 234, 0.2), transparent 42%),
-    linear-gradient(180deg, rgba(31, 39, 72, 0.36), rgba(11, 17, 33, 0.18));
-  border: 1px solid rgba(149, 159, 255, 0.12);
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  position: relative;
-
-  &::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(
-      circle at center,
-      rgba(102, 126, 234, 0.12) 0%,
-      transparent 70%
-    );
-    pointer-events: none;
-  }
-}
-
-.avatar-stage-footer {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 11px 16px 16px;
-  color: rgba(231, 235, 255, 0.68);
-  font-size: 12px;
-}
-
-.avatar-model-state {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  color: rgba(255, 255, 255, 0.72);
-  font-size: 13px;
-}
-
-.avatar-model-error {
-  color: #ffb4c0;
-}
-
-.chat-messages {
-  flex: 1;
-  padding: 24px clamp(18px, 3vw, 42px);
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  background: linear-gradient(180deg, rgba(247, 249, 253, 0.72), rgba(242, 245, 250, 0.42));
-}
-
-.message-item {
-  display: flex;
-  gap: 12px;
-  width: fit-content;
-  max-width: min(76%, 720px);
-
-  &.user {
-    align-self: flex-end;
-    flex-direction: row-reverse;
-
-    .message-content {
-      align-items: flex-end;
-    }
-
-    .message-bubble {
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      color: #fff;
-    }
-  }
-
-  &.assistant {
-    align-self: flex-start;
-
-    .message-bubble {
-      background: #fff;
-      color: #303133;
-      border: 1px solid #ebeef5;
-    }
-  }
-}
-
-.message-avatar {
-  flex-shrink: 0;
-}
-
-.message-content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.message-bubble {
-  padding: 11px 15px;
-  border-radius: 17px;
-  font-size: 14px;
-  line-height: 1.6;
-  word-break: break-word;
-  white-space: pre-wrap;
-  box-shadow: 0 7px 20px rgba(39, 51, 86, 0.06);
-
-  &.streaming {
-    background: linear-gradient(135deg, #f0f4ff, #e8edff);
-    border: 1px dashed #667eea;
-  }
-}
-
-.cursor-blink {
-  animation: blink 1s step-end infinite;
-  color: #667eea;
-  margin-left: 2px;
-}
-
-@keyframes blink {
-  50% {
-    opacity: 0;
-  }
-}
-
-.message-time {
-  font-size: 11px;
-  color: #c0c4cc;
-  padding: 0 4px;
-}
-
-.message-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 20px;
-}
-
-.no-messages {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  color: rgba(0, 0, 0, 0.3);
-
-  p {
-    margin-top: 12px;
-    font-size: 14px;
-  }
-}
-
-.chat-input-area {
-  flex-shrink: 0;
-  padding: 10px 16px 14px;
-  background: rgba(255, 255, 255, 0.96);
-  border-top: 1px solid rgba(111, 124, 168, 0.12);
-}
-
-.input-tools {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 7px;
-
-  :deep(.el-button) {
-    width: 30px;
-    height: 30px;
-  }
-}
-
-.input-wrapper {
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
-
-  :deep(.el-textarea__inner) {
-    border-radius: 12px;
-    min-height: 54px !important;
-    padding: 10px 14px;
-    font-size: 14px;
-  }
-}
-
-.send-btn {
-  height: 38px;
-  width: 38px;
-  flex-shrink: 0;
-}
-
-.error-tip {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 8px;
-  padding: 8px 12px;
-  background: #fef0f0;
-  border-radius: 8px;
-  font-size: 12px;
-  color: #f56c6c;
-}
-
-.no-session {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  .no-session-content {
-    text-align: center;
-    padding: 60px;
-
-    h2 {
-      margin: 16px 0 8px;
-      color: #303133;
-    }
-
-    p {
-      color: #909399;
-      margin-bottom: 24px;
-    }
-  }
-}
-
-@media (max-width: 1180px) {
-  .sidebar {
-    width: 210px;
-  }
-
-  .chat-workspace {
-    grid-template-columns: minmax(0, 1fr) 300px;
-    gap: 12px;
-    padding: 12px;
-  }
-}
-
-@media (max-width: 900px) {
-  .sidebar {
-    width: 190px;
-  }
-
-  .chat-workspace {
-    display: flex;
-    flex-direction: column-reverse;
-  }
-
-  .chat-avatar-area {
-    flex: 0 0 220px;
-  }
-
-  .avatar-stage-header,
-  .avatar-stage-footer {
-    display: none;
-  }
-
-  .avatar-stage {
-    min-height: 0;
-  }
-}
-
-@media (max-width: 680px) {
-  .sidebar {
-    width: 76px;
-  }
-
-  .logo span,
-  .chat-list-header span:first-child,
-  .chat-info,
-  .sidebar-footer .user-info {
-    display: none;
-  }
-
-  .sidebar-header,
-  .sidebar-footer {
-    justify-content: center;
-  }
-
-  .chat-item {
-    justify-content: center;
-  }
-
-  .chat-workspace {
-    padding: 8px;
-  }
-
-  .message-item {
-    max-width: 90%;
-  }
-}
-
-.avatar-dialog {
-  :deep(.el-dialog__body) {
-    padding: 10px 20px;
-  }
-}
-
-.avatar-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
-  max-height: 420px;
-  overflow-y: auto;
-  padding: 10px 0;
-}
-
-.avatar-card {
-  display: flex;
-  gap: 12px;
-  padding: 12px;
-  border: 2px solid transparent;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    border-color: #c4d0ff;
-    background: #f5f7ff;
-  }
-
-  &.selected {
-    border-color: #667eea;
-    background: #f0f4ff;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
-  }
-}
-
-.avatar-card-preview {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 20px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.avatar-card-info {
-  flex: 1;
-  min-width: 0;
-
-  h4 {
-    font-size: 15px;
-    font-weight: 600;
-    color: #303133;
-    margin-bottom: 4px;
-  }
-}
-
-.avatar-slogan {
-  font-size: 12px;
-  color: #909399;
-  margin-bottom: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.avatar-type {
-  font-size: 11px;
-  color: #667eea;
-  background: #eef1ff;
-  padding: 2px 8px;
-  border-radius: 10px;
-}
-
-.no-avatars {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 40px;
-  color: rgba(0, 0, 0, 0.4);
-
-  p {
-    margin: 12px 0 16px;
-  }
-}
+.chat-page.app-shell{height:100dvh;min-height:0;overflow:hidden}
+.chat-page.app-shell :deep(.app-shell__content){flex:1 1 0;min-height:0;overflow:hidden}
+.chat-page .chat-layout{width:100%;min-width:0;min-height:0;flex:1 1 0;display:flex;gap:20px;padding:20px;overflow:hidden;color:var(--app-text-primary)}
+.chat-page :deep(.el-button){min-height:44px;margin-left:0;border-radius:var(--app-radius-sm);font-weight:700}
+.chat-page :deep(.el-button--primary){--el-button-bg-color:var(--app-accent-primary);--el-button-border-color:var(--app-accent-primary);--el-button-hover-bg-color:var(--app-accent-primary-strong);--el-button-hover-border-color:var(--app-accent-primary-strong);--el-button-active-bg-color:var(--app-accent-primary-strong);--el-button-active-border-color:var(--app-accent-primary-strong);--el-button-disabled-bg-color:var(--app-lavender-soft);--el-button-disabled-border-color:var(--app-border);--el-button-disabled-text-color:var(--app-text-secondary)}
+.chat-page :deep(.el-button--primary.is-link){color:var(--app-accent-primary-strong)}
+.session-sidebar{flex:0 0 248px;min-width:0;min-height:0;overflow:hidden}
+.chat-main{min-width:0;min-height:0;flex:1;display:flex;flex-direction:column;gap:16px}
+.chat-header{flex:none;min-width:0;min-height:86px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px}
+.chat-header-left{min-width:0;display:flex;align-items:center;gap:12px}.chat-header-info{min-width:0}.workspace-eyebrow{display:block;color:var(--app-accent-primary-strong);font-size:10px;font-weight:800;letter-spacing:1.4px}.chat-header-info h1{margin:4px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--app-text-primary);font-size:18px;font-weight:750;letter-spacing:-.02em}
+.status-online{display:flex;align-items:center;gap:6px;color:var(--app-text-secondary);font-size:12px}.status-dot{width:6px;height:6px;border-radius:50%;background:var(--app-success)}.status-dot.responding{background:var(--app-accent-primary);animation:chat-pulse 1.5s ease-in-out infinite}
+.chat-header-actions{flex:none;display:flex;align-items:center;gap:8px}.chat-header-actions :deep(.el-button){color:var(--app-text-secondary);background:var(--app-surface);border-color:var(--app-border-strong)}.chat-header-actions :deep(.el-button:hover){color:var(--app-accent-primary-strong);border-color:var(--app-accent-primary)}
+.sessions-toggle,.character-toggle{display:none}
+.chat-workspace{min-width:0;min-height:0;flex:1;display:grid;grid-template-columns:minmax(0,1fr) 272px;gap:16px}
+.conversation-panel{min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.chat-messages{min-height:0;flex:1;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:28px clamp(16px,2vw,32px);display:flex;flex-direction:column;gap:22px;background:linear-gradient(180deg,var(--app-surface-glass),var(--app-surface-inset))}
+.chat-messages:focus-visible{outline:2px solid var(--app-accent-primary);outline-offset:-3px}
+.message-item{min-width:0;flex:none;display:flex;gap:10px;width:fit-content;max-width:min(92%,760px)}
+.message-item.user{align-self:flex-end;flex-direction:row-reverse}.message-item.user .message-content{align-items:flex-end}.message-item.user .message-bubble{color:var(--app-text-inverse);background:var(--app-accent-primary);border-color:var(--app-accent-primary);border-bottom-right-radius:4px}
+.message-item.assistant{align-self:flex-start}.message-item.assistant .message-bubble{border-bottom-left-radius:4px}
+.message-avatar{flex:none;padding-top:4px}.message-content{min-width:0;display:flex;flex-direction:column;gap:6px}
+.message-bubble{min-width:0;padding:13px 17px;border:1px solid var(--app-border);border-radius:var(--app-radius-md);background:var(--app-surface);color:var(--app-text-primary);font-size:var(--app-type-body);line-height:1.75;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:var(--app-shadow-sm)}
+.message-bubble.streaming{border-color:var(--app-accent-primary);background:var(--app-lavender-soft)}.message-bubble.is-failed{border-color:var(--app-danger);background:var(--app-danger-soft);color:var(--app-danger)}
+.cursor-blink{margin-left:2px;color:var(--app-accent-primary);animation:chat-blink 1s step-end infinite}
+.message-meta{display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-height:20px}.message-time{padding:0 3px;color:var(--app-text-secondary);font-size:11px}.message-meta :deep(.el-button){min-height:28px;font-size:12px}.message-meta :deep(.el-tag){border-radius:var(--app-radius-pill)}
+.message-meta :deep(.el-tag--danger){color:var(--app-danger);border-color:var(--app-danger);background:var(--app-danger-soft)}
+.chat-input-area{flex:none;padding:12px 18px 18px;border-top:1px solid var(--app-border);background:var(--app-surface-elevated)}
+.input-tools{display:flex;align-items:center;gap:6px;margin-bottom:10px}.input-tools :deep(.el-button){width:30px;height:30px;min-height:30px;border:0;background:var(--app-surface-inset);color:var(--app-text-secondary)}.keyboard-hint{margin-left:auto;color:var(--app-text-secondary);font-size:11px}
+.input-wrapper{min-width:0;display:flex;align-items:flex-end;gap:12px}.input-wrapper :deep(.el-textarea){min-width:0;flex:1}.input-wrapper :deep(.el-textarea__inner){min-height:76px!important;padding:12px 14px;border-radius:var(--app-radius-sm);background:var(--app-surface-inset);color:var(--app-text-primary);font-size:15px;line-height:1.6;box-shadow:0 0 0 1px var(--app-border-strong) inset}.input-wrapper :deep(.el-textarea__inner::placeholder){color:var(--app-text-secondary)}.input-wrapper :deep(.el-textarea__inner:focus){box-shadow:0 0 0 2px var(--app-accent-primary) inset,var(--app-focus-ring)}.input-wrapper :deep(.el-textarea.is-disabled .el-textarea__inner){background:var(--app-surface-inset);color:var(--app-text-secondary)}
+.send-btn.el-button--danger{--el-button-bg-color:var(--app-danger);--el-button-border-color:var(--app-danger);--el-button-hover-bg-color:var(--app-danger);--el-button-hover-border-color:var(--app-danger)}
+.send-btn{flex:none;width:44px;height:44px;border-radius:var(--app-radius-sm)!important}.send-btn:focus-visible{outline:2px solid var(--app-accent-primary);outline-offset:3px;box-shadow:var(--app-focus-ring)}
+.error-tip{display:flex;align-items:flex-start;gap:8px;margin-top:12px;padding:10px 12px;border:1px solid var(--app-danger);border-radius:var(--app-radius-sm);background:var(--app-danger-soft);color:var(--app-danger);font-size:13px;line-height:1.5;overflow-wrap:anywhere}.error-tip .el-icon{flex:none;margin-top:2px}
+.no-session{min-width:0;min-height:0;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:32px;text-align:center;overflow:auto}.no-session h2{max-width:100%;color:var(--app-text-primary);font-size:clamp(24px,3vw,34px);letter-spacing:-.03em;overflow-wrap:anywhere}.no-session p{color:var(--app-text-secondary);line-height:1.7}.no-session .workspace-eyebrow{max-width:100%;line-height:1.7;font-size:10px}.no-session :deep(.el-button){margin-top:8px}.empty-note{color:var(--app-text-secondary);font-size:12px}
+.empty-symbol{flex:none;width:72px;height:72px;display:grid;place-items:center;border:1px solid var(--app-border);border-radius:var(--app-radius-lg);color:var(--app-accent-primary);background:var(--app-lavender-soft)}
+.no-messages{min-height:220px;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px 8px;text-align:center;color:var(--app-text-secondary)}.no-messages h2{font-size:18px;font-weight:650;color:var(--app-text-primary)}.no-messages p{font-size:14px;line-height:1.7}
+.avatar-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;max-height:55dvh;overflow-y:auto;padding:4px}.avatar-card{display:flex;align-items:center;gap:12px;min-width:0;padding:14px;text-align:left;color:var(--app-text-primary);border:1px solid var(--app-border);border-radius:var(--app-radius-md);background:var(--app-surface-inset)}.avatar-card:hover{border-color:var(--app-accent-secondary)}.avatar-card.selected{border-color:var(--app-accent-primary);background:var(--app-lavender-soft);box-shadow:var(--app-selected-glow)}.avatar-card-info{min-width:0;display:flex;flex-direction:column;gap:6px}.avatar-card-info strong{font-size:15px;overflow-wrap:anywhere}.avatar-slogan{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--app-text-secondary);font-size:12px}.avatar-type{align-self:flex-start;padding:3px 7px;border-radius:var(--app-radius-pill);background:var(--app-lavender-soft);color:var(--app-accent-primary-strong);font-size:10px}.no-avatars{grid-column:1/-1;padding:24px;text-align:center;color:var(--app-text-secondary)}.no-avatars p{margin:12px 0 18px}
+@keyframes chat-blink{50%{opacity:0}}@keyframes chat-pulse{50%{opacity:.35}}
+@media(max-width:1279px){.session-sidebar{flex-basis:224px}.chat-workspace{grid-template-columns:minmax(0,1fr)}.desktop-character{display:none}.character-toggle{display:inline-flex}}
+@media(max-width:1000px){.session-sidebar{display:none}.sessions-toggle{display:inline-flex}.chat-page .chat-layout{padding:16px}.chat-header{padding:12px 16px}}
+@media(max-width:600px){.chat-page .chat-layout{padding:10px;gap:0}.chat-main{gap:10px}.chat-header{min-height:72px;padding:10px;gap:8px}.chat-header-left{gap:8px}.chat-header-info h1{font-size:15px}.workspace-eyebrow{font-size:9px}.chat-header-actions{gap:4px}.chat-header-actions :deep(.el-button){padding:8px}.character-toggle :deep(.el-icon){display:none}.status-online{font-size:10px}.chat-workspace{gap:0}.chat-messages{gap:18px;padding:18px 12px}.message-item{max-width:100%;gap:7px}.message-bubble{font-size:14px;padding:11px 13px}.chat-input-area{padding:10px 12px 12px}.input-wrapper{gap:8px}.input-wrapper :deep(.el-textarea__inner){font-size:16px;min-height:72px!important}.keyboard-hint{display:none}.input-tools{margin-bottom:8px}.no-session{padding:24px 16px}.no-session h2{font-size:24px}.no-session .workspace-eyebrow{display:none}.avatar-grid{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.cursor-blink,.status-dot.responding{animation:none}}
+@media(forced-colors:active){.message-bubble,.error-tip,.avatar-card{border:1px solid CanvasText}.avatar-card.selected{outline:2px solid Highlight}}
+</style>
+
+<style lang="scss">
+.chat-sessions-drawer,.chat-character-drawer,.avatar-dialog,.chat-confirm{color:var(--app-text-primary);background:var(--app-surface-elevated);--el-color-primary:var(--app-accent-primary);--el-color-primary-light-3:var(--app-accent-primary);--el-color-primary-dark-2:var(--app-accent-primary-strong);--el-text-color-primary:var(--app-text-primary);--el-text-color-regular:var(--app-text-primary);--el-border-radius-base:var(--app-radius-sm)}
+.chat-confirm{border-radius:var(--app-radius-md)}.chat-confirm .el-button{min-height:44px;border-radius:var(--app-radius-sm)}
+.chat-sessions-drawer .el-drawer__header,.chat-character-drawer .el-drawer__header{margin-bottom:12px;color:var(--app-text-primary)}.chat-sessions-drawer .el-drawer__body{min-height:0;padding:0 12px 12px;overflow:hidden}.chat-character-drawer .el-drawer__body{padding:4px 16px 16px}.chat-character-drawer .chat-character-panel{min-height:100%}
+.avatar-dialog{border-radius:var(--app-radius-lg)}.avatar-dialog .el-dialog__title{color:var(--app-text-primary);font-weight:750}.avatar-dialog .el-button{min-height:44px}.avatar-dialog .el-dialog__body{padding:12px 20px}
 </style>
