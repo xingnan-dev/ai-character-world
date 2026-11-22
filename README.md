@@ -160,7 +160,7 @@ flowchart TB
 | Backend | Java 17, Spring Boot 3.2.5, Spring MVC, Security, Validation, Reactor Core |
 | Persistence | MyBatis-Plus 3.5.5, Flyway, MySQL Connector/J, HikariCP |
 | AI | OpenAI-compatible / Mock provider, SSE, structured JSON, prompt templates, OkHttp 4.12 |
-| Frontend | Vue 3.4, Vue Router 4.3, Pinia 2.1, Element Plus 2.6, Axios 1.6, Vite 5.2, Sass |
+| Frontend | Vue 3.4, Vue Router 4.3, Pinia 2.1, Element Plus 2.6, Axios 1.6, Vite 5.x, Sass |
 | Testing | JUnit 5, Spring Boot Test, Mockito, H2, Node.js test runner |
 
 仓库保留 Spring Data Redis 依赖及相关类，但 Redis 默认关闭且不是当前本地运行的硬依赖。
@@ -201,81 +201,51 @@ ai-character-world/
 
 ## 快速开始
 
-前置条件：JDK 17、Maven、兼容 Vite 5 的 Node.js/npm、MySQL，以及 OpenAI-compatible endpoint（例如 Qwen compatible-mode）或内置 Mock LLM。仓库未提供 Maven Wrapper 或容器化配置。
+本地核心使用不要求公网部署。前置条件为 Java 17、Maven、Node.js/npm、MySQL；Redis 默认禁用，图片 Provider 为可选项。实测版本和完整配置顺序见 [本地运行与配置](docs/LOCAL_RUN.md)。
 
-```bash
-git clone https://github.com/xingnan-dev/ai-character-world.git
-cd ai-character-world
-```
-
-创建 `ai_virtual_companion` 数据库。默认连接为 `127.0.0.1:3307`；其他端口请覆盖 `DB_URL`。Flyway 会在后端启动时自动迁移。
-
-```text
-DB_URL=jdbc:mysql://127.0.0.1:3307/ai_virtual_companion?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8
-DB_USERNAME=root
-DB_PASSWORD=your-password
-JWT_SECRET=replace-with-at-least-32-utf8-bytes
-AI_PROVIDER=openai-compatible
-AI_API_URL=https://your-provider.example/v1/chat/completions
-AI_API_KEY=YOUR_API_KEY
-AI_MODEL_NAME=your-model-name
-```
-
-真实 AI 本地运行建议显式设置 `SPRING_PROFILES_ACTIVE=local-real`（无需新增 profile 文件），使用上述 `DB_*`、`JWT_SECRET`、`AI_*` 环境变量，并设置 `AI_MOCK_ENABLED=false`。默认 `dev` 会读取被 Git 忽略的 `application-dev.yml`；该本地文件可能显式启用 Mock，覆盖基础配置中的占位值。环境变量 `LLM_*` 不是本应用的配置名称，不会自动生效；已有此类配置时，应在启动进程中明确映射到 `AI_API_KEY`、`AI_MODEL_NAME` 和 `AI_API_URL`，不把密钥写入命令历史。`AI_API_URL` 必须是完整的 Chat Completions 地址（以 `/chat/completions` 结尾），而非仅 `/v1` base URL。
-
-PowerShell 中，在当前进程已安全提供上述环境变量后运行：
+1. 准备自己命名的 MySQL 空库及有该库权限的账号；默认端口3307。首次验收不要使用日常数据。
+2. 按 [`.env.example`](.env.example) 的键名在后端进程提供 `DB_*`、`JWT_SECRET`、`AI_*`。该示例不会自动加载，也不含秘密。
+3. 显式设置 `SPRING_PROFILES_ACTIVE=local-real`、`AI_PROVIDER=openai-compatible`、`AI_MOCK_ENABLED=false`。完整 Provider URL 须含 `/chat/completions`；`LLM_*` 不会自动映射。不要将真实值写进命令历史或 Git。
+4. 后端终端执行：
 
 ```powershell
-$env:SPRING_PROFILES_ACTIVE = 'local-real'
-$env:AI_PROVIDER = 'openai-compatible'
-$env:AI_MOCK_ENABLED = 'false'
-# DB_URL 指向独立验收库；先创建空库，不要对日常库进行初始化验收
-# AI_API_KEY、AI_API_URL、AI_MODEL_NAME、DB_USERNAME、DB_PASSWORD、JWT_SECRET 已在进程环境中提供
 cd backend
 mvn spring-boot:run
+# http://localhost:8080
 ```
 
-首次启动会自动执行 Flyway；同版本再次启动应显示校验通过且 schema up to date。数据库、角色与消息保留在 MySQL 中；停止后端使用终端 Ctrl+C。Mock 仍可用于隔离开发测试，但其响应不能证明真实 Provider 可用。
+5. 第二个终端执行：
 
-无外部 LLM 时可设置 `AI_MOCK_ENABLED=true`。Character Image API 是可选集成，仅在调用相关功能时需要 `ZHIPU_IMAGE_API_KEY`。
-
-```bash
-cd backend
-mvn spring-boot:run
-# Backend: http://localhost:8080
-```
-
-```bash
+```powershell
 cd frontend
 npm ci
 npm run dev
-# Frontend: http://localhost:5173
+# http://localhost:5173；/api 与 /generated-images 代理到8080
 ```
 
-Vite 将 `/api` 和 `/generated-images` 代理到 `http://localhost:8080`。
+Flyway 会在启动时自动校验／迁移；缺 AI 配置失败不意味着数据库未被迁移。推荐 `SPRING_FLYWAY_BASELINE_ON_MIGRATE=false`，不修改已执行迁移。`local-real` 不需要额外 profile 文件，可避免加载本机 `dev` 覆盖配置。Mock 可用于开发，但不证明真实 AI 可用；切换、停止和同库重启详见运行说明。
 
-聊天中的停止和页面刷新会断开 SSE，并尝试取消上游 HTTP 请求；服务端确认断开可能晚于点击操作。界面会在断开后自动读回活跃消息状态（最多 150 秒），超时后显示手动刷新提示，确认终态前暂停再次发送。取消后的消息保留用户输入与停止状态，但当前不会持久化未完成的部分回复。不能据此保证 Provider 服务端已停止计算或不再计费。
+日常顺序见 [使用／演示指南](docs/USER_GUIDE.md)。第一次从角色进入聊天、或刷新页面后，可能需在左侧选择会话。图片默认保存到后端工作目录下的 `generated-images/`，可用 `IMAGE_STORAGE_DIRECTORY` 固定位置。
 
+## 验收与已知限制
 
-自动记忆只接受有用户原文证据、置信度至少 0.8 的提取值；明确疑问分句不作事实提取，含假设或小说台词标记的消息会保守跳过，因此混合真实资料与假设的消息可能少记。规则回退使用同样的输入边界。该检查不保证理解所有语言或识别所有隐含引用，也不会自动清理旧版本已保存的错误记忆；旧条目需通过现有记忆更新/删除接口纠正。角色聊天记忆按用户与角色保存，检索合并该用户的全局记忆和当前角色记忆；全局记忆并非所有角色对话自动共享。关系与成长仅在评估认为存在有意义证据时更新，不保证每轮变化。
+[当前验收摘要](docs/ACCEPTANCE_STATUS.md)是验证方式、对应版本和最终候选测试成绩的单一索引；[已知限制与待办](docs/KNOWN_LIMITATIONS.md)区分阻断、正确性、体验和未验证事项。历史测试数字不代表当前源码实测。
+
+角色记忆的提取值采用原文片段，当前不支持任意自由概括；明确疑问、假设、小说台词、计划和猜测有保守过滤。World 可保留摘要作检索线索，但后续事实 Prompt 仅使用带来源与限定语的核验引文。来源约束不等于语义真值，也不自动清洗旧错误记忆。关系／成长按有意义证据评估，不保证每轮变化。
+
+聊天停止／刷新可能延迟确认，不保存未完成片段，也不保证停止 Provider 计费。World 的 Round 完成早于记忆后处理，后处理无崩溃自动补偿。Agent 只读且有步数／尝试上限；恢复只支持后端允许的检查点。历史库升级和真实 Provider 崩溃恢复不因其他场景通过而自动成为已验证。
 
 ## 测试
 
-```bash
-cd backend && mvn test
-cd frontend && npm test
+```powershell
+cd backend
+mvn test
+cd ../frontend
+npm test
 npm run build
 ```
 
-当前 `develop` 基线实测结果：
-
-- Backend：482 tests，0 failures，0 errors，1 skipped。
-- Frontend：290 / 290 passed。
-- Frontend production build：PASS（存在非阻断 Sass legacy API 和 bundle-size warnings）。
-
-Agent A.1 通过了真实 OpenAI-compatible GLM smoke test，覆盖合法 `TOOL_CALL`、Java Tool 执行、Tool Result 进入下一轮 LLM Decision、`FINAL`、World context Tool、Multi-Tool flow、Decision correction retry，以及 duplicate completed Tool guard。
-
-Agent A.2 还通过了真实 OpenAI-compatible Qwen UI smoke test：Direct FINAL 和 Character Tool Run 均从浏览器创建并完成；`get_character_context` 的 arguments、Java Tool observation、下一轮 Decision、最终结果、Timeline 与 Step Detail 均得到真实验证。验收使用隔离 H2 数据库，不包含 API key、个人账号或具体 token cost。
+后端测试强制 H2 内存隔离并关闭 Flyway；构建的 Sass／大分块警告当前不是功能阻断。具体本轮成绩与历史区别见验收摘要。
 
 ## 技术说明
 

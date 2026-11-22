@@ -1,11 +1,11 @@
 # CLAUDE.md
 
-AI Virtual Companion —— AI 3D 数字分身聊天平台（Vue 3 前端 + Spring Boot 3 后端）。
+AI Character World —— 本地 AI 角色互动平台（保留 3D 兼容代码）（Vue 3 前端 + Spring Boot 3 后端）。
 本文件记录长期开发约定；运行说明见 README.md。
 
 ## Project Overview
 AI 虚拟伴侣应用：VRM 3D 形象、AI 角色创建与图片生成、SSE 流式聊天、多角色世界
-（world）回合编排、记忆检索。按 phase 阶段迭代开发（当前 phase-c7）。
+（world）回合编排、记忆检索和只读 Agent。阶段与验证范围见 docs/ACCEPTANCE_STATUS.md。
 
 ## Tech Stack
 - 后端：Java 17、Spring Boot 3.2.5、Spring Security(JWT)、MyBatis-Plus 3.5.5、
@@ -17,13 +17,14 @@ AI 虚拟伴侣应用：VRM 3D 形象、AI 角色创建与图片生成、SSE 流
 
 ## Project Structure
 - `backend/`：Spring Boot，分层 controller / service(接口)+service/impl / mapper /
-  entity / dto；领域包 ai、avatar/generation、character、chat、world、image、
+  entity / dto；领域包 ai、agent、avatar/generation、character、chat、world、image、
   security、config
-- `backend/src/main/resources/db/migration/`：Flyway 迁移（V1–V19）
+- `backend/src/main/resources/db/migration/`：Flyway 迁移（当前 V1–V27，后续以目录为准）
 - `backend/src/main/resources/prompts/`：LLM prompt 模板（*.md）
 - `frontend/src/`：views / components / stores / api / utils / three / avatar / router
 - `frontend/tests/`：Node 内置测试（*.test.js）
 - `scripts/`：图片人工验收脚本与说明
+- `docs/`：普通运行、使用指南、验收摘要和已知限制；不把本地取证目录当公共交付依赖
 
 ## Architecture
 - 后端经典分层；MyBatis-Plus 用 `BaseMapper` + 注解，不新增 XML mapper
@@ -45,7 +46,8 @@ AI 虚拟伴侣应用：VRM 3D 形象、AI 角色创建与图片生成、SSE 流
 - Java 17；沿用既有分层与命名（表前缀 `t_`、根包 `com.companion`）
 - 配置走 `application.yml` 的环境变量占位（如 `${DB_URL:…}`）；本地敏感值放
   gitignored 的 `application-dev.yml`，不提交真实密钥
-- dev 使用 mock AI provider；真实 provider 依赖环境变量注入
+- dev 可能受本机 application-dev.yml 覆盖；普通真实运行用 local-real + AI_* 环境变量，显式关闭 Mock，见 docs/LOCAL_RUN.md
+- 默认关闭 SQL 明细和无用的生成式默认账号；不得为了诊断输出凭证或完整私人 Prompt
 
 ## Frontend Rules
 - Vue 3 Composition API；路由鉴权走 `router.beforeEach` + `meta.requiresAuth`

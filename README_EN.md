@@ -156,7 +156,7 @@ The backend is a modular monolith that owns authentication, orchestration, domai
 | Backend | Java 17, Spring Boot 3.2.5, Spring MVC, Security, Validation, Reactor Core |
 | Persistence | MyBatis-Plus 3.5.5, Flyway, MySQL Connector/J, HikariCP |
 | AI | OpenAI-compatible / Mock provider, SSE, structured JSON, prompt templates, OkHttp 4.12 |
-| Frontend | Vue 3.4, Vue Router 4.3, Pinia 2.1, Element Plus 2.6, Axios 1.6, Vite 5.2, Sass |
+| Frontend | Vue 3.4, Vue Router 4.3, Pinia 2.1, Element Plus 2.6, Axios 1.6, Vite 5.x, Sass |
 | Testing | JUnit 5, Spring Boot Test, Mockito, H2, Node.js test runner |
 
 Redis-related classes and a Spring Data Redis dependency remain, but Redis is disabled by default and is not required by the current local runtime path.
@@ -197,60 +197,51 @@ ai-character-world/
 
 ## Getting Started
 
-Prerequisites: JDK 17, Maven, Node.js/npm compatible with Vite 5, MySQL, and either an OpenAI-compatible endpoint (for example, Qwen compatible-mode) or the built-in mock LLM. The repository includes neither Maven Wrapper nor container configuration.
+This is a local application; public deployment is not required. Use Java 17, Maven, Node.js/npm and MySQL. Redis is disabled by default. See [local setup](docs/LOCAL_RUN.md) for the tested environment, secure PowerShell configuration, startup, shutdown and restart steps.
 
-```bash
-git clone https://github.com/xingnan-dev/ai-character-world.git
-cd ai-character-world
-```
+1. Create a separately named MySQL database. The default server port is 3307. Do not initialize against daily user data.
+2. Provide `DB_*`, `JWT_SECRET`, and `AI_*` in the backend process environment. [`.env.example`](.env.example) is a reference, **not an automatically loaded file**.
+3. Set `SPRING_PROFILES_ACTIVE=local-real`, `AI_PROVIDER=openai-compatible`, and `AI_MOCK_ENABLED=false`. No additional profile file is required. This avoids the ignored local `dev` overrides. `AI_API_URL` must include `/chat/completions`; legacy `LLM_*` variables are not automatically mapped.
+4. Start the backend:
 
-Create the `ai_virtual_companion` database. The default connection expects MySQL at `127.0.0.1:3307`; override `DB_URL` for another port. Flyway migrates the database on backend startup.
-
-```text
-DB_URL=jdbc:mysql://127.0.0.1:3307/ai_virtual_companion?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8
-DB_USERNAME=root
-DB_PASSWORD=your-password
-JWT_SECRET=replace-with-at-least-32-utf8-bytes
-AI_PROVIDER=openai-compatible
-AI_API_URL=https://your-provider.example/v1/chat/completions
-AI_API_KEY=YOUR_API_KEY
-AI_MODEL_NAME=your-model-name
-```
-
-Set `AI_MOCK_ENABLED=true` to run without an external LLM. The character-image API is optional and requires `ZHIPU_IMAGE_API_KEY` only when that feature is invoked.
-
-```bash
+```powershell
 cd backend
 mvn spring-boot:run
-# Backend: http://localhost:8080
+# http://localhost:8080
 ```
 
-```bash
+5. In a second terminal:
+
+```powershell
 cd frontend
 npm ci
 npm run dev
-# Frontend: http://localhost:5173
+# http://localhost:5173; API and generated-image requests proxy to 8080
 ```
 
-Vite proxies `/api` and `/generated-images` to `http://localhost:8080`.
+Flyway runs on startup. A later AI configuration failure does not mean the database was untouched. Use `SPRING_FLYWAY_BASELINE_ON_MIGRATE=false` and never edit applied migrations. Keep secrets out of Git, command history and logs. Mock is useful for development and does not prove a real Provider works.
+
+Follow the [usage guide](docs/USER_GUIDE.md). After entering or refreshing Chat, select the desired session from the list if needed. Generated images default to `./generated-images` relative to the backend working directory; `IMAGE_STORAGE_DIRECTORY` can pin the location.
+
+## Validation and Limitations
+
+The [acceptance summary](docs/ACCEPTANCE_STATUS.md) records methods, tested code baselines and the current candidate's check results. [Known limitations](docs/KNOWN_LIMITATIONS.md) separates correctness, usability and unverified scenarios. Historical counts are not current-version test results.
+
+Character memory values currently require source phrases; free-form paraphrases can be rejected. World summaries support retrieval, while new factual Prompt context uses grounded source quotes with uncertainty/plan markers. Source checks are not a semantic truth guarantee. Relationship and growth changes are conditional, not guaranteed per turn.
+
+Chat cancellation may be delayed, discards unfinished partial replies and cannot guarantee upstream billing stops. World Round completion precedes memory post-processing, which has no crash compensation. Agent tools are read-only and bounded; resume only applies to backend-authorized checkpoints. Historical database upgrades and real-Provider crash recovery remain separate unverified cases.
 
 ## Testing
 
-```bash
-cd backend && mvn test
-cd frontend && npm test
+```powershell
+cd backend
+mvn test
+cd ../frontend
+npm test
 npm run build
 ```
 
-Verified on the current `develop` baseline:
-
-- Backend: 482 tests, 0 failures, 0 errors, 1 skipped.
-- Frontend: 290 / 290 passed.
-- Frontend production build: PASS, with non-blocking Sass legacy API and bundle-size warnings.
-
-Agent A.1 passed real OpenAI-compatible GLM smoke tests covering valid `TOOL_CALL` decisions, Java tool execution, Tool Result handoff to the next LLM decision, `FINAL`, the world-context tool, a multi-tool flow, decision correction retry, and the duplicate completed tool guard.
-
-Agent A.2 also passed a real OpenAI-compatible Qwen UI smoke test. Direct FINAL and Character Tool Runs were created and completed through the browser, with real verification of `get_character_context` arguments, the Java tool observation, the following decision, final-result persistence, the Timeline, and Step Detail. Acceptance used an isolated H2 database and records no API key, personal account identifier, or specific token cost.
+Backend tests enforce isolated H2 memory storage with Flyway disabled. Sass and bundle warnings are recorded separately from functional failures. See the acceptance summary for this stage's actual results.
 
 ## Technical Notes
 
