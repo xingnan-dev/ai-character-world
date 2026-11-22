@@ -39,7 +39,9 @@ spring:
       database: 0
       timeout: 5000ms
   autoconfigure:
-    exclude: org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
 
   servlet:
     multipart:
@@ -52,7 +54,7 @@ mybatis-plus:
   type-aliases-package: com.companion.entity
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
   global-config:
     banner: false
     db-config:
@@ -96,7 +98,7 @@ ai:
 logging:
   level:
     root: INFO
-    com.companion: DEBUG
+    com.companion: INFO
 
 app:
   redis:
