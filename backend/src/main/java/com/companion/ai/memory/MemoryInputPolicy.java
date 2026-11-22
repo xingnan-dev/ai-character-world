@@ -11,11 +11,17 @@ final class MemoryInputPolicy {
             "如果|假如|假设|要是|倘若|小说|台词|角色说|角色的台词|\\b(?:if|suppose|imagine|hypothetical|fictional dialogue)\\b",
             Pattern.CASE_INSENSITIVE);
 
+    private static final Pattern NON_ASSERTION = Pattern.compile(
+            "我(?:猜测|猜想|怀疑|推测|计划|打算)|据说|听说|传闻|也许|或许|可能(?:是|有|会)|\\b(?:maybe|perhaps|might|rumou?r|suspect|unconfirmed|plan to|planning to|intend to|propose to)\\b",
+            Pattern.CASE_INSENSITIVE);
+
     private MemoryInputPolicy() { }
 
     static String factualStatements(String input) {
         if (input == null || input.isBlank() || NON_FACT.matcher(input).find()) return "";
-        return Arrays.stream(input.split("[，,。.!！；;\\r\\n]+"))
+        return Arrays.stream(input.split("[。.!！；;\\r\\n]+"))
+                .filter(sentence -> !NON_ASSERTION.matcher(sentence).find())
+                .flatMap(sentence -> Arrays.stream(sentence.split("[，,]+")))
                 .map(String::trim)
                 .filter(value -> !value.isEmpty())
                 .filter(value -> !value.matches(".*[?？].*")

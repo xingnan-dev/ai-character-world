@@ -16,8 +16,8 @@ public class LlmWorldMemoryExtractor {
  private final ObjectMapper mapper;
  private final PromptTemplateLoader loader;
  private final PromptTemplateRenderer renderer;
- // Conservative guard, not semantic entailment. Inspect the entire source Event to
- // prevent a short quote from hiding explicit uncertainty elsewhere in the Event.
+ // Conservative guard, not semantic entailment. Inspect the complete sentence
+ // containing the quote, preserving qualification without tainting independent facts.
  private static final Pattern UNCERTAIN = Pattern.compile("(?iu)[?？]|如果|假如|假设|也许|可能|猜测|猜想|传闻|据说|听说|未证实|未经证实|尚未确认|\\b(if|maybe|perhaps|might|rumou?r|suspect|unconfirmed|suppose)\\b");
  private static final Pattern PLAN = Pattern.compile("(?iu)计划|打算|准备|提议|承诺|将要|尚未执行|\\b(plan|intend|propose|promise|will)\\b");
  public List<WorldMemoryCandidate> extract(WorldMemoryExtractionContext c) {
@@ -42,10 +42,12 @@ public class LlmWorldMemoryExtractor {
      // Only eligible completed Events can support new memories. The summary can
      // paraphrase: only its evidence quote, not the summary, must match the source.
      if(source==null||evidence.isBlank()||evidence.length()>700||!source.contains(evidence)||!transcript.contains("Event "+id+" [")||!transcript.contains(evidence))continue;
+     evidence=sourceSentence(source,evidence);
+     if(evidence.length()>700||!transcript.contains(evidence))continue;
      String stance=n.path("stance").asText();
      if(!Set.of("OBSERVED","PLAN","UNCERTAIN").contains(stance))continue;
-     if(UNCERTAIN.matcher(source).find())stance="UNCERTAIN";
-     else if(PLAN.matcher(source).find())stance="PLAN";
+     if(UNCERTAIN.matcher(evidence).find())stance="UNCERTAIN";
+     else if(PLAN.matcher(evidence).find())stance="PLAN";
      if(stance.equals("UNCERTAIN")) {
       if(type!=WorldMemoryType.WORLD_STATE)continue;
       content="[未证实的说法，不代表已发生] "+content;
@@ -65,5 +67,15 @@ public class LlmWorldMemoryExtractor {
    throw new IllegalStateException("WORLD_MEMORY_EXTRACTION_FAILED",error);
   }
  }
+ private String sourceSentence(String source,String quote){
+  int start=source.indexOf(quote),end=start+quote.length();
+  while(start>0&&!boundary(source.charAt(start-1)))start--;
+  if(end==0||!boundary(source.charAt(end-1))){
+   while(end<source.length()&&!boundary(source.charAt(end)))end++;
+   if(end<source.length())end++;
+  }
+  return source.substring(start,end).trim();
+ }
+ private boolean boundary(char c){return "。.!！?？；;\n\r".indexOf(c)>=0;}
  private String bound(String s){return s==null?"":s.substring(0,Math.min(12000,s.length()));}
 }

@@ -57,4 +57,12 @@ class WorldMemoryEvidenceTest {
     @Test void uncertaintyPrefixCannotTurnEmptyContentIntoValidMemory() throws Exception {
         assertThat(extract("Maybe a dragon lives there.","WORLD_STATE","UNCERTAIN","","Maybe a dragon lives there.",7)).isEmpty();
     }
+    @Test void completedFactInIndependentSentenceSurvivesPlannedActionElsewhere() throws Exception {
+        assertThat(extract("铜片已封入箱中。计划明天前往北塔。", "WORLD_EVENT", "OBSERVED", "铜片已经安全封存。", "铜片已封入箱中", 7))
+                .singleElement().satisfies(m->assertThat(m.content()).contains("铜片已封入箱中").doesNotContain("未证实", "计划或承诺"));
+    }
+    @Test void partialQuotePreservesItsOriginalUncertaintyAndContext() throws Exception {
+        assertThat(extract("据说北塔里可能有龙，但尚未证实。", "WORLD_STATE", "UNCERTAIN", "北塔传闻未证实。", "北塔里可能有龙", 7))
+                .singleElement().satisfies(m->assertThat(m.content()).contains("据说北塔里可能有龙，但尚未证实。"));
+    }
 }
