@@ -63,7 +63,11 @@ flowchart LR
 
 - 在成功完成 Round 后提取事实、角色发展、关系、事件和未解决线索等结构化记忆。
 - 按 User 和 World 隔离存储，使用稳定哈希去重，并通过乐观锁合并 keyed memory。
+- 新记忆要求本轮已完成 Event 的 ID 与原文证据；USER/AI 叙述的世界行动均可作为来源，计划、疑问与传闻不能直接升级成已完成事件。模型摘要保留作检索/合并线索，不是独立核验的事实；后续 Prompt 只注入核验过的来源引文和计划/未证实标记。历史无来源记录保持原有读取行为，不自动清洗。
 - 检索相关且有界的 World Memory 注入下一轮 Prompt，并使用 Round 创建时的 Frozen World Snapshot 保持历史语义。
+- Round 的终态先提交，再在执行线程中进行记忆后处理；`COMPLETED` 不表示记忆已完成。按资源 ID 观察 `WORLD_MEMORY_STARTED` / `WORLD_MEMORY_COMPLETED` / `WORLD_MEMORY_FAILED` 日志；成功的空提取也有完成日志。日志不包含对话正文、Provider 错误正文或凭证。
+- 后处理期间的下一轮使用当时已提交的记忆及本轮成功发言，不等待上一轮提取；旧 Round 的迟到 keyed 更新不能覆盖更新 Round 的同 key 状态。后处理不是持久任务：终态提交后崩溃可能遗漏提取，目前没有自动补偿；不能把没有完成日志直接解释为空结果。
+- 执行中重启后，RUNNING Round 的 5 分钟租约仍有效时只观察；过期后可通过“恢复执行”或重新进入页面接管。已经保存的参与角色 Event 不重生成，未保存的角色请求可能重发；不保证 Provider 停止计算或避免费用。
 
 ### Agent Runtime
 

@@ -1,5 +1,7 @@
-Extract only important confirmed World facts, events, promises, discoveries, conflicts, or continuing state. Do not invent facts. Return JSON `{ "memories": [...] }`, at most 5 entries. Each entry has type, optional key, content, and importance 1-100.
-
-The type must be exactly one of these case-sensitive values: WORLD_FACT, WORLD_EVENT, PROMISE, DISCOVERY, CONFLICT, WORLD_STATE. Do not use aliases such as "event" or "state".
-Example: {"memories":[{"type":"WORLD_EVENT","key":"confirmed_event","content":"A confirmed event from the transcript","importance":70}]}.
-Only the supplied transcript and frozen snapshots can support a memory. Hypotheses, rumors, proposed actions and guesses must not become confirmed events; preserve their uncertainty if they are important to the current state.
+Extract only important confirmed World facts, events, promises, discoveries, conflicts, or continuing state. Do not invent facts. Return JSON {"memories": [...]}, at most 5 entries.
+Each entry requires type, optional key, content (a concise faithful summary), importance 1-100, sourceEventId, evidence (a verbatim quote from that Event, at most 700 characters), and stance (OBSERVED, PLAN, UNCERTAIN).
+The type must be exactly one of: WORLD_FACT, WORLD_EVENT, PROMISE, DISCOVERY, CONFLICT, WORLD_STATE.
+Only the completed Events in this transcript support NEW memories. Frozen snapshots and existing memories explain context; do not treat them as new Event evidence. Never fabricate an Event ID or quote.
+Both USER_MESSAGE and AI_MESSAGE can narrate events that really happened IN THIS FICTIONAL WORLD. Do not reject an event merely because an AI narrated it. Completed message delivery does not mean every claim inside it is true.
+An enacted action or explicit observation may be OBSERVED. A plan/proposal/promise is PLAN and must use PROMISE, never a completed WORLD_EVENT. Questions, hypotheticals, guesses and rumors are UNCERTAIN; normally omit them, or use WORLD_STATE to remember explicitly that a claim is unconfirmed. Do not remove negation or uncertainty. Prefer separate evidence Events for distinct claims. If no supported memory exists, return an empty array.
+Example: {"memories":[{"type":"WORLD_EVENT","key":"sealed_box","content":"The crystal was placed in the sealed box.","importance":70,"sourceEventId":12,"evidence":"I placed the crystal in the box and sealed it.","stance":"OBSERVED"}]}.
