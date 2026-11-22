@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { canShowResume, finalResultPresentation, findFailedStep, getResumeLabel, getRunRecoveryPresentation, sanitizeRunError } from '../src/utils/agentPresentation.js'
 
-const source = path => readFileSync(new URL(path, import.meta.url), 'utf8')
+const source = path => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n')
 const api = source('../src/api/agent.js')
 const store = source('../src/stores/agent.js')
 const workspace = source('../src/views/AgentWorkspace.vue')

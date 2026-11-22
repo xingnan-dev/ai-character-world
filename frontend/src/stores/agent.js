@@ -28,9 +28,11 @@ const syncRunSummary = (store, run) => {
   else store.runs.unshift({ ...run, steps: [] })
 }
 
+// Pinia action receiver proxies are transient; state identity is stable across actions.
 const controllerFor = store => {
-  if (!pollingControllers.has(store)) {
-    pollingControllers.set(store, createAgentPollingController({
+  const key = detailGenerationKey(store)
+  if (!pollingControllers.has(key)) {
+    pollingControllers.set(key, createAgentPollingController({
       fetchRun: async (runId, config) => normalizeAgentRun(dataOf(await getAgentRun(runId, config))),
       onRun: run => {
         if (store.selectedRunId !== run.id) return
@@ -51,7 +53,7 @@ const controllerFor = store => {
       }
     }))
   }
-  return pollingControllers.get(store)
+  return pollingControllers.get(key)
 }
 
 export const useAgentStore = defineStore('agent', {
@@ -90,7 +92,7 @@ export const useAgentStore = defineStore('agent', {
       }
     },
     async createRun(goal, { retry = false } = {}) {
-      const duplicate = createPromises.get(this)
+      const duplicate = createPromises.get(detailGenerationKey(this))
       if (duplicate) return duplicate
       const candidate = retry ? this.pendingGoal : goal
       const validation = validateAgentGoal(candidate)
@@ -127,10 +129,10 @@ export const useAgentStore = defineStore('agent', {
           throw error
         } finally {
           this.createLoading = false
-          createPromises.delete(this)
+          createPromises.delete(detailGenerationKey(this))
         }
       })()
-      createPromises.set(this, task)
+      createPromises.set(detailGenerationKey(this), task)
       return task
     },
     retryCreate() {
@@ -138,7 +140,7 @@ export const useAgentStore = defineStore('agent', {
     },
     async resumeRun(runId = this.selectedRunId) {
       const id = parseAgentRunId(runId)
-      const duplicate = resumePromises.get(this)
+      const duplicate = resumePromises.get(detailGenerationKey(this))
       if (duplicate?.runId === id) return duplicate.promise
       if (!id || this.selectedRunId !== id || this.selectedRun?.id !== id || !canShowResume(this.selectedRun)) return null
       const generation = nextDetailGeneration(this)
@@ -162,10 +164,10 @@ export const useAgentStore = defineStore('agent', {
           throw error
         } finally {
           if (generation === detailGenerationOf(this) && this.selectedRunId === id) this.resumeLoading = false
-          if (resumePromises.get(this)?.promise === promise) resumePromises.delete(this)
+          if (resumePromises.get(detailGenerationKey(this))?.promise === promise) resumePromises.delete(detailGenerationKey(this))
         }
       })()
-      resumePromises.set(this, { runId: id, promise })
+      resumePromises.set(detailGenerationKey(this), { runId: id, promise })
       return promise
     },
     async selectRun(runId) {
@@ -210,7 +212,7 @@ export const useAgentStore = defineStore('agent', {
       return controllerFor(this).start(id)
     },
     stopPolling() {
-      pollingControllers.get(this)?.stop()
+      pollingControllers.get(detailGenerationKey(this))?.stop()
       this.pollingRunId = null
       this.pollingActive = false
       this.pollingFailureCount = 0
@@ -220,11 +222,11 @@ export const useAgentStore = defineStore('agent', {
       controllerFor(this).attachVisibility()
     },
     detachVisibility() {
-      pollingControllers.get(this)?.detachVisibility()
+      pollingControllers.get(detailGenerationKey(this))?.detachVisibility()
     },
     disposePolling() {
-      pollingControllers.get(this)?.dispose()
-      pollingControllers.delete(this)
+      pollingControllers.get(detailGenerationKey(this))?.dispose()
+      pollingControllers.delete(detailGenerationKey(this))
       this.pollingRunId = null
       this.pollingActive = false
       this.pollingFailureCount = 0

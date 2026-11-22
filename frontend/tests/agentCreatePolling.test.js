@@ -87,7 +87,7 @@ test('create retry retains Goal and reuses the pending requestId', () => {
 })
 
 test('duplicate create submissions share one in-flight operation', () => {
-  assert.match(storeSource, /const duplicate = createPromises\.get\(this\)[\s\S]*if \(duplicate\) return duplicate/)
+  assert.match(storeSource, /const duplicate = createPromises\.get\(detailGenerationKey\(this\)\)[\s\S]*if \(duplicate\) return duplicate/)
   assert.match(pageSource, /:loading="agentStore\.createLoading"[\s\S]*:disabled="agentStore\.createLoading"/)
 })
 
