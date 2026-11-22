@@ -20,6 +20,23 @@
 
 ## 1. 准备本地环境文件
 
+### 已有实例：先确认归属，再交接配置
+
+如果提示 `couldn't find env file`，只表示指定的环境文件不存在，**不代表已有容器或数据丢失**。先执行 `docker compose ls --all`，核对Docker Desktop中容器的Compose项目名、工作目录与配置文件。不要因为找不到 `.env.docker` 就使用示例默认项目名另起一套；新项目名会对应另一组命名卷，看起来像空数据库。
+
+已有实例应安全复用原环境文件：确认数据库、JWT和真实AI配置与现有容器一致，再在不覆盖文件的前提下准备根目录 `.env.docker`。保留原 `COMPOSE_PROJECT_NAME`、数据库名、密码和JWT；不要重新生成密码或用空样例替换有效配置。找不到必需秘密时先补齐，不用Mock掩盖，也不清卷。
+
+日常操作明确使用同一项目名、Compose文件和环境文件。下例中的 `已有项目名` 必须替换为实际归属，不是新建项目的建议名称：
+
+```powershell
+docker compose -p 已有项目名 -f compose.yaml --env-file .env.docker config --quiet
+docker compose -p 已有项目名 -f compose.yaml --env-file .env.docker up -d --no-build --no-recreate --wait --wait-timeout 300
+```
+
+`--no-recreate` 适合确认现有实例可重复启动，不会应用新的容器配置。之后有意修改配置／更新镜像时，使用下文普通更新方式，仍保持原项目名和数据卷。已有容器标签可能继续记录最初使用的环境文件路径；这不影响用已核对一致的新文件管理同一项目，不必为改标签重建容器。
+
+### 首次新建实例
+
 在仓库根目录执行一次，不覆盖已有配置：
 
 ```powershell
