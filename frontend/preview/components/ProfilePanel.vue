@@ -2,55 +2,56 @@
   <Transition name="profile-fade">
     <div v-if="open" class="profile-layer">
       <button type="button" class="profile-scrim" aria-label="关闭角色资料" @click="$emit('close')"></button>
-    <Transition name="profile-slide" appear>
-      <aside
-        v-if="open"
-        ref="panelRef"
-        class="profile-panel"
-        role="region"
-        aria-labelledby="profile-title"
-        tabindex="-1"
-        @keydown.esc="$emit('close')"
-      >
-        <header class="profile-head">
-          <span class="profile-kicker">CHARACTER FILE · 角色资料</span>
-          <button ref="closeRef" type="button" class="profile-close" aria-label="收起角色资料" @click="$emit('close')">×</button>
-        </header>
+      <Transition name="profile-slide" appear>
+        <aside
+          v-if="open"
+          ref="panelRef"
+          class="profile-panel"
+          role="region"
+          aria-labelledby="profile-title"
+          tabindex="-1"
+          @keydown.esc="$emit('close')"
+        >
+          <header class="profile-head">
+            <span class="profile-kicker">CHARACTER FILE · 角色资料</span>
+            <button ref="closeRef" type="button" class="profile-close" aria-label="收起角色资料" @click="$emit('close')">×</button>
+          </header>
 
-        <div class="profile-identity">
-          <span class="profile-halo" aria-hidden="true"></span>
-          <span class="profile-portrait" aria-hidden="true">
-            <img :src="session.imageUrl" alt="" />
-          </span>
-          <span class="profile-orbit" aria-hidden="true"></span>
-          <DuskStar class="profile-star" :size="18" tone="rose" />
-          <h2 id="profile-title" class="profile-name dusk-display">{{ session.characterName }}</h2>
-          <span class="profile-english dusk-script">{{ englishName }}</span>
-          <span class="profile-role">{{ session.identity }}</span>
-          <span class="profile-online"><i aria-hidden="true"></i>在线 · 灯还亮着</span>
-        </div>
+          <div class="profile-identity">
+            <span class="profile-halo" aria-hidden="true"></span>
+            <span class="profile-orbit profile-orbit--one" aria-hidden="true"></span>
+            <span class="profile-orbit profile-orbit--two" aria-hidden="true"></span>
+            <span class="profile-portrait" aria-hidden="true">
+              <img :src="session.imageUrl" alt="" />
+            </span>
+            <DuskStar class="profile-mark" :size="16" tone="rose" />
+            <h2 id="profile-title" class="profile-name dream-display">{{ session.characterName }}</h2>
+            <span class="profile-english dream-script">{{ englishName }}</span>
+            <span class="profile-role">{{ session.identity }}</span>
+            <span class="profile-online"><i aria-hidden="true"></i>在线 · 房间还亮着</span>
+          </div>
 
-        <p class="profile-biography">{{ session.biography }}</p>
+          <p class="profile-biography">{{ session.biography }}</p>
 
-        <dl class="profile-details">
-          <template v-for="([label, value]) in details" :key="label">
-            <dt>{{ label }}</dt>
-            <dd>{{ value }}</dd>
-          </template>
-        </dl>
+          <dl class="profile-details">
+            <template v-for="([label, value]) in details" :key="label">
+              <dt>{{ label }}</dt>
+              <dd>{{ value }}</dd>
+            </template>
+          </dl>
 
-        <div class="profile-memory">
-          <span class="profile-memory__label">最近留在这里的话</span>
-          <p>{{ session.snippet }}</p>
-          <span class="profile-memory__meta">{{ session.topic }} · {{ session.time }}</span>
-        </div>
+          <div class="profile-memory">
+            <span class="profile-memory__label">最近留在这里的话</span>
+            <p>{{ session.snippet }}</p>
+            <span class="profile-memory__meta">{{ session.topic }} · {{ session.time }}</span>
+          </div>
 
-        <footer class="profile-foot">
-          <DuskStar :size="12" tone="ice" :spark="false" />
-          <span>设计样稿中的虚构资料，不写入真实数据。</span>
-        </footer>
-      </aside>
-    </Transition>
+          <footer class="profile-foot">
+            <DuskStar :size="11" tone="ice" :spark="false" />
+            <span>设计样稿中的虚构资料，不写入真实数据。</span>
+          </footer>
+        </aside>
+      </Transition>
     </div>
   </Transition>
 </template>
@@ -69,6 +70,7 @@ defineEmits(['close'])
 const panelRef = ref(null)
 const closeRef = ref(null)
 const englishNames = {
+  阿梨: 'Ali',
   沈知微: 'Shen Zhiwei',
   江屿: 'Jiang Yu',
   苏枕月: 'Su Zhenyue'
@@ -103,23 +105,24 @@ watch(
   position: absolute;
   inset: 0;
   cursor: default;
-  background: rgba(4, 8, 18, 0.54);
+  background: rgba(48, 47, 64, 0.2);
   backdrop-filter: blur(2px);
 }
 
 .profile-panel {
   position: relative;
-  width: min(340px, 88vw);
+  width: min(352px, 90vw);
   height: 100%;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 18px 20px 22px;
-  color: var(--dusk-text);
-  border-left: 1px solid rgba(232, 182, 199, 0.2);
+  color: var(--dream-ink);
+  border-left: 1px solid rgba(58, 62, 91, 0.14);
   background:
-    radial-gradient(ellipse at 88% 0%, rgba(238, 157, 184, 0.13), transparent 36%),
-    linear-gradient(180deg, #121c38, #0c142b 72%, #0a1124);
-  box-shadow: -24px 0 70px rgba(1, 4, 12, 0.42);
+    radial-gradient(ellipse at 90% 0%, rgba(236, 186, 199, 0.32), transparent 36%),
+    radial-gradient(ellipse at 10% 90%, rgba(170, 198, 214, 0.22), transparent 42%),
+    linear-gradient(168deg, rgba(255, 252, 247, 0.98), rgba(244, 238, 237, 0.96));
+  box-shadow: -20px 0 56px rgba(60, 54, 74, 0.18);
 }
 
 .profile-panel:focus-visible {
@@ -134,14 +137,14 @@ watch(
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--dusk-line-soft);
-  background: linear-gradient(180deg, #121c38 68%, rgba(18, 28, 56, 0));
+  padding-bottom: 13px;
+  border-bottom: 1px solid var(--dream-line-soft);
+  background: linear-gradient(180deg, rgba(255, 252, 247, 0.98) 68%, rgba(255, 252, 247, 0));
 }
 
 .profile-kicker {
-  color: var(--dusk-text-3);
-  font-family: var(--dusk-font-annotation);
+  color: var(--dream-ink-3);
+  font-family: var(--dream-font-annotation);
   font-size: 8.5px;
   letter-spacing: 0.16em;
 }
@@ -153,13 +156,13 @@ watch(
   place-items: center;
   margin: -8px -8px -8px 0;
   border-radius: 50%;
-  color: var(--dusk-text-2);
+  color: var(--dream-ink-2);
   font-size: 19px;
 }
 
 .profile-close:hover {
-  color: var(--dusk-rose);
-  background: rgba(232, 182, 199, 0.06);
+  color: var(--dream-rose);
+  background: rgba(199, 121, 144, 0.08);
 }
 
 .profile-identity {
@@ -167,33 +170,56 @@ watch(
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 24px 0 20px;
+  padding: 26px 0 20px;
   text-align: center;
 }
 
 .profile-halo {
   position: absolute;
   top: 4px;
-  width: 190px;
-  height: 190px;
+  width: 196px;
+  height: 196px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(238, 157, 184, 0.16), transparent 68%);
-  filter: blur(16px);
+  background: radial-gradient(circle, rgba(239, 191, 202, 0.3), transparent 68%);
+  filter: blur(18px);
   pointer-events: none;
+}
+
+.profile-orbit {
+  position: absolute;
+  z-index: 0;
+  border: 1px solid rgba(92, 130, 153, 0.2);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.profile-orbit--one {
+  top: 40px;
+  width: 176px;
+  height: 70px;
+  transform: rotate(-16deg);
+}
+
+.profile-orbit--two {
+  top: 64px;
+  width: 138px;
+  height: 148px;
+  border-color: rgba(188, 126, 143, 0.16);
+  transform: rotate(29deg);
 }
 
 .profile-portrait {
   position: relative;
   z-index: 1;
-  width: 88px;
-  height: 88px;
+  width: 104px;
+  height: 104px;
   display: block;
-  border: 1px solid rgba(244, 239, 229, 0.34);
-  border-radius: 50%;
   overflow: hidden;
+  border: 1px solid rgba(72, 68, 88, 0.2);
+  border-radius: 50%;
   box-shadow:
-    0 0 0 5px rgba(244, 239, 229, 0.04),
-    0 16px 36px rgba(2, 6, 16, 0.34);
+    0 0 0 5px rgba(255, 255, 255, 0.5),
+    0 16px 34px rgba(72, 66, 87, 0.18);
 }
 
 .profile-portrait img {
@@ -202,142 +228,140 @@ watch(
   object-fit: cover;
 }
 
-.profile-orbit {
-  position: absolute;
-  z-index: 0;
-  top: 32px;
-  width: 164px;
-  height: 72px;
-  border: 1px solid rgba(232, 182, 199, 0.16);
-  border-radius: 50%;
-  transform: rotate(-18deg);
-  pointer-events: none;
-}
-
-.profile-star {
+.profile-mark {
   position: absolute;
   z-index: 2;
-  top: 22px;
-  right: calc(50% - 62px);
-  opacity: 0.7;
+  top: 24px;
+  right: calc(50% - 67px);
+  opacity: 0.72;
 }
 
 .profile-name {
-  margin-top: 14px;
-  color: var(--dusk-text);
-  font-size: 26px;
-  line-height: 1.15;
+  margin-top: 15px;
+  color: var(--dream-ink);
+  font-size: 27px;
+  line-height: 1.16;
 }
 
 .profile-english {
-  margin-top: 2px;
-  color: var(--dusk-text-3);
-  font-size: 17px;
+  margin-top: 1px;
+  color: var(--dream-rose);
+  font-size: 19px;
   line-height: 1.3;
 }
 
 .profile-role {
   margin-top: 8px;
-  color: var(--dusk-text-2);
-  font-size: 12px;
-  letter-spacing: 0.04em;
+  color: var(--dream-ink-2);
+  font-size: 11px;
+  letter-spacing: 0.03em;
 }
 
 .profile-online {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  min-height: 24px;
   margin-top: 9px;
-  color: var(--dusk-text-3);
-  font-size: 9px;
-  letter-spacing: 0.06em;
+  padding: 0 9px;
+  border: 1px solid var(--dream-line-soft);
+  border-radius: var(--dream-radius-pill);
+  color: var(--dream-ink-3);
+  font-size: 8.5px;
+  background: rgba(255, 255, 255, 0.38);
 }
 
 .profile-online i {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--dusk-success);
-  box-shadow: 0 0 8px rgba(143, 201, 172, 0.4);
+  background: var(--dream-success);
 }
 
 .profile-biography {
-  padding: 14px 0 16px;
-  border-top: 1px solid var(--dusk-line-soft);
-  color: var(--dusk-text-2);
+  padding: 15px 16px;
+  border: 1px solid var(--dream-line-soft);
+  border-radius: 14px;
+  color: var(--dream-ink-2);
   font-size: 12px;
-  line-height: 1.85;
+  line-height: 1.82;
+  background: rgba(255, 252, 247, 0.54);
 }
 
 .profile-details {
-  display: flex;
-  flex-direction: column;
-  gap: 11px;
-  padding: 14px 0;
-  border-top: 1px solid var(--dusk-line-soft);
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 0;
+  border-top: 1px solid var(--dream-line-soft);
 }
 
 .profile-details dt {
-  color: var(--dusk-text-3);
-  font-family: var(--dusk-font-annotation);
-  font-size: 8.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--dream-line-soft);
+  color: var(--dream-ink-3);
+  font-size: 9.5px;
+  letter-spacing: 0.03em;
 }
 
 .profile-details dd {
-  margin-top: 2px;
-  color: var(--dusk-text-2);
-  font-size: 11.5px;
-  line-height: 1.75;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--dream-line-soft);
+  color: var(--dream-ink-2);
+  font-size: 10.5px;
+  line-height: 1.72;
 }
 
 .profile-memory {
-  margin-top: 8px;
-  padding: 12px 13px;
-  border: 1px solid rgba(232, 182, 199, 0.16);
-  border-radius: 10px;
-  background: rgba(232, 182, 199, 0.035);
+  margin-top: 17px;
+  padding: 14px 15px;
+  border: 1px solid rgba(188, 126, 143, 0.2);
+  border-radius: 14px;
+  background:
+    radial-gradient(ellipse at 100% 0%, rgba(239, 197, 204, 0.26), transparent 56%),
+    rgba(255, 250, 245, 0.62);
 }
 
 .profile-memory__label {
-  color: var(--dusk-rose);
-  font-family: var(--dusk-font-annotation);
+  display: block;
+  color: var(--dream-rose);
+  font-family: var(--dream-font-annotation);
   font-size: 8px;
   letter-spacing: 0.13em;
-  text-transform: uppercase;
 }
 
 .profile-memory p {
   margin-top: 5px;
-  color: var(--dusk-text-2);
-  font-family: var(--dusk-font-display);
-  font-size: 12px;
+  color: var(--dream-ink);
+  font-family: var(--dream-font-display);
+  font-size: 12.5px;
   line-height: 1.75;
 }
 
 .profile-memory__meta {
   display: block;
   margin-top: 6px;
-  color: var(--dusk-text-3);
-  font-size: 9px;
+  color: var(--dream-ink-3);
+  font-family: var(--dream-font-annotation);
+  font-size: 8px;
+  letter-spacing: 0.08em;
 }
 
 .profile-foot {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-top: 20px;
-  padding-top: 14px;
-  border-top: 1px solid var(--dusk-line-soft);
-  color: var(--dusk-text-3);
-  font-size: 9px;
+  align-items: center;
+  gap: 7px;
+  margin-top: 18px;
+  padding-top: 13px;
+  border-top: 1px solid var(--dream-line-soft);
+  color: var(--dream-ink-3);
+  font-size: 8px;
   line-height: 1.6;
 }
 
 .profile-fade-enter-active,
 .profile-fade-leave-active {
-  transition: opacity var(--dusk-motion) var(--dusk-ease);
+  transition: opacity var(--dream-motion) var(--dream-ease);
 }
 
 .profile-fade-enter-from,
@@ -347,7 +371,7 @@ watch(
 
 .profile-slide-enter-active,
 .profile-slide-leave-active {
-  transition: transform 320ms var(--dusk-ease);
+  transition: transform 300ms var(--dream-ease);
 }
 
 .profile-slide-enter-from,
@@ -357,9 +381,21 @@ watch(
 
 @media (max-width: 640px) {
   .profile-panel {
-    width: min(350px, 92vw);
-    padding-right: 17px;
-    padding-left: 17px;
+    width: min(340px, 92vw);
+    padding: 15px 16px 20px;
+  }
+
+  .profile-portrait {
+    width: 92px;
+    height: 92px;
+  }
+
+  .profile-name {
+    font-size: 24px;
+  }
+
+  .profile-details {
+    grid-template-columns: 54px minmax(0, 1fr);
   }
 }
 
@@ -374,12 +410,15 @@ watch(
 
 @media (forced-colors: active) {
   .profile-panel,
+  .profile-portrait,
+  .profile-biography,
   .profile-memory {
     border: 1px solid CanvasText;
   }
 
   .profile-halo,
-  .profile-orbit {
+  .profile-orbit,
+  .profile-mark {
     display: none;
   }
 }

@@ -1,7 +1,7 @@
 <template>
   <svg
-    class="dusk-star"
-    :class="`dusk-star--${tone}`"
+    class="dream-star"
+    :class="`dream-star--${tone}`"
     :width="size"
     :height="size"
     viewBox="0 0 32 32"
@@ -22,25 +22,25 @@ defineProps({
 </script>
 
 <style scoped>
-.dusk-star {
+.dream-star {
   display: inline-block;
   flex: none;
   color: rgba(244, 239, 229, 0.7);
 }
 
-.dusk-star--rose {
-  color: var(--dusk-rose);
+.dream-star--rose {
+  color: var(--dream-rose);
 }
 
-.dusk-star--ice {
-  color: var(--dusk-ice);
+.dream-star--ice {
+  color: var(--dream-ice);
 }
 
-.dusk-star--gold {
-  color: var(--dusk-gold);
+.dream-star--gold {
+  color: var(--dream-gold);
 }
 
-.dusk-star--pearl {
-  color: var(--dusk-pearl);
+.dream-star--pearl {
+  color: var(--dream-pearl);
 }
 </style>

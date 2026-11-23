@@ -235,6 +235,6 @@
   width: 100%;
   height: auto;
   border-radius: 26px;
-  box-shadow: var(--dusk-shadow-deep);
+  box-shadow: var(--dream-shadow-deep);
 }
 </style>

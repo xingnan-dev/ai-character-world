@@ -1,5 +1,5 @@
 <template>
-  <div class="dusk-app">
+  <div class="dream-app">
     <PreviewTopNav />
     <RouterView />
   </div>

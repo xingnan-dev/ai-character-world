@@ -1,67 +1,117 @@
-/* AIworld "Dusk Edition" design-preview tokens.
-   This stylesheet is loaded only by the isolated preview entry. */
+/* AIworld "Dreamlight / 浮光卷" design-preview tokens.
+   Loaded only by the isolated preview entry. Fonts are self-hosted under
+   assets/fonts and licensed OFL 1.1 (see assets/fonts/licenses). */
+
+@font-face {
+  font-family: "Dream Serif";
+  src: url("./assets/fonts/noto-serif-sc-600-zh.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Dream Sans";
+  src: url("./assets/fonts/noto-sans-sc-400-zh.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Dream Sans";
+  src: url("./assets/fonts/noto-sans-sc-500-zh.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Bodoni Moda";
+  src: url("./assets/fonts/bodoni-moda-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Bodoni Moda";
+  src: url("./assets/fonts/bodoni-moda-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pinyon Script";
+  src: url("./assets/fonts/pinyon-script-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root {
-  --dusk-bg-0: #080d1c;
-  --dusk-bg-1: #0b1226;
-  --dusk-bg-2: #121b36;
-  --dusk-surface: #0f1830;
-  --dusk-surface-soft: #141d38;
-  --dusk-surface-raised: rgba(20, 29, 55, 0.86);
-  --dusk-surface-glass: rgba(16, 24, 46, 0.72);
-  --dusk-line: rgba(216, 224, 248, 0.14);
-  --dusk-line-soft: rgba(216, 224, 248, 0.08);
-  --dusk-line-bright: rgba(236, 240, 255, 0.34);
+  --dream-page: #f1ecee;
+  --dream-page-deep: #e7e4eb;
+  --dream-pearl: #fffaf2;
+  --dream-pearl-soft: #f8f1ea;
+  --dream-surface: rgba(255, 250, 243, 0.72);
+  --dream-surface-soft: rgba(255, 251, 245, 0.5);
+  --dream-surface-strong: rgba(255, 252, 247, 0.94);
+  --dream-surface-ink: #2b304f;
 
-  --dusk-text: #f2efe8;
-  --dusk-text-2: #b9c1d8;
-  --dusk-text-3: #8f99b7;
-  --dusk-text-inverse: #171a2b;
+  --dream-line: rgba(58, 62, 91, 0.18);
+  --dream-line-soft: rgba(58, 62, 91, 0.1);
+  --dream-line-bright: rgba(255, 255, 255, 0.74);
 
-  --dusk-rose: #e8b6c7;
-  --dusk-rose-soft: #f3d3dc;
-  --dusk-rose-glow: rgba(238, 157, 184, 0.26);
-  --dusk-ice: #b8d8e8;
-  --dusk-ice-soft: rgba(184, 216, 232, 0.14);
-  --dusk-gold: #d6c29a;
-  --dusk-gold-soft: rgba(214, 194, 154, 0.14);
-  --dusk-pearl: #f4efe5;
-  --dusk-pearl-shade: #ded8d2;
-  --dusk-paper: #efe9dd;
-  --dusk-paper-ink: #2c2a34;
-  --dusk-success: #8fc9ac;
-  --dusk-danger: #dfa3a7;
+  --dream-ink: #252a47;
+  --dream-ink-2: #4d526e;
+  --dream-ink-3: #6b6f86;
+  --dream-ink-inverse: #fff8ef;
 
-  --dusk-radius-sm: 10px;
-  --dusk-radius-md: 16px;
-  --dusk-radius-lg: 22px;
-  --dusk-radius-pill: 999px;
-  --dusk-shadow-soft: 0 18px 50px rgba(2, 6, 16, 0.34);
-  --dusk-shadow-deep: 0 28px 80px rgba(1, 4, 12, 0.46);
-  --dusk-focus: #bfe4f4;
-  --dusk-focus-ring: 0 0 0 4px rgba(184, 216, 232, 0.22);
-  --dusk-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --dusk-motion: 240ms;
-  --dusk-nav-h: 64px;
+  --dream-rose: #c77990;
+  --dream-rose-soft: #f4dbe3;
+  --dream-rose-glow: rgba(207, 131, 153, 0.25);
+  --dream-apricot: #cd8a61;
+  --dream-apricot-soft: rgba(230, 179, 140, 0.28);
+  --dream-ice: #5f92b2;
+  --dream-ice-soft: rgba(141, 190, 214, 0.26);
+  --dream-violet: #8176a5;
+  --dream-gold: #a58855;
+  --dream-gold-soft: rgba(183, 157, 112, 0.22);
+  --dream-success: #5b937a;
+  --dream-danger: #b96d74;
 
-  --dusk-font-body: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
-    "Noto Sans SC", system-ui, sans-serif;
-  --dusk-font-display: "Songti SC", "STSong", "Source Han Serif SC",
-    "Noto Serif CJK SC", "SimSun", serif;
-  --dusk-font-script: "Snell Roundhand", "Segoe Script", "Brush Script MT",
-    "Palatino Linotype", Georgia, serif;
-  --dusk-font-annotation: "Optima", "Palatino Linotype", Georgia, serif;
+  --dream-radius-sm: 10px;
+  --dream-radius-md: 16px;
+  --dream-radius-lg: 24px;
+  --dream-radius-pill: 999px;
+  --dream-shadow-soft: 0 18px 46px rgba(71, 67, 91, 0.13), 0 2px 8px rgba(71, 67, 91, 0.05);
+  --dream-shadow-raised: 0 26px 60px rgba(71, 67, 91, 0.17), 0 3px 10px rgba(71, 67, 91, 0.06);
+  --dream-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  --dream-focus: #3f7d9f;
+  --dream-focus-ring: 0 0 0 4px rgba(122, 174, 200, 0.32);
+  --dream-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dream-motion: 240ms;
+  --dream-nav-h: 64px;
+
+  --dream-font-body: "Dream Sans", "Noto Sans SC", "PingFang SC",
+    "Microsoft YaHei", system-ui, sans-serif;
+  --dream-font-display: "Dream Serif", "Noto Serif SC", "Songti SC", serif;
+  --dream-font-latin: "Bodoni Moda", "Dream Serif", Georgia, serif;
+  --dream-font-script: "Pinyon Script", "Bodoni Moda", Georgia, serif;
+  --dream-font-annotation: "Bodoni Moda", "Dream Serif", Georgia, serif;
 
   /* Fallback tokens consumed by the reused SimpleAvatar component. */
-  --app-shadow-sm: 0 6px 20px rgba(3, 8, 20, 0.38);
-  --app-primary: #7fa7c4;
-  --app-primary-strong: #a9c8dd;
-  --app-sky-soft: #1a2942;
-  --app-text-secondary: #b9c1d8;
-  --app-success: #8fc9ac;
-  --app-danger: #dfa3a7;
+  --app-shadow-sm: 0 8px 22px rgba(71, 67, 91, 0.16);
+  --app-primary: #5f92b2;
+  --app-primary-strong: #3f7d9f;
+  --app-sky-soft: #e7edf2;
+  --app-text-secondary: #4d526e;
+  --app-success: #5b937a;
+  --app-danger: #b96d74;
   --app-radius-pill: 999px;
-  --app-focus-ring: 0 0 0 4px rgba(184, 216, 232, 0.22);
+  --app-focus-ring: 0 0 0 4px rgba(122, 174, 200, 0.32);
 }
 
 *,
@@ -76,7 +126,7 @@
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
   scroll-behavior: smooth;
 }
 
@@ -89,11 +139,12 @@ body,
 
 body {
   min-width: 320px;
-  color: var(--dusk-text);
-  font-family: var(--dusk-font-body);
+  color: var(--dream-ink);
+  font-family: var(--dream-font-body);
   font-size: 15px;
-  line-height: 1.65;
-  background: var(--dusk-bg-0);
+  font-weight: 400;
+  line-height: 1.68;
+  background: var(--dream-page);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -129,7 +180,7 @@ button:disabled {
 }
 
 a {
-  color: var(--dusk-ice);
+  color: var(--dream-ice);
   text-decoration: none;
 }
 
@@ -139,13 +190,13 @@ ol {
 }
 
 ::selection {
-  color: var(--dusk-text);
-  background: rgba(232, 182, 199, 0.34);
+  color: var(--dream-ink);
+  background: rgba(211, 143, 162, 0.28);
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
 }
 
 ::-webkit-scrollbar-track {
@@ -155,91 +206,91 @@ ol {
 ::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
   border-radius: 999px;
-  background: rgba(185, 193, 216, 0.28);
+  background: rgba(88, 92, 117, 0.22);
   background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(232, 182, 199, 0.42);
+  background: rgba(183, 105, 129, 0.38);
   background-clip: padding-box;
 }
 
 :focus-visible {
-  outline: 2px solid var(--dusk-focus);
+  outline: 2px solid var(--dream-focus);
   outline-offset: 3px;
-  box-shadow: var(--dusk-focus-ring);
+  box-shadow: var(--dream-focus-ring);
 }
 
-.dusk-app {
+.dream-app {
   position: relative;
   isolation: isolate;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(168deg, var(--dusk-bg-0) 0%, var(--dusk-bg-1) 48%, #10182f 100%);
+  background:
+    radial-gradient(ellipse 58% 52% at 86% 4%, rgba(143, 185, 208, 0.34), transparent 64%),
+    radial-gradient(ellipse 48% 48% at 12% 96%, rgba(229, 166, 181, 0.27), transparent 68%),
+    radial-gradient(ellipse 52% 46% at 50% 38%, rgba(255, 251, 243, 0.56), transparent 72%),
+    linear-gradient(164deg, #f4efed 0%, var(--dream-page) 48%, #ebe7ed 100%);
 }
 
-.dusk-app::before {
+.dream-app::before {
   content: "";
   position: fixed;
   z-index: -2;
-  inset: -12vmax;
+  inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse at 7% 8%, rgba(66, 92, 152, 0.22), transparent 34%),
-    radial-gradient(ellipse at 84% 4%, rgba(182, 139, 177, 0.16), transparent 30%),
-    radial-gradient(ellipse at 96% 70%, rgba(238, 152, 181, 0.1), transparent 28%),
-    radial-gradient(ellipse at 22% 96%, rgba(96, 138, 176, 0.14), transparent 32%);
-  filter: blur(18px);
+    radial-gradient(ellipse 34% 30% at 78% 16%, rgba(255, 241, 234, 0.7), transparent 70%),
+    radial-gradient(ellipse 26% 34% at 15% 56%, rgba(174, 201, 220, 0.17), transparent 70%),
+    radial-gradient(ellipse 32% 24% at 66% 92%, rgba(245, 202, 210, 0.18), transparent 74%);
 }
 
-.dusk-app::after {
+.dream-app::after {
   content: "";
   position: fixed;
   z-index: -1;
   inset: 0;
   pointer-events: none;
-  opacity: 0.34;
-  background-image:
-    radial-gradient(circle at 22% 18%, rgba(244, 239, 229, 0.7) 0 0.9px, transparent 1.4px),
-    radial-gradient(circle at 76% 8%, rgba(232, 182, 199, 0.6) 0 1px, transparent 1.6px),
-    radial-gradient(circle at 91% 58%, rgba(184, 216, 232, 0.55) 0 0.8px, transparent 1.3px);
-  background-size: 340px 340px, 470px 470px, 290px 290px;
+  opacity: 0.1;
+  mix-blend-mode: multiply;
+  background-image: url("./assets/art/grain-tile.png");
+  background-size: 256px 256px;
 }
 
-.dusk-script {
-  font-family: var(--dusk-font-script);
+.dream-script {
+  font-family: var(--dream-font-script);
   font-weight: 400;
-  font-style: italic;
-  letter-spacing: 0.01em;
-}
-
-.dusk-display {
-  font-family: var(--dusk-font-display);
-  font-weight: 600;
+  font-style: normal;
   letter-spacing: 0.015em;
 }
 
-.dusk-kicker {
+.dream-display {
+  font-family: var(--dream-font-display);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.dream-kicker {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  color: var(--dusk-text-3);
-  font-family: var(--dusk-font-annotation);
+  color: var(--dream-ink-3);
+  font-family: var(--dream-font-annotation);
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
 }
 
-.dusk-kicker::before {
+.dream-kicker::before {
   content: "";
-  width: 26px;
+  width: 24px;
   height: 1px;
-  background: linear-gradient(90deg, var(--dusk-rose), transparent);
+  background: linear-gradient(90deg, var(--dream-rose), rgba(199, 121, 144, 0.12));
 }
 
-.dusk-btn {
+.dream-btn {
   min-height: 46px;
   display: inline-flex;
   align-items: center;
@@ -247,61 +298,79 @@ ol {
   gap: 12px;
   padding: 0 22px;
   border: 1px solid transparent;
-  border-radius: var(--dusk-radius-pill);
-  font-family: var(--dusk-font-body);
-  font-size: 14px;
-  font-weight: 650;
+  border-radius: var(--dream-radius-pill);
+  font-family: var(--dream-font-body);
+  font-size: 13px;
+  font-weight: 500;
   line-height: 1;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
   transition:
-    transform var(--dusk-motion) var(--dusk-ease),
-    border-color var(--dusk-motion) var(--dusk-ease),
-    background var(--dusk-motion) var(--dusk-ease),
-    box-shadow var(--dusk-motion) var(--dusk-ease);
+    transform var(--dream-motion) var(--dream-ease),
+    border-color var(--dream-motion) var(--dream-ease),
+    background var(--dream-motion) var(--dream-ease),
+    box-shadow var(--dream-motion) var(--dream-ease);
 }
 
-.dusk-btn--pearl {
-  color: var(--dusk-text-inverse);
-  background: linear-gradient(135deg, #faf5eb, var(--dusk-pearl-shade));
-  box-shadow: 0 12px 32px rgba(3, 8, 20, 0.36), inset 0 1px 0 #fffdf9;
+.dream-btn--ink {
+  color: var(--dream-ink-inverse);
+  background: linear-gradient(135deg, #353a5c, #272c49);
+  box-shadow: 0 14px 30px rgba(47, 50, 78, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
-.dusk-btn--pearl:hover {
+.dream-btn--ink:hover {
   transform: translateY(-1px);
+  background: linear-gradient(135deg, #414769, #2c3151);
   box-shadow:
-    0 16px 38px rgba(3, 8, 20, 0.4),
-    0 0 0 6px rgba(232, 182, 199, 0.12),
-    inset 0 1px 0 #fffdf9;
+    0 18px 38px rgba(47, 50, 78, 0.26),
+    0 0 0 5px rgba(207, 137, 157, 0.13),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
-.dusk-btn--ghost {
-  color: var(--dusk-text);
-  background: rgba(17, 25, 47, 0.68);
-  border-color: var(--dusk-line);
+.dream-btn--pearl {
+  color: var(--dream-ink);
+  border-color: rgba(58, 62, 91, 0.16);
+  background: linear-gradient(135deg, rgba(255, 253, 248, 0.96), rgba(247, 237, 231, 0.88));
+  box-shadow: var(--dream-shadow-inset), 0 10px 24px rgba(71, 67, 91, 0.1);
 }
 
-.dusk-btn--ghost:hover {
-  border-color: rgba(232, 182, 199, 0.4);
-  background: rgba(27, 36, 63, 0.8);
+.dream-btn--pearl:hover {
+  transform: translateY(-1px);
+  border-color: rgba(181, 107, 127, 0.36);
+  box-shadow:
+    var(--dream-shadow-inset),
+    0 14px 30px rgba(71, 67, 91, 0.14),
+    0 0 0 5px rgba(207, 137, 157, 0.1);
 }
 
-.dusk-btn .dusk-btn__arrow {
-  font-family: var(--dusk-font-annotation);
+.dream-btn--ghost {
+  color: var(--dream-ink);
+  border-color: var(--dream-line);
+  background: rgba(255, 251, 245, 0.48);
+  backdrop-filter: blur(8px);
+}
+
+.dream-btn--ghost:hover {
+  border-color: rgba(181, 107, 127, 0.34);
+  background: rgba(255, 252, 247, 0.78);
+}
+
+.dream-btn .dream-btn__arrow {
+  font-family: var(--dream-font-annotation);
   font-size: 16px;
   line-height: 1;
-  transition: transform var(--dusk-motion) var(--dusk-ease);
+  transition: transform var(--dream-motion) var(--dream-ease);
 }
 
-.dusk-btn:hover .dusk-btn__arrow {
+.dream-btn:hover .dream-btn__arrow {
   transform: translateX(3px);
 }
 
-.dusk-hairline {
+.dream-hairline {
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--dusk-line), transparent);
+  background: linear-gradient(90deg, transparent, var(--dream-line), transparent);
 }
 
-.dusk-sr-only {
+.dream-sr-only {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -312,19 +381,15 @@ ol {
 
 @media (max-width: 760px) {
   :root {
-    --dusk-nav-h: 56px;
+    --dream-nav-h: 56px;
   }
 
   body {
     font-size: 14px;
   }
 
-  .dusk-app::before {
-    opacity: 0.78;
-  }
-
-  .dusk-app::after {
-    opacity: 0.2;
+  .dream-app::after {
+    opacity: 0.1;
   }
 }
 
@@ -343,13 +408,13 @@ ol {
 }
 
 @media (forced-colors: active) {
-  .dusk-app::before,
-  .dusk-app::after {
+  .dream-app::before,
+  .dream-app::after {
     display: none;
   }
 
-  .dusk-btn,
-  .dusk-app button {
+  .dream-btn,
+  .dream-app button {
     border: 1px solid CanvasText;
   }
 }

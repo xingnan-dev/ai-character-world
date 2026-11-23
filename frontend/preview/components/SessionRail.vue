@@ -14,7 +14,7 @@
           <button
             type="button"
             class="session-item"
-            :class="{ active: item.id === currentSessionId }"
+            :class="[`is-${item.accent}`, { active: item.id === currentSessionId }]"
             :aria-pressed="item.id === currentSessionId"
             @click="$emit('select', item.id)"
           >
@@ -25,7 +25,7 @@
                 <time>{{ item.time }}</time>
               </span>
               <span class="session-topic">
-                <i class="topic-dot" :class="`is-${item.accent}`" aria-hidden="true"></i>
+                <i class="topic-dot" aria-hidden="true"></i>
                 {{ item.topic }}
               </span>
               <span class="session-snippet">{{ item.snippet }}</span>
@@ -59,23 +59,24 @@ defineEmits(['select'])
 
 <style lang="scss" scoped>
 .session-rail {
+  --rail-accent: var(--dream-rose);
   height: 100%;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  color: var(--dusk-text);
+  color: var(--dream-ink);
 }
 
 .rail-head {
   flex: none;
-  padding: 18px 16px 14px;
+  padding: 18px 16px 13px;
 }
 
 .rail-kicker {
-  color: var(--dusk-text-3);
-  font-family: var(--dusk-font-annotation);
-  font-size: 9px;
+  color: var(--dream-ink-3);
+  font-family: var(--dream-font-annotation);
+  font-size: 8.5px;
   letter-spacing: 0.2em;
 }
 
@@ -84,12 +85,12 @@ defineEmits(['select'])
   align-items: baseline;
   justify-content: space-between;
   gap: 10px;
-  margin-top: 6px;
+  margin-top: 5px;
 }
 
 .rail-head h2 {
-  color: var(--dusk-text);
-  font-family: var(--dusk-font-display);
+  color: var(--dream-ink);
+  font-family: var(--dream-font-display);
   font-size: 21px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -97,16 +98,16 @@ defineEmits(['select'])
 
 .rail-head h2 small {
   margin-left: 4px;
-  color: var(--dusk-text-3);
-  font-family: var(--dusk-font-annotation);
+  color: var(--dream-ink-3);
+  font-family: var(--dream-font-annotation);
   font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.06em;
 }
 
 .rail-head__note {
-  color: var(--dusk-rose);
-  font-size: 10px;
+  color: var(--dream-rose);
+  font-size: 9.5px;
   letter-spacing: 0.06em;
 }
 
@@ -121,51 +122,68 @@ defineEmits(['select'])
 .rail-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .session-item {
   position: relative;
   width: 100%;
   min-width: 0;
-  min-height: 78px;
+  min-height: 82px;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 11px 10px;
+  padding: 10px 10px;
   border: 1px solid transparent;
   border-radius: 12px;
   text-align: left;
-  color: var(--dusk-text);
+  color: var(--dream-ink);
   transition:
-    background var(--dusk-motion) var(--dusk-ease),
-    border-color var(--dusk-motion) var(--dusk-ease);
+    background var(--dream-motion) var(--dream-ease),
+    border-color var(--dream-motion) var(--dream-ease);
+}
+
+.session-item.is-sun {
+  --rail-accent: var(--dream-apricot);
+}
+
+.session-item.is-rose {
+  --rail-accent: var(--dream-rose);
+}
+
+.session-item.is-ice {
+  --rail-accent: var(--dream-ice);
+}
+
+.session-item.is-violet {
+  --rail-accent: var(--dream-violet);
 }
 
 .session-item:hover {
-  background: rgba(232, 182, 199, 0.04);
+  background: rgba(255, 252, 247, 0.5);
 }
 
 .session-item.active {
-  border-color: rgba(232, 182, 199, 0.2);
-  background: linear-gradient(90deg, rgba(232, 182, 199, 0.11), rgba(232, 182, 199, 0.025));
+  border-color: rgba(58, 62, 91, 0.12);
+  background: linear-gradient(105deg, rgba(255, 253, 249, 0.88), rgba(252, 244, 240, 0.6));
+  box-shadow: 0 5px 16px rgba(74, 68, 88, 0.06);
 }
 
 .session-item.active::before {
   content: "";
   position: absolute;
-  top: 15px;
-  bottom: 15px;
+  top: 17px;
+  bottom: 17px;
   left: -1px;
   width: 2px;
   border-radius: 999px;
-  background: linear-gradient(180deg, var(--dusk-rose-soft), rgba(232, 182, 199, 0.12));
+  background: linear-gradient(180deg, var(--rail-accent), rgba(199, 121, 144, 0.08));
 }
 
 .session-item :deep(.simple-avatar) {
-  border-color: rgba(244, 239, 229, 0.26);
+  border-color: rgba(72, 68, 88, 0.18);
   border-width: 1px;
-  box-shadow: 0 6px 18px rgba(3, 8, 20, 0.28);
+  box-shadow: 0 5px 14px rgba(71, 67, 91, 0.12);
 }
 
 .session-copy {
@@ -173,7 +191,7 @@ defineEmits(['select'])
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .session-top {
@@ -186,9 +204,9 @@ defineEmits(['select'])
 
 .session-top strong {
   overflow: hidden;
-  color: var(--dusk-text-2);
-  font-size: 11px;
-  font-weight: 600;
+  color: var(--dream-ink-2);
+  font-size: 10.5px;
+  font-weight: 500;
   letter-spacing: 0.04em;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -196,10 +214,10 @@ defineEmits(['select'])
 
 .session-top time {
   flex: none;
-  color: var(--dusk-text-3);
-  font-family: var(--dusk-font-annotation);
-  font-size: 8.5px;
-  letter-spacing: 0.05em;
+  color: var(--dream-ink-3);
+  font-family: var(--dream-font-annotation);
+  font-size: 8px;
+  letter-spacing: 0.04em;
 }
 
 .session-topic {
@@ -207,9 +225,9 @@ defineEmits(['select'])
   align-items: center;
   gap: 6px;
   overflow: hidden;
-  color: var(--dusk-text);
-  font-family: var(--dusk-font-display);
-  font-size: 14px;
+  color: var(--dream-ink);
+  font-family: var(--dream-font-display);
+  font-size: 13.5px;
   font-weight: 600;
   line-height: 1.5;
   text-overflow: ellipsis;
@@ -221,35 +239,25 @@ defineEmits(['select'])
   height: 4px;
   flex: none;
   border-radius: 50%;
-}
-
-.topic-dot.is-rose {
-  background: var(--dusk-rose);
-  box-shadow: 0 0 0 3px rgba(232, 182, 199, 0.08);
-}
-
-.topic-dot.is-ice {
-  background: var(--dusk-ice);
-  box-shadow: 0 0 0 3px rgba(184, 216, 232, 0.08);
-}
-
-.topic-dot.is-gold {
-  background: var(--dusk-gold);
-  box-shadow: 0 0 0 3px rgba(214, 194, 154, 0.08);
+  background: var(--rail-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--rail-accent) 12%, transparent);
 }
 
 .session-snippet {
   overflow: hidden;
-  color: var(--dusk-text-3);
-  font-size: 10px;
+  color: var(--dream-ink-3);
+  font-size: 9.5px;
   line-height: 1.5;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.session-item.active .session-top strong,
+.session-item.active .session-top strong {
+  color: var(--dream-ink);
+}
+
 .session-item.active .session-snippet {
-  color: var(--dusk-text-2);
+  color: var(--dream-ink-2);
 }
 
 .session-item:focus-visible {
@@ -260,17 +268,17 @@ defineEmits(['select'])
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 15px 16px 17px;
-  border-top: 1px solid var(--dusk-line-soft);
+  gap: 9px;
+  padding: 14px 16px 16px;
+  border-top: 1px solid var(--dream-line-soft);
 }
 
 .rail-user {
   display: flex;
   align-items: center;
   gap: 9px;
-  color: var(--dusk-text-2);
-  font-size: 11px;
+  color: var(--dream-ink-2);
+  font-size: 10.5px;
 }
 
 .rail-user__initial {
@@ -278,36 +286,36 @@ defineEmits(['select'])
   height: 27px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(244, 239, 229, 0.24);
+  border: 1px solid rgba(58, 62, 91, 0.16);
   border-radius: 50%;
-  color: var(--dusk-pearl);
-  font-family: var(--dusk-font-display);
+  color: var(--dream-ink);
+  font-family: var(--dream-font-display);
   font-size: 12px;
-  background: rgba(184, 216, 232, 0.07);
+  background: linear-gradient(145deg, rgba(216, 231, 238, 0.6), rgba(244, 227, 231, 0.56));
 }
 
 .rail-user small {
   display: block;
-  color: var(--dusk-text-3);
-  font-family: var(--dusk-font-annotation);
-  font-size: 8px;
+  color: var(--dream-ink-3);
+  font-family: var(--dream-font-annotation);
+  font-size: 7.5px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .rail-home {
-  min-height: 44px;
+  min-height: 42px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-radius: var(--dusk-radius-sm);
-  color: var(--dusk-text-3);
-  font-size: 10px;
+  border-radius: var(--dream-radius-sm);
+  color: var(--dream-ink-3);
+  font-size: 9.5px;
   letter-spacing: 0.05em;
 }
 
 .rail-home:hover {
-  color: var(--dusk-rose);
+  color: var(--dream-rose);
 }
 
 .rail-home:focus-visible {

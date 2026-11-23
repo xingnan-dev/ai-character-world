@@ -92,9 +92,9 @@ const stateOptions = [
   bottom: 18px;
   left: 18px;
   width: 224px;
-  color: var(--dusk-text-2);
+  color: var(--dream-ink-2);
   font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  filter: drop-shadow(0 18px 38px rgba(1, 4, 12, 0.45));
+  filter: drop-shadow(0 16px 34px rgba(65, 59, 76, 0.18));
 }
 
 .dock-tab {
@@ -104,16 +104,16 @@ const stateOptions = [
   align-items: center;
   gap: 7px;
   padding: 0 10px;
-  border: 1px dashed rgba(232, 182, 199, 0.42);
+  border: 1px dashed rgba(199, 121, 144, 0.46);
   border-radius: 10px;
-  color: var(--dusk-text-2);
-  background: rgba(9, 14, 29, 0.92);
+  color: var(--dream-ink-2);
+  background: rgba(255, 252, 247, 0.9);
   backdrop-filter: blur(14px);
 }
 
 .dock-tab:hover {
-  border-color: rgba(232, 182, 199, 0.66);
-  color: var(--dusk-text);
+  border-color: rgba(199, 121, 144, 0.7);
+  color: var(--dream-ink);
 }
 
 .dock-led {
@@ -121,41 +121,42 @@ const stateOptions = [
   height: 6px;
   flex: none;
   border-radius: 50%;
-  background: var(--dusk-rose);
-  box-shadow: 0 0 8px rgba(232, 182, 199, 0.48);
+  background: var(--dream-rose);
+  box-shadow: 0 0 8px rgba(199, 121, 144, 0.35);
 }
 
 .dock-tab__label {
-  font-family: var(--dusk-font-body);
+  font-family: var(--dream-font-body);
   font-size: 11px;
   letter-spacing: 0.04em;
 }
 
 .dock-tab__tag {
-  color: var(--dusk-rose);
+  color: var(--dream-rose);
   font-size: 8px;
   letter-spacing: 0.12em;
 }
 
 .dock-chevron {
   margin-left: auto;
-  color: var(--dusk-text-3);
+  color: var(--dream-ink-3);
   font-size: 13px;
 }
 
 .dock-panel {
   margin-top: 6px;
   padding: 12px;
-  border: 1px dashed rgba(232, 182, 199, 0.32);
+  border: 1px dashed rgba(199, 121, 144, 0.36);
   border-radius: 12px;
-  background: rgba(9, 14, 29, 0.96);
+  background: rgba(255, 252, 247, 0.96);
+  box-shadow: var(--dream-shadow-soft);
   backdrop-filter: blur(16px);
 }
 
 .dock-note {
   margin-bottom: 11px;
-  color: var(--dusk-text-3);
-  font-family: var(--dusk-font-body);
+  color: var(--dream-ink-3);
+  font-family: var(--dream-font-body);
   font-size: 9px;
   line-height: 1.6;
 }
@@ -167,8 +168,8 @@ const stateOptions = [
 
 .dock-group legend {
   margin-bottom: 6px;
-  color: var(--dusk-text-3);
-  font-family: var(--dusk-font-body);
+  color: var(--dream-ink-3);
+  font-family: var(--dream-font-body);
   font-size: 9px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -188,32 +189,32 @@ const stateOptions = [
   align-items: flex-start;
   gap: 1px;
   padding: 5px 9px;
-  border: 1px solid rgba(216, 224, 248, 0.14);
+  border: 1px solid rgba(58, 62, 91, 0.14);
   border-radius: 7px;
-  color: var(--dusk-text-2);
-  font-family: var(--dusk-font-body);
+  color: var(--dream-ink-2);
+  font-family: var(--dream-font-body);
   font-size: 11px;
-  background: rgba(22, 31, 56, 0.6);
+  background: rgba(255, 253, 249, 0.6);
 }
 
 .state-button small {
-  color: var(--dusk-text-3);
+  color: var(--dream-ink-3);
   font-size: 7px;
   letter-spacing: 0.1em;
 }
 
 .state-button:hover {
-  border-color: rgba(184, 216, 232, 0.42);
+  border-color: rgba(85, 143, 168, 0.4);
 }
 
 .state-button.active {
-  border-color: rgba(232, 182, 199, 0.52);
-  color: var(--dusk-rose-soft);
-  background: rgba(232, 182, 199, 0.09);
+  border-color: rgba(199, 121, 144, 0.52);
+  color: var(--dream-ink);
+  background: rgba(246, 224, 230, 0.56);
 }
 
 .state-button.active small {
-  color: var(--dusk-rose);
+  color: var(--dream-rose);
 }
 
 .toggle-grid {
@@ -229,26 +230,27 @@ const stateOptions = [
   justify-content: space-between;
   gap: 6px;
   padding: 0 8px;
-  border: 1px solid rgba(216, 224, 248, 0.12);
+  border: 1px solid rgba(58, 62, 91, 0.14);
   border-radius: 7px;
-  color: var(--dusk-text-2);
-  font-family: var(--dusk-font-body);
+  color: var(--dream-ink-2);
+  font-family: var(--dream-font-body);
   font-size: 10px;
-  background: rgba(22, 31, 56, 0.52);
+  background: rgba(255, 253, 249, 0.6);
 }
 
 .toggle-button b {
-  color: var(--dusk-text-3);
+  color: var(--dream-ink-3);
   font-size: 9px;
   font-weight: 500;
 }
 
 .toggle-button[aria-pressed="true"] {
-  border-color: rgba(184, 216, 232, 0.38);
+  border-color: rgba(85, 143, 168, 0.4);
+  background: rgba(232, 241, 246, 0.6);
 }
 
 .toggle-button[aria-pressed="true"] b {
-  color: var(--dusk-ice);
+  color: var(--dream-ice);
 }
 
 .dock-foot {
@@ -257,31 +259,31 @@ const stateOptions = [
   justify-content: space-between;
   gap: 8px;
   padding-top: 9px;
-  border-top: 1px dashed rgba(216, 224, 248, 0.14);
+  border-top: 1px dashed rgba(58, 62, 91, 0.14);
 }
 
 .reset-button {
   min-height: 44px;
-  color: var(--dusk-text-3);
-  font-family: var(--dusk-font-body);
+  color: var(--dream-ink-3);
+  font-family: var(--dream-font-body);
   font-size: 9px;
 }
 
 .reset-button:hover {
-  color: var(--dusk-rose);
+  color: var(--dream-rose);
 }
 
 .dock-home {
   min-height: 44px;
   display: inline-flex;
   align-items: center;
-  color: var(--dusk-text-3);
-  font-family: var(--dusk-font-body);
+  color: var(--dream-ink-3);
+  font-family: var(--dream-font-body);
   font-size: 9px;
 }
 
 .dock-home:hover {
-  color: var(--dusk-ice);
+  color: var(--dream-ice);
 }
 
 @media (max-width: 960px) {
@@ -307,6 +309,12 @@ const stateOptions = [
   .dock-panel {
     max-height: calc(100dvh - 160px);
     overflow-y: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preview-dock {
+    transition: none;
   }
 }
 

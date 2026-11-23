@@ -1,14 +1,16 @@
 <template>
   <header class="preview-nav">
     <div class="preview-nav__inner">
-      <RouterLink class="preview-nav__brand" to="/home" aria-label="AIworld 暮色卷，设计样稿首页">
+      <RouterLink class="preview-nav__brand" to="/home" aria-label="AIworld 浮光卷，设计样稿首页">
         <span class="preview-nav__mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="20" height="20">
-            <path d="M12 2.6 14 10 21.4 12 14 14 12 21.4 10 14 2.6 12 10 10Z" fill="none" stroke="currentColor" stroke-width="1.2" />
-            <circle cx="12" cy="12" r="1.6" fill="currentColor" />
+            <ellipse cx="12" cy="12" rx="9.5" ry="5.4" transform="rotate(-18 12 12)" fill="none" stroke="currentColor" stroke-width="1.1" />
+            <circle cx="12" cy="12" r="2.1" fill="none" stroke="currentColor" stroke-width="1.1" />
+            <circle cx="12" cy="12" r="0.9" fill="currentColor" opacity="0.68" />
           </svg>
         </span>
         <span class="preview-nav__wordmark">AIworld</span>
+        <span class="preview-nav__edition dream-script" aria-hidden="true">dreamlight</span>
       </RouterLink>
 
       <nav class="preview-nav__links" aria-label="设计样稿导航">
@@ -85,15 +87,16 @@ function navigate(item) {
   top: 0;
   z-index: 60;
   flex: none;
-  color: var(--dusk-text);
-  background: rgba(8, 13, 28, 0.82);
-  border-bottom: 1px solid var(--dusk-line-soft);
-  backdrop-filter: blur(18px) saturate(1.1);
+  color: var(--dream-ink);
+  background: rgba(249, 245, 243, 0.74);
+  border-bottom: 1px solid rgba(58, 62, 91, 0.09);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(20px) saturate(1.06);
 }
 
 .preview-nav__inner {
   width: min(1180px, calc(100% - 48px));
-  min-height: var(--dusk-nav-h);
+  min-height: var(--dream-nav-h);
   margin: 0 auto;
   display: grid;
   grid-template-columns: minmax(max-content, 1fr) auto minmax(40px, 1fr);
@@ -107,61 +110,77 @@ function navigate(item) {
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  border-radius: var(--dusk-radius-sm);
-  color: var(--dusk-text);
+  border-radius: var(--dream-radius-sm);
+  color: var(--dream-ink);
 }
 
 .preview-nav__mark {
-  color: var(--dusk-rose-soft);
-  filter: drop-shadow(0 0 9px var(--dusk-rose-glow));
+  color: var(--dream-rose);
+  opacity: 0.86;
 }
 
 .preview-nav__wordmark {
-  font-family: var(--dusk-font-script);
-  font-size: 25px;
-  font-style: italic;
+  font-family: var(--dream-font-latin);
+  font-size: 22px;
+  font-weight: 600;
   line-height: 1;
-  letter-spacing: 0.015em;
+  letter-spacing: 0.02em;
+}
+
+.preview-nav__edition {
+  margin-left: -2px;
+  padding-top: 8px;
+  color: var(--dream-rose);
+  font-size: 15px;
+  line-height: 1;
+  opacity: 0.82;
 }
 
 .preview-nav__links {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--dream-line-soft);
+  border-radius: var(--dream-radius-pill);
+  background: rgba(255, 252, 247, 0.42);
 }
 
 .preview-nav__link {
   position: relative;
-  min-height: 44px;
+  min-height: 38px;
   padding: 0 14px;
-  border-radius: var(--dusk-radius-pill);
-  color: var(--dusk-text-3);
-  font-size: 13px;
-  font-weight: 600;
+  border-radius: var(--dream-radius-pill);
+  color: var(--dream-ink-3);
+  font-size: 12.5px;
+  font-weight: 400;
   letter-spacing: 0.04em;
-  transition: color var(--dusk-motion) var(--dusk-ease), background var(--dusk-motion) var(--dusk-ease);
+  transition:
+    color var(--dream-motion) var(--dream-ease),
+    background var(--dream-motion) var(--dream-ease);
 }
 
 .preview-nav__link::after {
   content: "";
   position: absolute;
-  right: 14px;
-  bottom: 7px;
-  left: 14px;
+  right: 16px;
+  bottom: 5px;
+  left: 16px;
   height: 1px;
   transform: scaleX(0);
-  background: linear-gradient(90deg, var(--dusk-rose), var(--dusk-ice));
-  transition: transform var(--dusk-motion) var(--dusk-ease);
+  background: linear-gradient(90deg, var(--dream-rose), var(--dream-ice));
+  transition: transform var(--dream-motion) var(--dream-ease);
 }
 
 .preview-nav__link:hover {
-  color: var(--dusk-text);
-  background: rgba(232, 182, 199, 0.05);
+  color: var(--dream-ink);
+  background: rgba(255, 255, 255, 0.38);
 }
 
 .preview-nav__link.is-active {
-  color: var(--dusk-text);
-  font-weight: 700;
+  color: var(--dream-ink);
+  font-weight: 500;
+  background: rgba(255, 253, 249, 0.76);
 }
 
 .preview-nav__link.is-active::after {
@@ -172,7 +191,7 @@ function navigate(item) {
   justify-self: end;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 13px;
 }
 
 .preview-nav__badge {
@@ -180,11 +199,11 @@ function navigate(item) {
   display: inline-flex;
   align-items: center;
   padding: 0 9px;
-  border: 1px dashed rgba(232, 182, 199, 0.32);
-  border-radius: var(--dusk-radius-pill);
-  color: var(--dusk-rose);
-  font-family: var(--dusk-font-annotation);
-  font-size: 9px;
+  border: 1px dashed rgba(199, 121, 144, 0.36);
+  border-radius: var(--dream-radius-pill);
+  color: var(--dream-rose);
+  font-family: var(--dream-font-annotation);
+  font-size: 8px;
   font-weight: 600;
   line-height: 1;
   letter-spacing: 0.16em;
@@ -192,30 +211,30 @@ function navigate(item) {
 
 .preview-nav__user {
   position: relative;
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(244, 239, 229, 0.34);
+  border: 1px solid rgba(58, 62, 91, 0.18);
   border-radius: 50%;
-  color: var(--dusk-text);
-  font-family: var(--dusk-font-display);
-  font-size: 15px;
+  color: var(--dream-ink);
+  font-family: var(--dream-font-display);
+  font-size: 14px;
   background:
-    radial-gradient(circle at 30% 25%, rgba(232, 182, 199, 0.26), transparent 60%),
-    rgba(25, 34, 60, 0.82);
-  box-shadow: 0 0 0 3px rgba(244, 239, 229, 0.05);
+    radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.72), transparent 58%),
+    linear-gradient(145deg, rgba(216, 231, 238, 0.72), rgba(244, 227, 231, 0.68));
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.44);
 }
 
 .preview-nav__user-dot {
   position: absolute;
-  right: 1px;
-  bottom: 2px;
+  right: 0;
+  bottom: 1px;
   width: 7px;
   height: 7px;
-  border: 1px solid var(--dusk-bg-1);
+  border: 1px solid #fbf6f2;
   border-radius: 50%;
-  background: var(--dusk-success);
+  background: var(--dream-success);
 }
 
 .preview-nav__brand:focus-visible,
@@ -237,7 +256,7 @@ function navigate(item) {
 @media (max-width: 760px) {
   .preview-nav__inner {
     width: calc(100% - 24px);
-    min-height: var(--dusk-nav-h);
+    min-height: var(--dream-nav-h);
     grid-template-columns: auto minmax(0, 1fr) auto;
     gap: 8px;
   }
@@ -247,36 +266,42 @@ function navigate(item) {
   }
 
   .preview-nav__mark svg {
-    width: 16px;
-    height: 16px;
+    width: 17px;
+    height: 17px;
   }
 
   .preview-nav__wordmark {
-    font-size: 19px;
+    font-size: 18px;
+  }
+
+  .preview-nav__edition {
+    display: none;
   }
 
   .preview-nav__links {
     justify-content: center;
     gap: 0;
+    padding: 2px;
   }
 
   .preview-nav__link {
     min-width: 0;
-    padding: 0 7px;
-    font-size: 12px;
-    letter-spacing: 0.02em;
+    min-height: 36px;
+    padding: 0 8px;
+    font-size: 11.5px;
+    letter-spacing: 0.01em;
   }
 
   .preview-nav__link::after {
-    right: 8px;
-    bottom: 5px;
-    left: 8px;
+    right: 9px;
+    bottom: 4px;
+    left: 9px;
   }
 
   .preview-nav__user {
     width: 30px;
     height: 30px;
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .preview-nav__right {
@@ -290,8 +315,8 @@ function navigate(item) {
   }
 
   .preview-nav__link {
-    padding: 0 5px;
-    font-size: 11.5px;
+    padding: 0 6px;
+    font-size: 11px;
   }
 }
 

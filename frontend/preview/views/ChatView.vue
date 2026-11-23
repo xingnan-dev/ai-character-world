@@ -1,11 +1,12 @@
 <template>
-  <div class="chat-view">
+  <div class="chat-view" :class="`accent-${currentSession.accent}`">
     <div class="chat-atmosphere" aria-hidden="true">
       <span class="atmosphere-glow atmosphere-glow--left"></span>
       <span class="atmosphere-glow atmosphere-glow--right"></span>
-      <span class="atmosphere-orbit"></span>
-      <DuskStar class="atmosphere-star atmosphere-star--one" :size="20" tone="rose" />
-      <DuskStar class="atmosphere-star atmosphere-star--two" :size="12" tone="ice" :spark="false" />
+      <span class="atmosphere-orbit atmosphere-orbit--one"></span>
+      <span class="atmosphere-orbit atmosphere-orbit--two"></span>
+      <DuskStar class="atmosphere-mark atmosphere-mark--one" :size="14" tone="rose" />
+      <DuskStar class="atmosphere-mark atmosphere-mark--two" :size="10" tone="ice" :spark="false" />
     </div>
 
     <div class="chat-layout">
@@ -32,16 +33,17 @@
           <div class="head-identity">
             <span class="head-avatar" aria-hidden="true">
               <img :src="currentSession.imageUrl" alt="" />
+              <i class="head-presence"></i>
             </span>
             <div class="head-text">
-              <span class="head-kicker">{{ currentSession.characterName }} · 当前对话</span>
+              <span class="head-kicker">{{ currentSession.characterName }} · 最近一次谈话</span>
               <h1 class="head-title">{{ currentSession.topic }}</h1>
             </div>
           </div>
 
           <div class="head-meta">
             <span class="head-status"><i aria-hidden="true"></i>在线</span>
-            <span class="head-time">最近 {{ currentSession.time }}</span>
+            <span class="head-time">{{ currentSession.time }}</span>
           </div>
 
           <button
@@ -68,10 +70,10 @@
           <div class="messages-inner">
             <div class="day-line" aria-hidden="true">
               <span></span>
-              <time>12 月 17 日 · 星期四</time>
+              <time>11 月 23 日 · 星期一</time>
               <span></span>
             </div>
-            <p class="conversation-caption">窗边的雪 · 第 12 次谈话</p>
+            <p class="conversation-caption">与 {{ currentSession.characterName }} 的最近一次谈话</p>
 
             <div
               v-for="msg in visibleMessages"
@@ -96,7 +98,7 @@
 
                 <div
                   v-if="msg.pending"
-                  class="msg-bubble is-pending"
+                  class="msg-typing"
                   :aria-label="`${currentSession.characterName}正在输入`"
                   role="status"
                 >
@@ -107,7 +109,7 @@
                   class="msg-bubble"
                   :class="{ 'is-streaming': msg.streaming, 'is-long': msg.long }"
                 >
-                  {{ msg.content }}<span v-if="msg.streaming" class="stream-caret" aria-hidden="true"></span>
+                  {{ formatContent(msg.content) }}<span v-if="msg.streaming" class="stream-caret" aria-hidden="true"></span>
                 </div>
               </div>
             </div>
@@ -122,7 +124,7 @@
           <div class="composer-inner">
             <div class="composer-line">
               <span class="composer-to">
-                <DuskStar :size="12" tone="rose" :spark="false" />
+                <i aria-hidden="true"></i>
                 写给 {{ currentSession.characterName }}
               </span>
               <span class="composer-hint">Enter 发送 · Shift + Enter 换行</span>
@@ -287,6 +289,11 @@ const visibleMessages = computed(() => {
 
 const canSend = computed(() => draft.value.trim().length > 0)
 
+function formatContent(content = '') {
+  // Keep a single line break between paragraphs so long replies stay compact.
+  return content.replace(/\r\n/g, '\n').replace(/\n{2,}/g, '\n')
+}
+
 function scrollToBottom() {
   nextTick(() => {
     const element = messagesRef.value
@@ -328,6 +335,16 @@ function setPreviewState(value) {
   previewState.value = value
   profileOpen.value = false
   if (value === 'long') {
+    // The preview control should always be able to demonstrate a long reply.
+    // If the current room only has short messages, move to the room that does.
+    if (!currentSession.value.messages.some((msg) => msg.long)) {
+      const longSession = SESSIONS.find((item) => item.messages.some((msg) => msg.long))
+      if (longSession) {
+        currentSessionId.value = longSession.id
+        sentText.value = ''
+        router.replace({ path: '/chat', query: { session: longSession.id } })
+      }
+    }
     scrollToLongMessage()
   } else {
     scrollToBottom()
@@ -403,6 +420,17 @@ function handleGlobalKeydown(event) {
   if (profileOpen.value) profileOpen.value = false
 }
 
+watch(
+  () => route.query.session,
+  (id) => {
+    if (!id || id === currentSessionId.value || !sessionIds.has(id)) return
+    currentSessionId.value = id
+    previewState.value = 'normal'
+    sentText.value = ''
+    scrollToBottom()
+  }
+)
+
 watch(sessionsOpen, (open) => {
   if (open) nextTick(() => drawerCloseRef.value?.focus())
 })
@@ -419,15 +447,32 @@ onBeforeUnmount(() => {
 
 <style lang="scss" scoped>
 .chat-view {
+  --session-accent: var(--dream-rose);
   position: fixed;
   z-index: 1;
-  top: var(--dusk-nav-h);
+  top: var(--dream-nav-h);
   right: 0;
   bottom: 0;
   left: 0;
   overflow: hidden;
   isolation: isolate;
-  color: var(--dusk-text);
+  color: var(--dream-ink);
+}
+
+.chat-view.accent-sun {
+  --session-accent: var(--dream-apricot);
+}
+
+.chat-view.accent-ice {
+  --session-accent: var(--dream-ice);
+}
+
+.chat-view.accent-violet {
+  --session-accent: var(--dream-violet);
+}
+
+.chat-view.accent-rose {
+  --session-accent: var(--dream-rose);
 }
 
 .chat-atmosphere {
@@ -441,72 +486,85 @@ onBeforeUnmount(() => {
 .atmosphere-glow {
   position: absolute;
   border-radius: 50%;
-  filter: blur(26px);
+  filter: blur(30px);
 }
 
 .atmosphere-glow--left {
-  bottom: -18%;
-  left: -8%;
-  width: 48%;
-  height: 56%;
-  background: radial-gradient(circle, rgba(238, 157, 184, 0.14), transparent 68%);
+  bottom: -16%;
+  left: -7%;
+  width: 42%;
+  height: 48%;
+  background: radial-gradient(circle, rgba(237, 187, 199, 0.34), transparent 68%);
 }
 
 .atmosphere-glow--right {
-  top: -22%;
-  right: -10%;
-  width: 46%;
-  height: 54%;
-  background: radial-gradient(circle, rgba(93, 125, 176, 0.2), transparent 66%);
+  top: -20%;
+  right: -8%;
+  width: 44%;
+  height: 50%;
+  background: radial-gradient(circle, rgba(156, 194, 215, 0.3), transparent 68%);
 }
 
 .atmosphere-orbit {
   position: absolute;
-  bottom: -26%;
-  left: -6%;
-  width: 44%;
-  height: 50%;
-  border: 1px solid rgba(232, 182, 199, 0.12);
+  border: 1px solid rgba(92, 127, 151, 0.15);
   border-radius: 50%;
-  transform: rotate(-12deg);
 }
 
-.atmosphere-star {
+.atmosphere-orbit--one {
+  top: 10%;
+  right: -12%;
+  width: 34%;
+  height: 42%;
+  transform: rotate(-17deg);
+}
+
+.atmosphere-orbit--two {
+  bottom: -24%;
+  left: -7%;
+  width: 27%;
+  height: 42%;
+  border-color: rgba(188, 122, 141, 0.14);
+  transform: rotate(12deg);
+}
+
+.atmosphere-mark {
   position: absolute;
-  opacity: 0.5;
+  opacity: 0.46;
 }
 
-.atmosphere-star--one {
-  top: 13%;
-  right: 5%;
+.atmosphere-mark--one {
+  top: 12%;
+  right: 4%;
 }
 
-.atmosphere-star--two {
-  bottom: 14%;
-  left: 5%;
+.atmosphere-mark--two {
+  bottom: 12%;
+  left: 3%;
 }
 
 .chat-layout {
   position: relative;
   z-index: 1;
-  width: min(1180px, calc(100% - 32px));
+  width: min(1220px, calc(100% - 32px));
   height: 100%;
   min-height: 0;
   margin: 0 auto;
   display: flex;
-  gap: 14px;
+  gap: 13px;
   padding: 14px 0 16px;
 }
 
 .rail-panel {
-  flex: 0 0 224px;
+  flex: 0 0 236px;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid var(--dusk-line-soft);
+  border: 1px solid var(--dream-line-soft);
   border-radius: 20px;
-  background: linear-gradient(180deg, rgba(19, 28, 55, 0.88), rgba(11, 18, 36, 0.9));
-  box-shadow: var(--dusk-shadow-soft);
+  background: linear-gradient(168deg, rgba(255, 251, 245, 0.76), rgba(244, 239, 238, 0.58));
+  box-shadow: var(--dream-shadow-inset), 0 14px 34px rgba(75, 69, 89, 0.09);
+  backdrop-filter: blur(14px);
 }
 
 .chat-room {
@@ -517,23 +575,24 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid var(--dusk-line);
+  border: 1px solid var(--dream-line-soft);
   border-radius: 20px;
-  background: linear-gradient(180deg, #121c37 0%, #0e1730 62%, #0b1225 100%);
-  box-shadow: var(--dusk-shadow-soft);
+  background:
+    radial-gradient(ellipse 56% 30% at 88% 0%, rgba(172, 200, 215, 0.17), transparent 68%),
+    radial-gradient(ellipse 60% 32% at 4% 100%, rgba(231, 189, 199, 0.13), transparent 72%),
+    linear-gradient(180deg, rgba(255, 252, 247, 0.9) 0%, rgba(251, 246, 240, 0.82) 58%, rgba(248, 241, 236, 0.86) 100%);
+  box-shadow: var(--dream-shadow-inset), 0 18px 44px rgba(75, 69, 89, 0.1);
 }
 
 .room-head {
   flex: none;
-  min-height: 68px;
+  min-height: 70px;
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 10px 14px 10px 18px;
-  border-bottom: 1px solid var(--dusk-line-soft);
-  background:
-    linear-gradient(90deg, rgba(238, 157, 184, 0.03), transparent 38%),
-    rgba(10, 16, 32, 0.34);
+  border-bottom: 1px solid var(--dream-line-soft);
+  background: linear-gradient(90deg, rgba(255, 252, 247, 0.42), transparent 60%);
 }
 
 .rail-toggle {
@@ -546,14 +605,14 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 4px;
   border-radius: 10px;
-  color: var(--dusk-text-2);
+  color: var(--dream-ink-2);
 }
 
 .rail-toggle span {
   width: 16px;
   height: 1px;
   background: currentColor;
-  opacity: 0.8;
+  opacity: 0.76;
 }
 
 .rail-toggle span:nth-child(2) {
@@ -561,7 +620,7 @@ onBeforeUnmount(() => {
 }
 
 .rail-toggle:hover {
-  background: rgba(232, 182, 199, 0.06);
+  background: rgba(199, 121, 144, 0.08);
 }
 
 .head-identity {
@@ -573,20 +632,33 @@ onBeforeUnmount(() => {
 }
 
 .head-avatar {
+  position: relative;
   width: 40px;
   height: 40px;
   flex: none;
-  overflow: hidden;
-  border: 1px solid rgba(244, 239, 229, 0.3);
+  overflow: visible;
+  border: 1px solid rgba(73, 69, 89, 0.2);
   border-radius: 50%;
-  background: #111a33;
-  box-shadow: 0 0 0 3px rgba(244, 239, 229, 0.03);
+  background: #e9e1e5;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.52);
 }
 
 .head-avatar img {
   width: 100%;
   height: 100%;
+  border-radius: 50%;
   object-fit: cover;
+}
+
+.head-presence {
+  position: absolute;
+  right: -1px;
+  bottom: 1px;
+  width: 8px;
+  height: 8px;
+  border: 1px solid #fffaf4;
+  border-radius: 50%;
+  background: var(--dream-success);
 }
 
 .head-text {
@@ -596,10 +668,10 @@ onBeforeUnmount(() => {
 .head-kicker {
   display: block;
   overflow: hidden;
-  color: var(--dusk-text-3);
-  font-family: var(--dusk-font-annotation);
+  color: var(--dream-ink-3);
+  font-family: var(--dream-font-annotation);
   font-size: 8.5px;
-  letter-spacing: 0.11em;
+  letter-spacing: 0.12em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -607,8 +679,8 @@ onBeforeUnmount(() => {
 .head-title {
   overflow: hidden;
   margin-top: 2px;
-  color: var(--dusk-text);
-  font-family: var(--dusk-font-display);
+  color: var(--dream-ink);
+  font-family: var(--dream-font-display);
   font-size: 19px;
   font-weight: 600;
   line-height: 1.3;
@@ -621,28 +693,33 @@ onBeforeUnmount(() => {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 12px;
-  color: var(--dusk-text-3);
+  gap: 11px;
+  color: var(--dream-ink-3);
 }
 
 .head-status {
+  min-height: 24px;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 10px;
+  padding: 0 8px;
+  border: 1px solid var(--dream-line-soft);
+  border-radius: var(--dream-radius-pill);
+  font-size: 9px;
   letter-spacing: 0.04em;
+  background: rgba(255, 252, 247, 0.46);
 }
 
 .head-status i {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--dusk-success);
-  box-shadow: 0 0 7px rgba(143, 201, 172, 0.4);
+  background: var(--dream-success);
+  box-shadow: 0 0 0 3px rgba(91, 147, 122, 0.12);
 }
 
 .head-time {
-  font-family: var(--dusk-font-annotation);
+  font-family: var(--dream-font-annotation);
   font-size: 9px;
   letter-spacing: 0.05em;
 }
@@ -654,30 +731,30 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 7px;
   padding: 0 13px;
-  border: 1px solid var(--dusk-line-soft);
-  border-radius: var(--dusk-radius-pill);
-  color: var(--dusk-text-2);
-  font-size: 11px;
-  background: rgba(22, 31, 56, 0.38);
+  border: 1px solid var(--dream-line-soft);
+  border-radius: var(--dream-radius-pill);
+  color: var(--dream-ink-2);
+  font-size: 10.5px;
+  background: rgba(255, 252, 247, 0.56);
   transition:
-    border-color var(--dusk-motion) var(--dusk-ease),
-    color var(--dusk-motion) var(--dusk-ease),
-    background var(--dusk-motion) var(--dusk-ease);
+    border-color var(--dream-motion) var(--dream-ease),
+    color var(--dream-motion) var(--dream-ease),
+    background var(--dream-motion) var(--dream-ease);
 }
 
 .profile-toggle:hover {
-  color: var(--dusk-text);
-  border-color: rgba(232, 182, 199, 0.32);
-  background: rgba(232, 182, 199, 0.05);
+  color: var(--dream-ink);
+  border-color: rgba(184, 112, 133, 0.32);
+  background: rgba(255, 253, 249, 0.8);
 }
 
 .profile-toggle svg {
-  transition: transform var(--dusk-motion) var(--dusk-ease);
+  transition: transform var(--dream-motion) var(--dream-ease);
 }
 
 .profile-toggle[aria-expanded="true"] {
-  color: var(--dusk-rose-soft);
-  border-color: rgba(232, 182, 199, 0.36);
+  color: var(--dream-rose);
+  border-color: rgba(184, 112, 133, 0.36);
 }
 
 .profile-toggle[aria-expanded="true"] svg {
@@ -694,7 +771,7 @@ onBeforeUnmount(() => {
 }
 
 .messages:focus-visible {
-  outline: 2px solid var(--dusk-focus);
+  outline: 2px solid var(--dream-focus);
   outline-offset: -4px;
 }
 
@@ -702,47 +779,47 @@ onBeforeUnmount(() => {
   width: min(100%, 720px);
   min-height: 100%;
   margin: 0 auto;
-  padding: 24px clamp(18px, 3vw, 30px) 30px;
+  padding: 20px clamp(18px, 3vw, 32px) 26px;
   display: flex;
   flex-direction: column;
-  gap: 17px;
+  gap: 13px;
 }
 
 .day-line {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: var(--dusk-text-3);
+  color: var(--dream-ink-3);
 }
 
 .day-line span {
   flex: 1;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(216, 224, 248, 0.14));
+  background: linear-gradient(90deg, transparent, rgba(58, 62, 91, 0.16));
 }
 
 .day-line span:last-child {
-  background: linear-gradient(90deg, rgba(216, 224, 248, 0.14), transparent);
+  background: linear-gradient(90deg, rgba(58, 62, 91, 0.16), transparent);
 }
 
 .day-line time {
   flex: none;
-  font-family: var(--dusk-font-annotation);
-  font-size: 9px;
+  font-family: var(--dream-font-annotation);
+  font-size: 8.5px;
   letter-spacing: 0.1em;
 }
 
 .conversation-caption {
   margin: -5px 0 4px;
-  color: var(--dusk-text-3);
-  font-size: 9px;
-  letter-spacing: 0.08em;
+  color: var(--dream-ink-3);
+  font-size: 8.5px;
+  letter-spacing: 0.06em;
   text-align: center;
 }
 
 .message {
   min-width: 0;
-  max-width: 92%;
+  max-width: 94%;
   display: flex;
   align-items: flex-start;
   gap: 9px;
@@ -759,21 +836,21 @@ onBeforeUnmount(() => {
 
 .msg-avatar {
   flex: none;
-  padding-top: 18px;
+  padding-top: 17px;
 }
 
 .msg-avatar :deep(.simple-avatar) {
   border-width: 1px;
-  border-color: rgba(244, 239, 229, 0.26);
-  box-shadow: 0 6px 16px rgba(3, 8, 20, 0.3);
+  border-color: rgba(72, 68, 88, 0.17);
+  box-shadow: 0 4px 14px rgba(71, 67, 91, 0.13);
 }
 
 .msg-body {
   min-width: 0;
-  max-width: 620px;
+  max-width: 628px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
 }
 
 .message.user .msg-body {
@@ -784,15 +861,15 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  padding: 0 3px;
-  color: var(--dusk-text-3);
-  font-size: 9.5px;
-  letter-spacing: 0.05em;
+  padding: 0 4px;
+  color: var(--dream-ink-3);
+  font-size: 9px;
+  letter-spacing: 0.04em;
 }
 
 .msg-name time {
-  font-family: var(--dusk-font-annotation);
-  font-size: 8.5px;
+  font-family: var(--dream-font-annotation);
+  font-size: 8px;
   opacity: 0.8;
 }
 
@@ -804,33 +881,35 @@ onBeforeUnmount(() => {
   width: fit-content;
   min-width: 44px;
   max-width: 100%;
-  padding: 12px 16px;
-  border: 1px solid rgba(216, 224, 248, 0.11);
-  border-radius: 4px 14px 14px 14px;
-  color: var(--dusk-text);
+  padding: 11px 15px;
+  border: 1px solid rgba(58, 62, 91, 0.1);
+  border-radius: 5px 16px 16px 16px;
+  color: var(--dream-ink);
   font-size: 14.5px;
-  line-height: 1.88;
+  line-height: 1.78;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  background: rgba(236, 239, 255, 0.056);
-  box-shadow: 0 8px 24px rgba(1, 4, 12, 0.12);
+  background: rgba(255, 252, 247, 0.8);
+  box-shadow: 0 6px 18px rgba(72, 67, 88, 0.055);
 }
 
 .msg-bubble.is-long {
-  padding: 16px 18px;
-  line-height: 1.95;
+  padding: 13px 16px;
+  line-height: 1.72;
 }
 
 .message.user .msg-bubble {
-  color: #f3e9ec;
-  border-color: rgba(232, 182, 199, 0.26);
-  border-radius: 14px 4px 14px 14px;
-  background: linear-gradient(135deg, rgba(232, 182, 199, 0.15), rgba(196, 155, 179, 0.09));
+  color: #3e3341;
+  border-color: rgba(188, 132, 147, 0.2);
+  border-radius: 16px 5px 16px 16px;
+  background: linear-gradient(135deg, rgba(246, 224, 229, 0.84), rgba(241, 226, 226, 0.62));
 }
 
-.msg-bubble.is-pending {
-  padding: 15px 18px;
-  background: rgba(236, 239, 255, 0.05);
+.msg-typing {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  padding: 6px 4px;
 }
 
 .typing-dots {
@@ -844,9 +923,9 @@ onBeforeUnmount(() => {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--dusk-rose);
-  opacity: 0.3;
-  animation: typing-wave 1.4s var(--dusk-ease) infinite;
+  background: var(--session-accent);
+  opacity: 0.28;
+  animation: typing-wave 1.4s var(--dream-ease) infinite;
 }
 
 .typing-dots i:nth-child(2) {
@@ -864,13 +943,13 @@ onBeforeUnmount(() => {
   margin-left: 3px;
   vertical-align: -2px;
   border-radius: 1px;
-  background: var(--dusk-rose);
+  background: var(--session-accent);
   opacity: 0.72;
   animation: caret-breathe 1.1s step-end infinite;
 }
 
 .is-streaming {
-  border-color: rgba(232, 182, 199, 0.22);
+  border-color: rgba(184, 112, 133, 0.22);
 }
 
 .messages-end {
@@ -878,14 +957,14 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   margin-top: 4px;
-  color: var(--dusk-text-3);
-  opacity: 0.55;
+  color: var(--dream-ink-3);
+  opacity: 0.64;
 }
 
 .messages-end span {
   width: 22px;
   height: 1px;
-  background: var(--dusk-line);
+  background: var(--dream-line);
 }
 
 .messages-end b {
@@ -895,10 +974,9 @@ onBeforeUnmount(() => {
 
 .composer {
   flex: none;
-  padding: 9px clamp(14px, 3vw, 22px) 11px;
-  border-top: 1px solid var(--dusk-line-soft);
-  background:
-    linear-gradient(180deg, rgba(17, 26, 49, 0.74), rgba(11, 18, 36, 0.96));
+  padding: 9px clamp(14px, 3vw, 22px) 10px;
+  border-top: 1px solid var(--dream-line-soft);
+  background: linear-gradient(180deg, rgba(251, 246, 240, 0.58), rgba(255, 252, 247, 0.84));
 }
 
 .composer-inner {
@@ -918,15 +996,23 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--dusk-text-3);
-  font-size: 9.5px;
+  color: var(--dream-ink-3);
+  font-size: 9px;
   letter-spacing: 0.05em;
 }
 
+.composer-to i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--session-accent);
+  opacity: 0.76;
+}
+
 .composer-hint {
-  color: var(--dusk-text-3);
-  font-family: var(--dusk-font-annotation);
-  font-size: 9px;
+  color: var(--dream-ink-3);
+  font-family: var(--dream-font-annotation);
+  font-size: 8.5px;
   letter-spacing: 0.04em;
 }
 
@@ -935,17 +1021,20 @@ onBeforeUnmount(() => {
   align-items: flex-end;
   gap: 8px;
   padding: 5px 6px 5px 13px;
-  border: 1px solid var(--dusk-line);
+  border: 1px solid var(--dream-line);
   border-radius: 14px;
-  background: rgba(20, 29, 53, 0.66);
+  background: rgba(255, 253, 249, 0.86);
+  box-shadow: var(--dream-shadow-inset);
   transition:
-    border-color var(--dusk-motion) var(--dusk-ease),
-    box-shadow var(--dusk-motion) var(--dusk-ease);
+    border-color var(--dream-motion) var(--dream-ease),
+    box-shadow var(--dream-motion) var(--dream-ease);
 }
 
 .composer-bar:focus-within {
-  border-color: rgba(184, 216, 232, 0.52);
-  box-shadow: 0 0 0 3px rgba(184, 216, 232, 0.1);
+  border-color: rgba(85, 143, 168, 0.54);
+  box-shadow:
+    var(--dream-shadow-inset),
+    0 0 0 3px rgba(125, 176, 199, 0.14);
 }
 
 .composer-input {
@@ -959,16 +1048,21 @@ onBeforeUnmount(() => {
   border: 0;
   outline: none;
   resize: none;
-  color: var(--dusk-text);
-  font-family: var(--dusk-font-body);
-  font-size: 14.5px;
+  color: var(--dream-ink);
+  font-family: var(--dream-font-body);
+  font-size: 14px;
   line-height: 1.6;
   background: transparent;
 }
 
+.composer-input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 .composer-input::placeholder {
-  color: var(--dusk-text-3);
-  opacity: 0.84;
+  color: var(--dream-ink-3);
+  opacity: 0.76;
 }
 
 .send-button {
@@ -978,24 +1072,25 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  color: var(--dusk-text-inverse);
-  background: linear-gradient(135deg, #f7f1e6, #ddd6dd);
-  box-shadow: inset 0 1px 0 #fffdf8;
+  color: var(--dream-ink-inverse);
+  background: linear-gradient(135deg, #3b4062, #282c49);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 7px 16px rgba(47, 50, 78, 0.2);
   transition:
-    opacity var(--dusk-motion) var(--dusk-ease),
-    transform var(--dusk-motion) var(--dusk-ease),
-    box-shadow var(--dusk-motion) var(--dusk-ease);
+    opacity var(--dream-motion) var(--dream-ease),
+    transform var(--dream-motion) var(--dream-ease),
+    box-shadow var(--dream-motion) var(--dream-ease);
 }
 
 .send-button:not(:disabled):hover {
   transform: translateY(-1px);
   box-shadow:
-    0 0 0 4px rgba(232, 182, 199, 0.12),
-    inset 0 1px 0 #fffdf8;
+    0 0 0 4px rgba(199, 121, 144, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 10px 20px rgba(47, 50, 78, 0.24);
 }
 
 .send-button:disabled {
-  opacity: 0.34;
+  opacity: 0.32;
   box-shadow: none;
 }
 
@@ -1004,22 +1099,22 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-top: 5px;
-  color: var(--dusk-text-3);
-  font-family: var(--dusk-font-annotation);
-  font-size: 7.5px;
+  margin-top: 4px;
+  color: var(--dream-ink-3);
+  font-family: var(--dream-font-annotation);
+  font-size: 7px;
   letter-spacing: 0.09em;
   text-transform: uppercase;
 }
 
 .composer-preview {
-  color: rgba(232, 182, 199, 0.62);
+  color: rgba(174, 105, 126, 0.7);
 }
 
 .sessions-layer {
   position: fixed;
   z-index: 72;
-  top: var(--dusk-nav-h);
+  top: var(--dream-nav-h);
   right: 0;
   bottom: 0;
   left: 0;
@@ -1029,7 +1124,7 @@ onBeforeUnmount(() => {
   position: absolute;
   inset: 0;
   cursor: default;
-  background: rgba(4, 8, 18, 0.56);
+  background: rgba(49, 48, 66, 0.2);
   backdrop-filter: blur(2px);
 }
 
@@ -1038,14 +1133,14 @@ onBeforeUnmount(() => {
   top: 0;
   bottom: 0;
   left: 0;
-  width: min(322px, 86vw);
+  width: min(332px, 86vw);
   overflow: hidden;
-  color: var(--dusk-text);
-  border-right: 1px solid rgba(232, 182, 199, 0.2);
+  color: var(--dream-ink);
+  border-right: 1px solid rgba(58, 62, 91, 0.14);
   background:
-    radial-gradient(ellipse at 0% 0%, rgba(238, 157, 184, 0.1), transparent 36%),
-    linear-gradient(180deg, #121c38, #0a1124);
-  box-shadow: 24px 0 70px rgba(1, 4, 12, 0.42);
+    radial-gradient(ellipse at 0% 0%, rgba(235, 188, 200, 0.28), transparent 38%),
+    linear-gradient(168deg, #fcf8f3, #f2ecec);
+  box-shadow: 20px 0 58px rgba(61, 55, 75, 0.18);
 }
 
 .session-drawer :deep(.rail-head) {
@@ -1067,18 +1162,18 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  color: var(--dusk-text-2);
+  color: var(--dream-ink-2);
   font-size: 18px;
 }
 
 .drawer-close:hover {
-  color: var(--dusk-rose);
-  background: rgba(232, 182, 199, 0.06);
+  color: var(--dream-rose);
+  background: rgba(199, 121, 144, 0.08);
 }
 
 .drawer-fade-enter-active,
 .drawer-fade-leave-active {
-  transition: opacity var(--dusk-motion) var(--dusk-ease);
+  transition: opacity var(--dream-motion) var(--dream-ease);
 }
 
 .drawer-fade-enter-from,
@@ -1088,7 +1183,7 @@ onBeforeUnmount(() => {
 
 .drawer-slide-enter-active,
 .drawer-slide-leave-active {
-  transition: transform 300ms var(--dusk-ease);
+  transition: transform 300ms var(--dream-ease);
 }
 
 .drawer-slide-enter-from,
@@ -1097,21 +1192,21 @@ onBeforeUnmount(() => {
 }
 
 @keyframes typing-wave {
-  0%, 100% { opacity: 0.22; transform: translateY(0); }
-  40% { opacity: 0.9; transform: translateY(-2px); }
+  0%, 100% { opacity: 0.2; transform: translateY(0); }
+  40% { opacity: 0.88; transform: translateY(-2px); }
 }
 
 @keyframes caret-breathe {
-  50% { opacity: 0.18; }
+  50% { opacity: 0.16; }
 }
 
 @media (max-width: 1080px) {
   .rail-panel {
-    flex-basis: 204px;
+    flex-basis: 214px;
   }
 
   .chat-layout {
-    gap: 12px;
+    gap: 11px;
     padding-right: 16px;
     padding-left: 16px;
   }
@@ -1174,12 +1269,12 @@ onBeforeUnmount(() => {
   .profile-toggle {
     gap: 4px;
     padding: 0 10px;
-    font-size: 10px;
+    font-size: 9.5px;
   }
 
   .messages-inner {
-    padding: 18px 12px 24px;
-    gap: 15px;
+    padding: 17px 12px 23px;
+    gap: 13px;
   }
 
   .conversation-caption {
@@ -1197,17 +1292,17 @@ onBeforeUnmount(() => {
 
   .msg-bubble {
     padding: 10px 13px;
-    font-size: 14px;
-    line-height: 1.82;
+    font-size: 13.5px;
+    line-height: 1.76;
   }
 
   .msg-bubble.is-long {
-    padding: 13px 14px;
-    line-height: 1.9;
+    padding: 12px 14px;
+    line-height: 1.74;
   }
 
   .msg-name {
-    font-size: 9px;
+    font-size: 8.5px;
   }
 
   .composer {
@@ -1227,7 +1322,7 @@ onBeforeUnmount(() => {
   }
 
   .composer-meta {
-    font-size: 7px;
+    font-size: 6.5px;
   }
 
   .session-drawer {
@@ -1260,7 +1355,7 @@ onBeforeUnmount(() => {
   }
 
   .typing-dots i {
-    opacity: 0.64;
+    opacity: 0.62;
   }
 
   .drawer-slide-enter-active,
@@ -1282,7 +1377,7 @@ onBeforeUnmount(() => {
 
   .atmosphere-glow,
   .atmosphere-orbit,
-  .atmosphere-star {
+  .atmosphere-mark {
     display: none;
   }
 }
