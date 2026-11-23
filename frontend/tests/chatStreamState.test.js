@@ -36,3 +36,13 @@ test('consumeChatStream preserves leading whitespace in text chunks', async () =
   await consumeChatStream(reader, message)
   assert.equal(message.content, ' world')
 })
+
+
+test('multiline SSE data preserves blank paragraphs across network chunks', async () => {
+  const chunks = ['data: first\r\ndata:\r\nda', 'ta:  second  \r\n\r', '\nevent: done\ndata: [DONE]\n\n']
+  const reader = { read: async () => chunks.length ? { done: false, value: new TextEncoder().encode(chunks.shift()) } : { done: true } }
+  const message = { content: '', status: CHAT_MESSAGE_STATUS.PENDING }
+  await consumeChatStream(reader, message)
+  assert.equal(message.content, 'first\n\n second  ')
+  assert.equal(message.status, CHAT_MESSAGE_STATUS.COMPLETED)
+})
