@@ -1,0 +1,355 @@
+/* AIworld "Dusk Edition" design-preview tokens.
+   This stylesheet is loaded only by the isolated preview entry. */
+
+:root {
+  --dusk-bg-0: #080d1c;
+  --dusk-bg-1: #0b1226;
+  --dusk-bg-2: #121b36;
+  --dusk-surface: #0f1830;
+  --dusk-surface-soft: #141d38;
+  --dusk-surface-raised: rgba(20, 29, 55, 0.86);
+  --dusk-surface-glass: rgba(16, 24, 46, 0.72);
+  --dusk-line: rgba(216, 224, 248, 0.14);
+  --dusk-line-soft: rgba(216, 224, 248, 0.08);
+  --dusk-line-bright: rgba(236, 240, 255, 0.34);
+
+  --dusk-text: #f2efe8;
+  --dusk-text-2: #b9c1d8;
+  --dusk-text-3: #8f99b7;
+  --dusk-text-inverse: #171a2b;
+
+  --dusk-rose: #e8b6c7;
+  --dusk-rose-soft: #f3d3dc;
+  --dusk-rose-glow: rgba(238, 157, 184, 0.26);
+  --dusk-ice: #b8d8e8;
+  --dusk-ice-soft: rgba(184, 216, 232, 0.14);
+  --dusk-gold: #d6c29a;
+  --dusk-gold-soft: rgba(214, 194, 154, 0.14);
+  --dusk-pearl: #f4efe5;
+  --dusk-pearl-shade: #ded8d2;
+  --dusk-paper: #efe9dd;
+  --dusk-paper-ink: #2c2a34;
+  --dusk-success: #8fc9ac;
+  --dusk-danger: #dfa3a7;
+
+  --dusk-radius-sm: 10px;
+  --dusk-radius-md: 16px;
+  --dusk-radius-lg: 22px;
+  --dusk-radius-pill: 999px;
+  --dusk-shadow-soft: 0 18px 50px rgba(2, 6, 16, 0.34);
+  --dusk-shadow-deep: 0 28px 80px rgba(1, 4, 12, 0.46);
+  --dusk-focus: #bfe4f4;
+  --dusk-focus-ring: 0 0 0 4px rgba(184, 216, 232, 0.22);
+  --dusk-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dusk-motion: 240ms;
+  --dusk-nav-h: 64px;
+
+  --dusk-font-body: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    "Noto Sans SC", system-ui, sans-serif;
+  --dusk-font-display: "Songti SC", "STSong", "Source Han Serif SC",
+    "Noto Serif CJK SC", "SimSun", serif;
+  --dusk-font-script: "Snell Roundhand", "Segoe Script", "Brush Script MT",
+    "Palatino Linotype", Georgia, serif;
+  --dusk-font-annotation: "Optima", "Palatino Linotype", Georgia, serif;
+
+  /* Fallback tokens consumed by the reused SimpleAvatar component. */
+  --app-shadow-sm: 0 6px 20px rgba(3, 8, 20, 0.38);
+  --app-primary: #7fa7c4;
+  --app-primary-strong: #a9c8dd;
+  --app-sky-soft: #1a2942;
+  --app-text-secondary: #b9c1d8;
+  --app-success: #8fc9ac;
+  --app-danger: #dfa3a7;
+  --app-radius-pill: 999px;
+  --app-focus-ring: 0 0 0 4px rgba(184, 216, 232, 0.22);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  min-height: 100%;
+}
+
+body {
+  min-width: 320px;
+  color: var(--dusk-text);
+  font-family: var(--dusk-font-body);
+  font-size: 15px;
+  line-height: 1.65;
+  background: var(--dusk-bg-0);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+img,
+svg {
+  display: block;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+button,
+textarea,
+input {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+a {
+  color: var(--dusk-ice);
+  text-decoration: none;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+::selection {
+  color: var(--dusk-text);
+  background: rgba(232, 182, 199, 0.34);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(185, 193, 216, 0.28);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(232, 182, 199, 0.42);
+  background-clip: padding-box;
+}
+
+:focus-visible {
+  outline: 2px solid var(--dusk-focus);
+  outline-offset: 3px;
+  box-shadow: var(--dusk-focus-ring);
+}
+
+.dusk-app {
+  position: relative;
+  isolation: isolate;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(168deg, var(--dusk-bg-0) 0%, var(--dusk-bg-1) 48%, #10182f 100%);
+}
+
+.dusk-app::before {
+  content: "";
+  position: fixed;
+  z-index: -2;
+  inset: -12vmax;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 7% 8%, rgba(66, 92, 152, 0.22), transparent 34%),
+    radial-gradient(ellipse at 84% 4%, rgba(182, 139, 177, 0.16), transparent 30%),
+    radial-gradient(ellipse at 96% 70%, rgba(238, 152, 181, 0.1), transparent 28%),
+    radial-gradient(ellipse at 22% 96%, rgba(96, 138, 176, 0.14), transparent 32%);
+  filter: blur(18px);
+}
+
+.dusk-app::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.34;
+  background-image:
+    radial-gradient(circle at 22% 18%, rgba(244, 239, 229, 0.7) 0 0.9px, transparent 1.4px),
+    radial-gradient(circle at 76% 8%, rgba(232, 182, 199, 0.6) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 91% 58%, rgba(184, 216, 232, 0.55) 0 0.8px, transparent 1.3px);
+  background-size: 340px 340px, 470px 470px, 290px 290px;
+}
+
+.dusk-script {
+  font-family: var(--dusk-font-script);
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: 0.01em;
+}
+
+.dusk-display {
+  font-family: var(--dusk-font-display);
+  font-weight: 600;
+  letter-spacing: 0.015em;
+}
+
+.dusk-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--dusk-text-3);
+  font-family: var(--dusk-font-annotation);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.dusk-kicker::before {
+  content: "";
+  width: 26px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--dusk-rose), transparent);
+}
+
+.dusk-btn {
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 22px;
+  border: 1px solid transparent;
+  border-radius: var(--dusk-radius-pill);
+  font-family: var(--dusk-font-body);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  transition:
+    transform var(--dusk-motion) var(--dusk-ease),
+    border-color var(--dusk-motion) var(--dusk-ease),
+    background var(--dusk-motion) var(--dusk-ease),
+    box-shadow var(--dusk-motion) var(--dusk-ease);
+}
+
+.dusk-btn--pearl {
+  color: var(--dusk-text-inverse);
+  background: linear-gradient(135deg, #faf5eb, var(--dusk-pearl-shade));
+  box-shadow: 0 12px 32px rgba(3, 8, 20, 0.36), inset 0 1px 0 #fffdf9;
+}
+
+.dusk-btn--pearl:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 16px 38px rgba(3, 8, 20, 0.4),
+    0 0 0 6px rgba(232, 182, 199, 0.12),
+    inset 0 1px 0 #fffdf9;
+}
+
+.dusk-btn--ghost {
+  color: var(--dusk-text);
+  background: rgba(17, 25, 47, 0.68);
+  border-color: var(--dusk-line);
+}
+
+.dusk-btn--ghost:hover {
+  border-color: rgba(232, 182, 199, 0.4);
+  background: rgba(27, 36, 63, 0.8);
+}
+
+.dusk-btn .dusk-btn__arrow {
+  font-family: var(--dusk-font-annotation);
+  font-size: 16px;
+  line-height: 1;
+  transition: transform var(--dusk-motion) var(--dusk-ease);
+}
+
+.dusk-btn:hover .dusk-btn__arrow {
+  transform: translateX(3px);
+}
+
+.dusk-hairline {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--dusk-line), transparent);
+}
+
+.dusk-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  :root {
+    --dusk-nav-h: 56px;
+  }
+
+  body {
+    font-size: 14px;
+  }
+
+  .dusk-app::before {
+    opacity: 0.78;
+  }
+
+  .dusk-app::after {
+    opacity: 0.2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .dusk-app::before,
+  .dusk-app::after {
+    display: none;
+  }
+
+  .dusk-btn,
+  .dusk-app button {
+    border: 1px solid CanvasText;
+  }
+}

@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:design": "vite --config vite.preview.config.mjs",
     "build": "vite build",
+    "build:design": "vite build --config vite.preview.config.mjs",
     "test": "node --test tests/*.test.js",
     "preview": "vite preview"
   },

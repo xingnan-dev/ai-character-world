@@ -32,6 +32,7 @@ backend/src/main/resources/application-dev.yml
 frontend/node_modules/
 frontend/dist/
 frontend/dist-ssr/
+frontend/dist-design/
 frontend/.vite/
 frontend/.cache/
 node_modules/
