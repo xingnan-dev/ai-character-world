@@ -15,6 +15,7 @@ export async function consumeChatStream(reader, message, onError = () => {}) {
   const decoder = new TextDecoder()
   let buffer = ''
   let currentEvent = 'message'
+  let dataLines = []
 
   while (true) {
     const { done, value } = await reader.read()
@@ -25,16 +26,19 @@ export async function consumeChatStream(reader, message, onError = () => {}) {
     buffer += decoder.decode(value, { stream: true })
     const lines = buffer.split('\n')
     buffer = lines.pop() || ''
-    for (const line of lines) {
-      const trimmedLine = line.trim()
-      if (!trimmedLine) continue
-      if (trimmedLine.startsWith('event:')) {
-        currentEvent = trimmedLine.substring(6).trim()
+    for (let line of lines) {
+      if (line.endsWith('\r')) line = line.slice(0, -1)
+      if (line !== '') {
+        if (line.startsWith('event:')) currentEvent = line.slice(6).trim()
+        if (line.startsWith('data:')) {
+          const value = line.slice(5)
+          dataLines.push(value.startsWith(' ') ? value.slice(1) : value)
+        }
         continue
       }
-      if (!trimmedLine.startsWith('data:')) continue
-      const rawData = line.substring(line.indexOf('data:') + 5)
-      const data = rawData.startsWith(' ') ? rawData.substring(1) : rawData
+      if (!dataLines.length) { currentEvent = 'message'; continue }
+      const data = dataLines.join('\n')
+      dataLines = []
       if (currentEvent === 'error') {
         const messageText = parseSseErrorPayload(data)
         onError(messageText)
