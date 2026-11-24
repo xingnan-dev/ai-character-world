@@ -7,6 +7,7 @@
       <span class="atmosphere-orbit atmosphere-orbit--two"></span>
       <DuskStar class="atmosphere-mark atmosphere-mark--one" :size="14" tone="rose" />
       <DuskStar class="atmosphere-mark atmosphere-mark--two" :size="10" tone="ice" :spark="false" />
+      <PixelHeart class="atmosphere-heart" :size="15" />
     </div>
 
     <div class="chat-layout">
@@ -220,6 +221,7 @@ import SessionRail from '../components/SessionRail.vue'
 import ProfilePanel from '../components/ProfilePanel.vue'
 import PreviewDock from '../components/PreviewDock.vue'
 import DuskStar from '../components/DuskStar.vue'
+import PixelHeart from '../components/PixelHeart.vue'
 import {
   GENERATING_TEXT,
   PREVIEW_USER,
@@ -541,6 +543,16 @@ onBeforeUnmount(() => {
 .atmosphere-mark--two {
   bottom: 12%;
   left: 3%;
+}
+
+/* Small shared echo with the two home-hero studies: the same pixel-heart
+   charm, kept behind the message canvas and out of the reading column. */
+.atmosphere-heart {
+  position: absolute;
+  top: 22%;
+  right: 2.4%;
+  opacity: 0.42;
+  transform: rotate(8deg);
 }
 
 .chat-layout {
@@ -1217,6 +1229,10 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 960px) {
+  .atmosphere-heart {
+    display: none;
+  }
+
   .rail-panel {
     display: none;
   }

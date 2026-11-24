@@ -258,6 +258,13 @@ ol {
   background-size: 256px 256px;
 }
 
+/* The accepted v2 base keeps its full-page grain. In the two collage studies
+   the page-wide grain is quieter and the hero carries its own local texture,
+   so body copy, buttons and character cards stay clean. */
+.dream-app.hero-study-page::after {
+  opacity: 0.055;
+}
+
 .dream-script {
   font-family: var(--dream-font-script);
   font-weight: 400;

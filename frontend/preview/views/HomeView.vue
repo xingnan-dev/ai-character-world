@@ -1,15 +1,43 @@
 <template>
   <main class="home-view" id="main-content">
-    <section class="hero" aria-labelledby="hero-title">
-      <div class="hero-art" aria-hidden="true">
-        <img :src="heroDream" alt="" />
+    <p class="dream-sr-only" aria-live="polite">当前首页主视觉：{{ heroModeName }}</p>
+
+    <section class="hero" :class="`hero--${heroMode}`" aria-labelledby="hero-title">
+      <div class="hero-art" :class="`hero-art--${heroMode}`" aria-hidden="true">
+        <span v-if="heroMode !== 'v2'" class="hero-art__halo"></span>
+        <img :src="heroArt" alt="" />
         <span class="hero-art__wash"></span>
         <span class="hero-art__beam"></span>
+        <span
+          v-if="heroMode !== 'v2'"
+          class="hero-art__grain"
+          :style="{ backgroundImage: `url(${grainTile})` }"
+        ></span>
       </div>
       <span class="hero-orbit hero-orbit--one" aria-hidden="true"></span>
       <span class="hero-orbit hero-orbit--two" aria-hidden="true"></span>
+      <span v-if="heroMode !== 'v2'" class="hero-orbit hero-orbit--three" aria-hidden="true"></span>
       <DuskStar class="hero-mark hero-mark--one" :size="18" tone="rose" />
       <DuskStar class="hero-mark hero-mark--two" :size="11" tone="ice" :spark="false" />
+      <template v-if="heroMode !== 'v2'">
+        <DuskStar class="hero-mark hero-mark--three" :size="27" tone="gold" />
+        <DuskStar
+          class="hero-mark hero-mark--four"
+          :size="heroMode === 'a' ? 13 : 12"
+          :tone="heroMode === 'a' ? 'pearl' : 'rose'"
+          :spark="false"
+        />
+      </template>
+
+      <div v-if="heroMode !== 'v2'" class="hero-study-flag" role="note">
+        <span class="hero-study-flag__key">HERO {{ heroMode === 'a' ? 'A' : 'B' }}</span>
+        <span class="hero-study-flag__text">
+          {{ heroMode === 'a' ? '物件拼贴' : '剪影占位 · 未完成' }}
+        </span>
+        <em>{{ heroMode === 'a' ? 'OBJECT COLLAGE' : 'SILHOUETTE STUDY' }}</em>
+      </div>
+
+      <HeroPreviewDock :mode="heroMode" @update:hero="setHeroMode" />
 
       <div class="home-wrap hero-inner">
         <div class="hero-copy">
@@ -151,18 +179,51 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import DuskStar from '../components/DuskStar.vue'
+import HeroPreviewDock from '../components/HeroPreviewDock.vue'
 import { CHARACTERS, RECENT_SESSION_ID, SESSIONS, WORLD_PREVIEW_NOTE } from '../data.js'
 import heroDream from '../assets/art/hero-dream.webp'
+import heroCollageObject from '../assets/art/hero-collage-object.webp'
+import heroCollageFigure from '../assets/art/hero-collage-figure.webp'
+import grainTile from '../assets/art/grain-tile.png'
 import worldDream from '../assets/art/world-dream.webp'
+
+const HERO_STUDIES = ['a', 'b']
 
 const route = useRoute()
 const router = useRouter()
 const worldNotice = ref(false)
 let noticeTimer
 
+const heroMode = computed(() =>
+  HERO_STUDIES.includes(route.query.hero) ? route.query.hero : 'v2'
+)
+
+const heroModeName = computed(
+  () =>
+    ({
+      a: '方案 A · 物件拼贴',
+      b: '方案 B · 人物剪影（占位，未完成）',
+      v2: '第二版 · 浮光卷'
+    })[heroMode.value]
+)
+
+const heroArt = computed(() => {
+  if (heroMode.value === 'a') return heroCollageObject
+  if (heroMode.value === 'b') return heroCollageFigure
+  return heroDream
+})
+
 const recentSession = computed(
   () => SESSIONS.find((item) => item.id === RECENT_SESSION_ID) || SESSIONS[0]
 )
+
+function setHeroMode(value) {
+  if (value === heroMode.value) return
+  const query = { ...route.query }
+  if (value === 'v2') delete query.hero
+  else query.hero = value
+  router.replace({ path: '/home', query })
+}
 
 function openChat(sessionId) {
   router.push({ path: '/chat', query: sessionId ? { session: sessionId } : {} })
@@ -309,6 +370,334 @@ onBeforeUnmount(() => clearTimeout(noticeTimer))
 .hero-mark--two {
   right: 39%;
   bottom: 14%;
+}
+
+/* ------------------------------------------------------------------ */
+/* Hero studies A/B: same copy, same height, different composition.    */
+/* The v2 rules above stay untouched when hero=v2/default.             */
+/* ------------------------------------------------------------------ */
+
+.hero--a {
+  background:
+    radial-gradient(ellipse 38% 58% at 8% 74%, rgba(223, 154, 172, 0.2), transparent 72%),
+    radial-gradient(ellipse 44% 54% at 82% 6%, rgba(135, 182, 205, 0.17), transparent 70%),
+    radial-gradient(ellipse 30% 36% at 63% 56%, rgba(255, 244, 234, 0.6), transparent 76%);
+}
+
+.hero--b {
+  background:
+    radial-gradient(ellipse 34% 46% at 8% 44%, rgba(208, 153, 170, 0.16), transparent 72%),
+    radial-gradient(ellipse 46% 58% at 78% 16%, rgba(255, 244, 234, 0.5), transparent 70%),
+    radial-gradient(ellipse 36% 46% at 94% 86%, rgba(143, 184, 207, 0.14), transparent 72%);
+}
+
+.hero--a .hero-art {
+  left: 31%;
+}
+
+.hero--b .hero-art {
+  left: 34%;
+}
+
+.hero--a .hero-art img {
+  transform: none;
+  object-position: 53% 54%;
+  filter: saturate(1.05) contrast(1.015);
+  -webkit-mask-image:
+    linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.55) 9%, #000 21%),
+    linear-gradient(0deg, transparent 0%, rgba(0, 0, 0, 0.8) 8%, #000 22%);
+  mask-image:
+    linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.55) 9%, #000 21%),
+    linear-gradient(0deg, transparent 0%, rgba(0, 0, 0, 0.8) 8%, #000 22%);
+}
+
+.hero--b .hero-art img {
+  transform: scale(1.01);
+  object-position: 56% 47%;
+  filter: contrast(1.02) saturate(1.02);
+  -webkit-mask-image:
+    linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.58) 11%, #000 23%),
+    linear-gradient(0deg, transparent 0%, rgba(0, 0, 0, 0.74) 7%, #000 20%),
+    linear-gradient(180deg, transparent 0%, #000 6%);
+  mask-image:
+    linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.58) 11%, #000 23%),
+    linear-gradient(0deg, transparent 0%, rgba(0, 0, 0, 0.74) 7%, #000 20%),
+    linear-gradient(180deg, transparent 0%, #000 6%);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+
+.hero-art__halo {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(16px);
+}
+
+.hero--a .hero-art__halo {
+  top: 20%;
+  right: 14%;
+  width: 55%;
+  height: 63%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 246, 236, 0.48) 0%,
+    rgba(231, 177, 193, 0.16) 45%,
+    transparent 70%
+  );
+}
+
+.hero--b .hero-art__halo {
+  top: 1%;
+  right: 12%;
+  width: 58%;
+  height: 76%;
+  background: radial-gradient(
+    ellipse 52% 56% at 56% 37%,
+    rgba(255, 247, 238, 0.34) 0%,
+    rgba(236, 185, 199, 0.13) 46%,
+    transparent 71%
+  );
+  filter: blur(22px);
+}
+
+.hero-art__grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.13;
+  mix-blend-mode: multiply;
+  background-size: 224px 224px;
+  pointer-events: none;
+  -webkit-mask-image: radial-gradient(
+    ellipse 58% 64% at 66% 56%,
+    #000 0%,
+    rgba(0, 0, 0, 0.62) 54%,
+    transparent 78%
+  );
+  mask-image: radial-gradient(
+    ellipse 58% 64% at 66% 56%,
+    #000 0%,
+    rgba(0, 0, 0, 0.62) 54%,
+    transparent 78%
+  );
+}
+
+.hero--b .hero-art__grain {
+  -webkit-mask-image: radial-gradient(
+    ellipse 54% 58% at 67% 42%,
+    #000 0%,
+    rgba(0, 0, 0, 0.56) 52%,
+    transparent 76%
+  );
+  mask-image: radial-gradient(
+    ellipse 54% 58% at 67% 42%,
+    #000 0%,
+    rgba(0, 0, 0, 0.56) 52%,
+    transparent 76%
+  );
+}
+
+.hero--a .hero-art__wash {
+  background:
+    radial-gradient(ellipse 38% 46% at 58% 56%, rgba(255, 248, 240, 0.3), transparent 70%),
+    linear-gradient(92deg, rgba(244, 239, 237, 0.46), transparent 30%),
+    linear-gradient(0deg, rgba(241, 236, 238, 0.32), transparent 20%);
+}
+
+.hero--b .hero-art__wash {
+  background:
+    radial-gradient(ellipse 36% 46% at 66% 38%, rgba(255, 247, 239, 0.22), transparent 68%),
+    linear-gradient(92deg, rgba(244, 239, 237, 0.5), transparent 28%),
+    linear-gradient(0deg, rgba(241, 236, 238, 0.42), transparent 20%);
+}
+
+.hero--a .hero-art__beam {
+  top: 2%;
+  right: 0;
+  width: 50%;
+  height: 94%;
+  background: linear-gradient(
+    112deg,
+    transparent 7%,
+    rgba(255, 248, 240, 0.32) 46%,
+    rgba(220, 177, 192, 0.12) 61%,
+    transparent 88%
+  );
+  filter: blur(24px);
+  transform: rotate(9deg);
+  opacity: 0.72;
+}
+
+.hero--b .hero-art__beam {
+  top: -2%;
+  right: 4%;
+  width: 46%;
+  height: 100%;
+  background: linear-gradient(
+    105deg,
+    transparent 10%,
+    rgba(255, 248, 241, 0.26) 48%,
+    rgba(164, 199, 218, 0.1) 66%,
+    transparent 88%
+  );
+  filter: blur(26px);
+  transform: rotate(-5deg);
+  opacity: 0.7;
+}
+
+.hero--a .hero-orbit--one {
+  top: 13%;
+  right: -8%;
+  width: 60%;
+  height: 66%;
+  border-color: rgba(108, 146, 171, 0.26);
+  transform: rotate(-11deg);
+}
+
+.hero--a .hero-orbit--two {
+  right: 27%;
+  bottom: 13%;
+  width: 24%;
+  height: 10%;
+  border-color: rgba(191, 118, 142, 0.26);
+  transform: rotate(-9deg);
+}
+
+.hero--b .hero-orbit--one {
+  top: 9%;
+  right: -3%;
+  width: 53%;
+  height: 64%;
+  border-color: rgba(92, 136, 160, 0.2);
+  transform: rotate(8deg);
+}
+
+.hero--b .hero-orbit--two {
+  right: 32%;
+  bottom: 17%;
+  width: 18%;
+  height: 8%;
+  border-color: rgba(188, 129, 148, 0.24);
+  transform: rotate(-7deg);
+}
+
+.hero-orbit--three {
+  border-color: rgba(190, 133, 151, 0.24);
+  pointer-events: none;
+}
+
+.hero--a .hero-orbit--three {
+  top: 59%;
+  right: 9%;
+  width: 44%;
+  height: 15%;
+  transform: rotate(-24deg);
+}
+
+.hero--b .hero-orbit--three {
+  top: 26%;
+  right: 22%;
+  width: 46%;
+  height: 54%;
+  border-color: rgba(190, 133, 151, 0.18);
+  transform: rotate(-15deg);
+}
+
+.hero--a .hero-mark--one {
+  top: 17%;
+  right: 9%;
+  opacity: 0.8;
+}
+
+.hero--a .hero-mark--two {
+  right: 42%;
+  bottom: 17%;
+  opacity: 0.56;
+}
+
+.hero--a .hero-mark--three {
+  top: 24%;
+  right: 21%;
+  opacity: 0.86;
+}
+
+.hero--a .hero-mark--four {
+  top: 63%;
+  right: 45%;
+  opacity: 0.52;
+}
+
+.hero--b .hero-mark--one {
+  top: 14%;
+  right: 8%;
+  opacity: 0.74;
+}
+
+.hero--b .hero-mark--two {
+  right: 36%;
+  bottom: 13%;
+  opacity: 0.5;
+}
+
+.hero--b .hero-mark--three {
+  top: 19%;
+  right: 15%;
+  opacity: 0.72;
+}
+
+.hero--b .hero-mark--four {
+  top: 56%;
+  right: 39%;
+  opacity: 0.42;
+}
+
+.hero--b .art-note {
+  color: rgba(255, 249, 242, 0.82);
+  text-shadow: 0 1px 9px rgba(39, 42, 62, 0.42);
+}
+
+.hero--b .art-note small {
+  color: rgba(255, 248, 240, 0.64);
+  text-shadow: 0 1px 8px rgba(39, 42, 62, 0.36);
+}
+
+.hero-study-flag {
+  position: absolute;
+  z-index: 5;
+  top: 16px;
+  left: calc(31% + 16px);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px dashed rgba(199, 121, 144, 0.4);
+  border-radius: var(--dream-radius-pill);
+  color: var(--dream-ink-3);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  background: rgba(255, 252, 247, 0.64);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+}
+
+.hero-study-flag__key {
+  color: var(--dream-rose);
+  font-size: 7.5px;
+  letter-spacing: 0.14em;
+}
+
+.hero-study-flag__text {
+  color: var(--dream-ink-2);
+  font-family: var(--dream-font-body);
+  font-size: 9.5px;
+  letter-spacing: 0.03em;
+}
+
+.hero-study-flag em {
+  color: var(--dream-ink-3);
+  font-family: var(--dream-font-annotation);
+  font-size: 7px;
+  font-style: normal;
+  letter-spacing: 0.11em;
 }
 
 .hero-inner {
@@ -1112,6 +1501,95 @@ onBeforeUnmount(() => clearTimeout(noticeTimer))
     mask-composite: intersect;
   }
 
+  .hero--a .hero-art,
+  .hero--b .hero-art {
+    left: auto;
+  }
+
+  .hero--a .hero-art img {
+    transform: scale(1.06);
+    object-position: 61% 58%;
+    -webkit-mask-image:
+      linear-gradient(0deg, transparent 0%, #000 20%),
+      linear-gradient(90deg, transparent 0%, #000 8%),
+      linear-gradient(270deg, transparent 0%, #000 8%);
+    mask-image:
+      linear-gradient(0deg, transparent 0%, #000 20%),
+      linear-gradient(90deg, transparent 0%, #000 8%),
+      linear-gradient(270deg, transparent 0%, #000 8%);
+  }
+
+  .hero--b .hero-art img {
+    transform: scale(1.02);
+    object-position: 58% 36%;
+    -webkit-mask-image:
+      linear-gradient(0deg, transparent 0%, #000 18%),
+      linear-gradient(90deg, transparent 0%, #000 8%),
+      linear-gradient(270deg, transparent 0%, #000 10%);
+    mask-image:
+      linear-gradient(0deg, transparent 0%, #000 18%),
+      linear-gradient(90deg, transparent 0%, #000 8%),
+      linear-gradient(270deg, transparent 0%, #000 10%);
+  }
+
+  .hero--a .hero-art__halo {
+    top: 24%;
+    right: 8%;
+    width: 78%;
+    height: 88%;
+  }
+
+  .hero--b .hero-art__halo {
+    top: -8%;
+    right: 16%;
+    width: 72%;
+    height: 110%;
+  }
+
+  .hero--a .hero-orbit--one {
+    top: 2%;
+    right: -18%;
+    width: 74%;
+    height: 220px;
+    transform: rotate(-14deg);
+  }
+
+  .hero--b .hero-orbit--one {
+    top: -2%;
+    right: -10%;
+    width: 66%;
+    height: 250px;
+    transform: rotate(7deg);
+  }
+
+  .hero--a .hero-orbit--two,
+  .hero--b .hero-orbit--two,
+  .hero-orbit--three {
+    display: none;
+  }
+
+  .hero--a .hero-mark--three,
+  .hero--b .hero-mark--three {
+    top: 31%;
+    right: 7%;
+  }
+
+  .hero--a .hero-mark--four,
+  .hero--b .hero-mark--four {
+    top: 58%;
+    right: 20%;
+  }
+
+  .hero-art__grain {
+    opacity: 0.1;
+  }
+
+  .hero-study-flag {
+    top: 10px;
+    left: 12px;
+    padding: 5px 8px;
+  }
+
   .hero-inner {
     padding-top: 26px;
   }
@@ -1201,6 +1679,28 @@ onBeforeUnmount(() => clearTimeout(noticeTimer))
 }
 
 @media (max-width: 640px) {
+  /* On a narrow banner the transparent cut-outs need a tighter crop so the
+     collage still reads as a subject, not as a pale page. The art block and
+     the hero height stay identical to v2. */
+  .hero--a .hero-art img {
+    transform: scale(1.38);
+    transform-origin: 78% 62%;
+  }
+
+  .hero--b .hero-art img {
+    transform: scale(1.5);
+    transform-origin: 70% 24%;
+  }
+
+  /* The zoomed object sits under the annotation on narrow screens; a quiet
+     pearly backing keeps the small label legible without covering the art. */
+  .hero--a .art-note {
+    padding: 3px 7px;
+    border-radius: 4px;
+    background: rgba(255, 250, 243, 0.66);
+    backdrop-filter: blur(3px);
+  }
+
   .home-wrap {
     width: calc(100% - 30px);
   }
@@ -1289,6 +1789,18 @@ onBeforeUnmount(() => clearTimeout(noticeTimer))
   .art-note {
     top: 194px;
     font-size: 7.5px;
+  }
+
+  .hero-study-flag em {
+    display: none;
+  }
+
+  .hero-study-flag__key {
+    font-size: 7px;
+  }
+
+  .hero-study-flag__text {
+    font-size: 9px;
   }
 
   .section-heading {
