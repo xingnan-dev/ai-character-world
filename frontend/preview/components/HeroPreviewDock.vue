@@ -34,7 +34,10 @@
         </button>
       </div>
 
-      <p v-if="mode === 'b'" class="hero-study__warning">
+      <p v-if="mode === 'fusion'" class="hero-study__warning">
+        程序化渲染探索稿：水晶接缝、蝴蝶结与珍珠形态、上部过渡带仍有材质问题，未达成品质量。
+      </p>
+      <p v-else-if="mode === 'b'" class="hero-study__warning">
         B 的人物为程序化剪影占位，尚未达到成品人像质量；本地缺少可用的原创人物图像生成能力。
       </p>
       <p v-else class="hero-study__hint">
@@ -42,7 +45,7 @@
       </p>
 
       <div class="hero-study__foot">
-        <span>?hero=a / b / v2</span>
+        <span>?hero=fusion / a / b / v2</span>
         <RouterLink to="/chat">对话页 ↗</RouterLink>
       </div>
     </div>
@@ -60,6 +63,13 @@ const emit = defineEmits(['update:hero'])
 const open = ref(false)
 
 const options = [
+  {
+    value: 'fusion',
+    key: 'F',
+    label: '融合探索稿',
+    english: 'CHARM STILL LIFE',
+    hint: '在 v2 的丝绸光场里重新安排链条、蝴蝶结、水晶与像素爱心，共用一套光源与投影；材质仍在打磨。'
+  },
   {
     value: 'a',
     key: 'A',
@@ -84,7 +94,7 @@ const options = [
 ]
 
 const currentOption = computed(
-  () => options.find((option) => option.value === props.mode) || options[2]
+  () => options.find((option) => option.value === props.mode) || options[options.length - 1]
 )
 
 function choose(value) {
@@ -306,6 +316,53 @@ function choose(value) {
 
   .hero-study__tag::before {
     content: "HERO ";
+  }
+
+  /* On a phone the panel opens over the art banner; a two-column option grid
+     keeps it short enough that it never covers the headline below. */
+  .hero-study__note {
+    display: none;
+  }
+
+  .hero-study__panel {
+    padding: 9px;
+  }
+
+  .hero-study__options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+  }
+
+  .hero-study__option {
+    min-height: 38px;
+    padding: 4px 5px;
+    gap: 5px;
+  }
+
+  .hero-study__option-key {
+    width: 22px;
+    font-size: 12px;
+  }
+
+  .hero-study__option-copy strong {
+    font-size: 9.5px;
+  }
+
+  .hero-study__option-copy small {
+    font-size: 6.5px;
+    letter-spacing: 0.06em;
+  }
+
+  .hero-study__warning {
+    margin-top: 7px;
+    font-size: 8px;
+    line-height: 1.5;
+  }
+
+  .hero-study__foot {
+    margin-top: 7px;
+    padding-top: 6px;
   }
 }
 

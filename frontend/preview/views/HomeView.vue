@@ -23,18 +23,16 @@
         <DuskStar class="hero-mark hero-mark--three" :size="27" tone="gold" />
         <DuskStar
           class="hero-mark hero-mark--four"
-          :size="heroMode === 'a' ? 13 : 12"
+          :size="heroMode === 'a' ? 13 : heroMode === 'fusion' ? 14 : 12"
           :tone="heroMode === 'a' ? 'pearl' : 'rose'"
           :spark="false"
         />
       </template>
 
       <div v-if="heroMode !== 'v2'" class="hero-study-flag" role="note">
-        <span class="hero-study-flag__key">HERO {{ heroMode === 'a' ? 'A' : 'B' }}</span>
-        <span class="hero-study-flag__text">
-          {{ heroMode === 'a' ? '物件拼贴' : '剪影占位 · 未完成' }}
-        </span>
-        <em>{{ heroMode === 'a' ? 'OBJECT COLLAGE' : 'SILHOUETTE STUDY' }}</em>
+        <span class="hero-study-flag__key">{{ studyFlag.key }}</span>
+        <span class="hero-study-flag__text">{{ studyFlag.text }}</span>
+        <em>{{ studyFlag.english }}</em>
       </div>
 
       <HeroPreviewDock :mode="heroMode" @update:hero="setHeroMode" />
@@ -84,8 +82,8 @@
       </div>
 
       <div class="art-note" aria-hidden="true">
-        <span>MATERIAL STUDY · N°02</span>
-        <small>silk / light / pearl</small>
+        <span>{{ heroMode === 'fusion' ? 'FUSION STUDY · N°03' : 'MATERIAL STUDY · N°02' }}</span>
+        <small>{{ heroMode === 'fusion' ? 'charm / silk / light' : 'silk / light / pearl' }}</small>
       </div>
     </section>
 
@@ -184,10 +182,11 @@ import { CHARACTERS, RECENT_SESSION_ID, SESSIONS, WORLD_PREVIEW_NOTE } from '../
 import heroDream from '../assets/art/hero-dream.webp'
 import heroCollageObject from '../assets/art/hero-collage-object.webp'
 import heroCollageFigure from '../assets/art/hero-collage-figure.webp'
+import heroFusion from '../assets/art/hero-fusion-v2.webp'
 import grainTile from '../assets/art/grain-tile.png'
 import worldDream from '../assets/art/world-dream.webp'
 
-const HERO_STUDIES = ['a', 'b']
+const HERO_STUDIES = ['a', 'b', 'fusion']
 
 const route = useRoute()
 const router = useRouter()
@@ -203,6 +202,7 @@ const heroModeName = computed(
     ({
       a: '方案 A · 物件拼贴',
       b: '方案 B · 人物剪影（占位，未完成）',
+      fusion: '融合探索稿 · 挂件静物（材质待打磨）',
       v2: '第二版 · 浮光卷'
     })[heroMode.value]
 )
@@ -210,8 +210,18 @@ const heroModeName = computed(
 const heroArt = computed(() => {
   if (heroMode.value === 'a') return heroCollageObject
   if (heroMode.value === 'b') return heroCollageFigure
+  if (heroMode.value === 'fusion') return heroFusion
   return heroDream
 })
+
+const studyFlag = computed(
+  () =>
+    ({
+      a: { key: 'HERO A', text: '物件拼贴', english: 'OBJECT COLLAGE' },
+      b: { key: 'HERO B', text: '剪影占位 · 未完成', english: 'SILHOUETTE STUDY' },
+      fusion: { key: 'HERO FUSION', text: '融合探索 · 材质待打磨', english: 'CHARM STILL LIFE' }
+    })[heroMode.value]
+)
 
 const recentSession = computed(
   () => SESSIONS.find((item) => item.id === RECENT_SESSION_ID) || SESSIONS[0]
@@ -425,6 +435,221 @@ onBeforeUnmount(() => clearTimeout(noticeTimer))
     linear-gradient(180deg, transparent 0%, #000 6%);
   -webkit-mask-composite: source-in;
   mask-composite: intersect;
+}
+
+/* ------------------------------------------------------------------ */
+/* Fusion study: silk, bow, crystal and pearls share one studio light. */
+/* This is an exploration with known material limits, not a final hero.*/
+/* ------------------------------------------------------------------ */
+
+.hero--fusion {
+  min-height: min(576px, calc(100dvh - var(--dream-nav-h) - 88px));
+  background:
+    radial-gradient(ellipse 38% 54% at 6% 72%, rgba(220, 160, 178, 0.16), transparent 72%),
+    radial-gradient(ellipse 44% 60% at 88% 10%, rgba(255, 243, 235, 0.52), transparent 72%),
+    radial-gradient(ellipse 34% 44% at 96% 88%, rgba(148, 184, 207, 0.13), transparent 74%);
+}
+
+.hero--fusion .hero-art {
+  left: 34%;
+}
+
+.hero--fusion .hero-art img {
+  transform: scale(1.06);
+  object-position: 62% 46%;
+  filter: saturate(1.02) contrast(1.01);
+  -webkit-mask-image:
+    linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.35) 10%, #000 26%),
+    linear-gradient(0deg, transparent 0%, rgba(0, 0, 0, 0.55) 12%, #000 30%),
+    linear-gradient(180deg, transparent 0%, #000 7%);
+  mask-image:
+    linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.35) 10%, #000 26%),
+    linear-gradient(0deg, transparent 0%, rgba(0, 0, 0, 0.55) 12%, #000 30%),
+    linear-gradient(180deg, transparent 0%, #000 7%);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+
+.hero--fusion .hero-art__halo {
+  top: 8%;
+  right: 1%;
+  width: 50%;
+  height: 72%;
+  background: radial-gradient(
+    ellipse 56% 52% at 66% 38%,
+    rgba(255, 244, 235, 0.46) 0%,
+    rgba(233, 180, 196, 0.14) 52%,
+    transparent 72%
+  );
+  filter: blur(22px);
+}
+
+.hero--fusion .hero-art__wash {
+  background:
+    linear-gradient(92deg, rgba(244, 239, 237, 0.42), transparent 24%),
+    linear-gradient(0deg, rgba(241, 236, 238, 0.26), transparent 18%);
+}
+
+.hero--fusion .hero-art__beam {
+  display: none;
+}
+
+.hero--fusion .hero-art__grain {
+  opacity: 0.055;
+}
+
+.hero--fusion .hero-study-flag {
+  left: calc(34% + 16px);
+}
+
+.hero--fusion .hero-orbit--one {
+  top: 9%;
+  right: -6%;
+  width: 52%;
+  height: 58%;
+  transform: rotate(-9deg);
+  border-color: rgba(107, 146, 170, 0.17);
+}
+
+.hero--fusion .hero-orbit--two {
+  right: 30%;
+  bottom: 13%;
+  width: 20%;
+  height: 8%;
+  transform: rotate(-5deg);
+  border-color: rgba(191, 118, 142, 0.15);
+}
+
+.hero--fusion .hero-orbit--three {
+  display: none;
+}
+
+.hero--fusion .hero-mark--one {
+  top: 14%;
+  right: 5%;
+  opacity: 0.6;
+}
+
+.hero--fusion .hero-mark--two {
+  right: 44%;
+  bottom: 16%;
+  opacity: 0.4;
+}
+
+.hero--fusion .hero-mark--three {
+  top: 27%;
+  right: 24%;
+  opacity: 0.5;
+}
+
+.hero--fusion .hero-mark--four {
+  top: 58%;
+  right: 50%;
+  opacity: 0.34;
+}
+
+@media (max-width: 1024px) {
+  .hero--fusion {
+    min-height: min(540px, calc(100dvh - var(--dream-nav-h) - 88px));
+  }
+
+  .hero--fusion .hero-art {
+    left: 30%;
+  }
+
+  .hero--fusion .hero-art img {
+    transform: scale(1.06) translateX(-10%);
+  }
+
+  .hero--fusion .hero-study-flag {
+    left: calc(30% + 16px);
+  }
+
+  .hero--fusion + .home-body .section-heading {
+    padding-top: 20px;
+  }
+}
+
+@media (max-width: 860px) {
+  .hero--fusion {
+    min-height: 0;
+  }
+
+  .hero--fusion .hero-art {
+    left: auto;
+  }
+
+  .hero--fusion .hero-art img {
+    /* shift the charm away from the dock tab and keep it legible as subject */
+    transform: scale(1.4) translateX(-16%);
+    transform-origin: 70% 0%;
+    object-position: 61% 14%;
+    filter: saturate(1.02) contrast(1.01);
+    -webkit-mask-image:
+      linear-gradient(0deg, transparent 0%, #000 20%),
+      linear-gradient(90deg, transparent 0%, #000 8%),
+      linear-gradient(270deg, transparent 0%, #000 8%);
+    mask-image:
+      linear-gradient(0deg, transparent 0%, #000 20%),
+      linear-gradient(90deg, transparent 0%, #000 8%),
+      linear-gradient(270deg, transparent 0%, #000 8%);
+  }
+
+  .hero--fusion .hero-study-flag {
+    display: none;
+  }
+
+  .hero--fusion .hero-art__halo {
+    top: 20%;
+    right: 10%;
+    width: 66%;
+    height: 82%;
+  }
+
+  .hero--fusion .hero-orbit--one {
+    top: 2%;
+    right: -10%;
+    width: 62%;
+    height: 220px;
+    transform: rotate(-11deg);
+  }
+
+  .hero--fusion .hero-orbit--two {
+    display: none;
+  }
+
+  .hero--fusion .hero-mark--three {
+    top: 37%;
+    right: 9%;
+  }
+
+  .hero--fusion .hero-mark--four {
+    top: 62%;
+    right: 26%;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero--fusion .hero-art {
+    height: 200px;
+  }
+
+  .hero--fusion .hero-art img {
+    object-position: 61% 12%;
+  }
+
+  .hero--fusion .hero-inner {
+    padding-top: 20px;
+    padding-bottom: 18px;
+  }
+
+  .hero--fusion .art-note {
+    top: 172px;
+    padding: 3px 7px;
+    border-radius: 4px;
+    background: rgba(255, 250, 243, 0.66);
+    backdrop-filter: blur(3px);
+  }
 }
 
 .hero-art__halo {
